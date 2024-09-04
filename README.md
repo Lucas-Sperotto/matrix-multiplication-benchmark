@@ -34,7 +34,7 @@ No Ubuntu, você pode instalar as dependências com os seguintes comandos:
 sudo apt update
 sudo apt install build-essential python3 default-jdk elixir
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-
+```
 
 gcc matriz_c.c -o matriz_c
 ./matriz_c
