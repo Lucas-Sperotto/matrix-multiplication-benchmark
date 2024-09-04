@@ -104,7 +104,7 @@ Sinta-se à vontade para contribuir com melhorias ou incluir outras linguagens p
 
 ## Colaboração
 
-Este projeto foi desenvolvido em colaboração entre [Lucas Kriesel Sperotto](https://github.com/Lucas-Sperotto) e [Marcos Adriano](https://github.com/usuario-do-aluno). A execução dos testes de desempenho e a coleta de dados foram realizadas por ambos, garantindo que o processo fosse colaborativo e justo.
+Este projeto foi desenvolvido em colaboração entre [Lucas Kriesel Sperotto](https://github.com/Lucas-Sperotto) e [Marcos Adriano](https://github.com/MarcosAS3). A execução dos testes de desempenho e a coleta de dados foram realizadas por ambos, garantindo que o processo fosse colaborativo e justo.
 
 
 ## Licença
