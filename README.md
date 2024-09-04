@@ -30,28 +30,55 @@ Para executar os testes, você precisará ter as seguintes ferramentas instalada
 
 No Ubuntu, você pode instalar as dependências com os seguintes comandos:
 
-```bash
-sudo apt update
-sudo apt install build-essential python3 default-jdk elixir
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-```
+    ```bash
+    sudo apt update
+    sudo apt install build-essential python3 default-jdk elixir
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+    ```
 
-gcc matriz_c.c -o matriz_c
-./matriz_c
+### Compilando e Executando os Códigos
 
-g++ matriz_cpp.cpp -o matriz_cpp
-./matriz_cpp
+1. **C**:
+   ```bash
+   gcc matriz_c.c -o matriz_c
+   ./matriz_c
+   
+2. **C++**:
+   ```bash
+   g++ matriz_cpp.cpp -o matriz_cpp
+   ./matriz_cpp
 
-python3 matriz_python.py
+3. **Python**:
+   ```bash
+   python3 matriz_python.py
 
-javac MatrixMultiplication.java
-java MatrixMultiplication
+4. **Java**:
+   ```bash
+   javac MatrixMultiplication.java
+   java MatrixMultiplication
 
-rustc matriz_rust.rs
-./matriz_rust
+5. **Rust**:
+   ```bash
+   rustc matriz_rust.rs
+   ./matriz_rust
 
-elixir matriz_multiplication.exs
+6. **Elixir**:
+   ```bash
+   elixir matriz_multiplication.exs
 
+## Estrutura do Código
 
+Cada arquivo implementa a multiplicação de duas matrizes \(N \times N\). A função de multiplicação segue a estrutura de três loops `for`, padrão para algoritmos de multiplicação de matrizes, garantindo consistência na comparação entre linguagens.
+
+## Parâmetros do Teste
+
+O valor de \(N\) (o tamanho da matriz) pode ser ajustado dentro de cada código.  
+Em testes iniciais, foram utilizados \(N = 500\), \(N = 1000\), \(N = 5000\), com medições de tempo e uso de memória.
+
+## Medição de Desempenho
+
+### Tempo de Execução
+
+O tempo de execução é medido diretamente nos códigos com funções de medição específicas para cada linguagem.
 
 
