@@ -30,11 +30,11 @@ Para executar os testes, você precisará ter as seguintes ferramentas instalada
 
 No Ubuntu, você pode instalar as dependências com os seguintes comandos:
 
-    ```bash
+```bash
     sudo apt update
     sudo apt install build-essential python3 default-jdk elixir
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-    ```
+```
 
 ### Compilando e Executando os Códigos
 
@@ -68,12 +68,12 @@ No Ubuntu, você pode instalar as dependências com os seguintes comandos:
 
 ## Estrutura do Código
 
-Cada arquivo implementa a multiplicação de duas matrizes \(N × N\). A função de multiplicação segue a estrutura de três loops `for`, padrão para algoritmos de multiplicação de matrizes, garantindo consistência na comparação entre linguagens.
+Cada arquivo implementa a multiplicação de duas matrizes **N × N**. A função de multiplicação segue a estrutura de três loops `for`, padrão para algoritmos de multiplicação de matrizes, garantindo consistência na comparação entre linguagens.
 
 ## Parâmetros do Teste
 
-O valor de \(N\) (o tamanho da matriz) pode ser ajustado dentro de cada código.  
-Em testes iniciais, foram utilizados \(N = 500\), \(N = 1000\), \(N = 5000\), com medições de tempo e uso de memória.
+O valor de **N** (o tamanho da matriz) pode ser ajustado dentro de cada código.  
+Em testes iniciais, foram utilizados **N = 500**, **N = 1000**, **N = 5000**, com medições de tempo e uso de memória.
 
 ## Medição de Desempenho
 
@@ -81,4 +81,32 @@ Em testes iniciais, foram utilizados \(N = 500\), \(N = 1000\), \(N = 5000\), co
 
 O tempo de execução é medido diretamente nos códigos com funções de medição específicas para cada linguagem.
 
+### Uso de Memória
 
+Para monitorar o uso de memória em tempo real, recomendamos o uso dos seguintes comandos:
+
+```bash
+    /usr/bin/time -v ./matriz_c
+```
+    
+Ou monitore os processos usando o `htop` ou `top` para acompanhamento em tempo real.
+
+## Resultados Esperados
+
+- C e C++ tendem a ter desempenho mais rápido em operações intensivas de CPU.
+- Rust oferece segurança de memória com um impacto mínimo no desempenho.
+- Python, por ser interpretado, tende a ser mais lento.
+- Elixir e Java podem variar em desempenho dependendo da implementação e do uso de paralelismo.
+
+## Contribuição
+
+Sinta-se à vontade para contribuir com melhorias ou incluir outras linguagens para comparação. Basta abrir uma issue ou enviar um pull request.
+
+## Colaboração
+
+Este projeto foi desenvolvido em colaboração entre [Lucas Kriesel Sperotto](https://github.com/Lucas-Sperotto) e [Marcos Adriano](https://github.com/usuario-do-aluno). A execução dos testes de desempenho e a coleta de dados foram realizadas por ambos, garantindo que o processo fosse colaborativo e justo.
+
+
+## Licença
+
+Este projeto está licenciado sob a licença MIT - veja o arquivo [LICENSE](LICENSE) para mais detalhes.
