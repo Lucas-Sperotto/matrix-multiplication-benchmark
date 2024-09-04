@@ -68,7 +68,7 @@ No Ubuntu, você pode instalar as dependências com os seguintes comandos:
 
 ## Estrutura do Código
 
-Cada arquivo implementa a multiplicação de duas matrizes \(N \times N\). A função de multiplicação segue a estrutura de três loops `for`, padrão para algoritmos de multiplicação de matrizes, garantindo consistência na comparação entre linguagens.
+Cada arquivo implementa a multiplicação de duas matrizes \(N × N\). A função de multiplicação segue a estrutura de três loops `for`, padrão para algoritmos de multiplicação de matrizes, garantindo consistência na comparação entre linguagens.
 
 ## Parâmetros do Teste
 
