@@ -1,3 +1,29 @@
+/**********************************************************************
+ * Projeto: Benchmark de Multiplicação de Matrizes
+ * Descrição: Este código realiza a multiplicação de duas matrizes 
+ *            de tamanho N x N, variando automaticamente o valor de N 
+ *            e medindo o tempo de alocação de memória, cálculo, 
+ *            e liberação de memória.
+ *            O código salva os resultados em um arquivo de saída.
+ *
+ * Linguagem: C++
+ *
+ * Autores: Lucas Kriesel Sperotto, Marcos Adriano Silva David
+ * Data: 05/09/2024
+ *
+ * Parâmetros:
+ *  - N: tamanho da matriz (varia de 10 até 10.000)
+ *
+ * Saída: Arquivo de resultados contendo:
+ *  - Tempo de alocação de memória
+ *  - Tempo de cálculo (multiplicação das matrizes)
+ *  - Tempo de liberação de memória
+ *
+ * Uso:
+ *  - Compile e execute o código, e o arquivo de saída será gerado 
+ *    contendo os resultados para diferentes valores de N.
+ **********************************************************************/
+
 #include <iostream>
 #include <fstream>
 #include <ctime>
