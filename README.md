@@ -31,9 +31,9 @@ Para executar os testes, você precisará ter as seguintes ferramentas instalada
 No Ubuntu, você pode instalar as dependências com os seguintes comandos:
 
 ```bash
-    sudo apt update
-    sudo apt install build-essential python3 default-jdk elixir
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+sudo apt update
+sudo apt install build-essential python3 default-jdk elixir
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
 ### Compilando e Executando os Códigos
@@ -86,7 +86,7 @@ O tempo de execução é medido diretamente nos códigos com funções de mediç
 Para monitorar o uso de memória em tempo real, recomendamos o uso dos seguintes comandos:
 
 ```bash
-    /usr/bin/time -v ./matriz_c
+/usr/bin/time -v ./matriz_c
 ```
     
 Ou monitore os processos usando o `htop` ou `top` para acompanhamento em tempo real.
@@ -105,7 +105,6 @@ Sinta-se à vontade para contribuir com melhorias ou incluir outras linguagens p
 ## Colaboração
 
 Este projeto foi desenvolvido em colaboração entre [Lucas Kriesel Sperotto](https://github.com/Lucas-Sperotto) e [Marcos Adriano](https://github.com/MarcosAS3). A execução dos testes de desempenho e a coleta de dados foram realizadas por ambos, garantindo que o processo fosse colaborativo e justo.
-
 
 ## Licença
 
