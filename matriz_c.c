@@ -40,14 +40,15 @@ void multiply(int **mat1, int **mat2, int **res, int N) {
 }
 
 int main() {
-    FILE *f = fopen("resultado_c.dat", "w");
-    if (f == NULL) {
-        printf("Erro ao abrir o arquivo!\n");
-        return 1;
-    }
+   
 
-    for (int N = 10; N <= 10000; N *= 10) {  // Varie N automaticamente de 10 a 10000
+    for (int N = 10; N <= 10000; N) {  // Varie N automaticamente de 10 a 10000
 
+        FILE *f = fopen("resultado_c.dat", "w");
+        if (f == NULL) {
+            printf("Erro ao abrir o arquivo!\n");
+            return 1;
+        }
         // Medindo o tempo de alocação de memória
         clock_t start_alloc = clock();
         int **mat1 = (int **)malloc(N * sizeof(int *));
@@ -97,9 +98,15 @@ int main() {
         fprintf(f, "Tempo de liberação de memória: %f segundos\n\n", time_free);
 
         printf("Resultados para N = %d salvos.\n", N);
+         // Altera o valor de N
+        if(N >= 1000)
+            N+=1000;
+        else
+            N *= 10;
+        fclose(f);
     }
 
-    fclose(f);
+    
     printf("Todos os resultados foram salvos no arquivo resultado_c.dat.\n");
     return 0;
 }
