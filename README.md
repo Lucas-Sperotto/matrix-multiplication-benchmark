@@ -73,7 +73,7 @@ Cada arquivo implementa a multiplicação de duas matrizes **N × N**. A funçã
 ## Parâmetros do Teste
 
 O valor de **N** (o tamanho da matriz) pode ser ajustado dentro de cada código.  
-Em testes iniciais, foram utilizados **N = 500**, **N = 1000**, **N = 5000**, com medições de tempo e uso de memória.
+Em testes iniciais, foram utilizados **N = 10**, **N = 100**, **N = 1000**, **N = 2000**, **N = 3000**, **N = 4000**, **N = 5000**, **N = 6000**, **N = 7000**, **N = 8000**, **N = 9000** e **N = 10000**, com medições de tempo e uso de memória.
 
 ## Medição de Desempenho
 
