@@ -23,6 +23,7 @@
 # **********************************************************************
 
 import time
+import psutil
 
 def multiply(mat1, mat2, N):
     res = [[0] * N for _ in range(N)]
@@ -35,7 +36,7 @@ def multiply(mat1, mat2, N):
 # Abrir o arquivo para salvar os resultados
 with open("resultado_python.dat", "w") as f:
 
-    for N in [10, 100, 1000, 10000]:  # Varie N automaticamente de 10 a 10000
+    for N in [10, 100, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000]:  # Varie N automaticamente de 10 a 10000
         
         # Medir o tempo de alocação de memória
         start_alloc = time.time()
@@ -44,19 +45,24 @@ with open("resultado_python.dat", "w") as f:
         end_alloc = time.time()
         time_alloc = end_alloc - start_alloc
 
+        # Medir a quantidade de memória usada
+        process = psutil.Process()
+        memory_info = process.memory_info().rss / 1024  # Convert to KB
+
         # Medir o tempo de cálculo
         start_calc = time.time()
         res = multiply(mat1, mat2, N)
         end_calc = time.time()
         time_calc = end_calc - start_calc
-
+        
+        
         # Em Python, não precisamos medir o tempo de liberação de memória, pois o garbage collector cuida disso.
 
         # Salvando os resultados no arquivo
         f.write(f"N = {N}\n")
         f.write(f"Tempo de alocação de memória: {time_alloc} segundos\n")
         f.write(f"Tempo de cálculo: {time_calc} segundos\n\n")
-
+        f.write(f"Memória usada: {memory_info} KB\n")
         print(f"Resultados para N = {N} salvos.")
 
 print("Todos os resultados foram salvos no arquivo resultado_python.dat.")
