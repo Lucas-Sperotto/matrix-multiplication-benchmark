@@ -4,7 +4,7 @@ Este documento detalha o número de operações necessárias para a multiplicaç
 
 ## Estimativa do Número Total de Operações
 
-A multiplicação de matrizes tem complexidade cúbica, \(O(N^3)\). O número total de operações pode ser estimado da seguinte maneira:
+A multiplicação de matrizes tem complexidade cúbica, $`(O(N^3)`$). O número total de operações pode ser estimado da seguinte maneira:
 
 1. **Número de operações por multiplicação de uma linha por uma coluna**:
    - Para cada célula do resultado, calculamos o produto de \(N\) pares de elementos e somamos os resultados. Isso resulta em \(N\) multiplicações e \(N-1\) somas para cada célula.
