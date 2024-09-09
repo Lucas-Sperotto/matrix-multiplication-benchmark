@@ -46,7 +46,7 @@ Para grandes valores de \(N\), a fórmula pode ser aproximada por:
 #### Número total de operações:
 
 1. **Leituras**:
-   - Para calcular cada elemento da matriz resultado, precisamos ler \(N\) elementos de cada matriz. Isso resulta em \(2N^3\) leituras no total.
+   - Para calcular cada elemento da matriz resultado, precisamos ler $`\(N\)`$ elementos de cada matriz. Isso resulta em \(2N^3\) leituras no total.
 
 2. **Escritas**:
    - Como a matriz resultado tem \(N^2\) células, fazemos \(N^2\) operações de escrita.
