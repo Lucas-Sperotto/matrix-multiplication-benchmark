@@ -46,7 +46,7 @@ $`
 #### Número total de operações:
 
 1. **Leituras**:
-   - Para calcular cada elemento da matriz resultado, precisamos ler $`\(N\)`$ elementos de cada matriz. Isso resulta em $`2N^3`$ leituras no total.
+   - Para calcular cada elemento da matriz resultado, precisamos ler $`N`$ elementos de cada matriz. Isso resulta em $`2N^3`$ leituras no total.
 
 2. **Escritas**:
    - Como a matriz resultado tem $`N^2`$ células, fazemos $`N^2`$ operações de escrita.
@@ -61,29 +61,29 @@ $`
 
 | Operação       | Fórmula                | Aproximação para grandes \(N\) |
 |----------------|------------------------|--------------------------------|
-| Leituras       | $`2N^3`$               | \(2N^3\)                      |
-| Escritas       | $`N^2`$                | \(N^2\)                       |
-| Multiplicações | $`N^3`$                | \(N^3\)                       |
-| Somas          | $`N^3 - N^2`$          | \(N^3\)                       |
+| Leituras       | $`2N^3`$               | $`2N^3`$                      |
+| Escritas       | $`N^2`$                | $`N^2`$                       |
+| Multiplicações | $`N^3`$                | $`N^3`$                       |
+| Somas          | $`N^3 - N^2`$          | $`N^3`$                       |
 
-### Exemplo para \(N = 1000\):
+### Exemplo para $`N = 1000`$:
 
 1. **Leituras**: 
-   \[
+   $`
    2 \times 1000^3 = 2 \times 1.000.000.000 = 2.000.000.000 \, \text{leituras}
-   \]
+   `$
 
 2. **Escritas**:
-   \[
+   $`
    1000^2 = 1.000.000 \, \text{escritas}
-   \]
+   `$
 
 3. **Multiplicações**:
-   \[
+   $`
    1000^3 = 1.000.000.000 \, \text{multiplicações}
-   \]
+   `$
 
 4. **Somas**:
-   \[
+   $`
    1000^3 - 1000^2 = 1.000.000.000 - 1.000.000 = 999.000.000 \, \text{somas}
-   \]
+   `$
