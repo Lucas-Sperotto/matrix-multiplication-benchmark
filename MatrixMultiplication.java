@@ -42,7 +42,7 @@ public class MatrixMultiplication {
         try {
             FileWriter writer = new FileWriter("resultado_java.dat");
 
-            for (int N : new int[]{10, 100, 1000, 10000}) {  // Varie N automaticamente de 10 a 10000
+            for (int N : new int[]{10, 100, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000}) {  // Varie N automaticamente de 10 a 10000
 
                 // Tempo de alocação de memória
                 long startAlloc = System.nanoTime();
