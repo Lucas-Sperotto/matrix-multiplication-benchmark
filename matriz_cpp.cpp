@@ -27,6 +27,7 @@
 #include <iostream>
 #include <fstream>
 #include <ctime>
+//#include <sys/resource.h>
 
 using namespace std;
 
@@ -42,13 +43,14 @@ void multiply(int** mat1, int** mat2, int** res, int N) {
 }
 
 int main() {
+    
     ofstream file("resultado_cpp.dat");
     if (!file.is_open()) {
         cout << "Erro ao abrir o arquivo!" << endl;
         return 1;
     }
 
-    for (int N = 10; N <= 10000; N *= 10) {  // Varie N automaticamente de 10 a 10000
+    for (int N = 10; N <= 10000; ) {  // Varie N automaticamente de 10 a 10000
 
         // Tempo de alocação de memória
         clock_t start_alloc = clock();
@@ -78,6 +80,11 @@ int main() {
         clock_t end_calc = clock();
         double time_calc = double(end_calc - start_calc) / CLOCKS_PER_SEC;
 
+        // Medição do uso de memória
+        //struct rusage usage;
+        //getrusage(RUSAGE_SELF, &usage);
+        //long memory_used_kb = usage.ru_maxrss;  // Memória usada em KB
+
         // Tempo de liberação de memória
         clock_t start_free = clock();
         for (int i = 0; i < N; i++) {
@@ -95,12 +102,18 @@ int main() {
         file << "N = " << N << endl;
         file << "Tempo de alocação de memória: " << time_alloc << " segundos" << endl;
         file << "Tempo de cálculo: " << time_calc << " segundos" << endl;
-        file << "Tempo de liberação de memória: " << time_free << " segundos" << endl << endl;
+        file << "Tempo de liberação de memória: " << time_free << " segundos" << endl;
+        //file << "Memória usada: " << memory_used_kb << "KB" << endl << endl;
 
+        file.close();
         cout << "Resultados para N = " << N << " salvos." << endl;
-    }
 
-    file.close();
+        if(N >= 1000)
+            N+=1000;
+        else
+            N *= 10;
+    }
+ 
     cout << "Todos os resultados foram salvos no arquivo resultado_cpp.dat." << endl;
 
     return 0;
