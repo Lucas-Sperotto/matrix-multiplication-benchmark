@@ -1,8 +1,8 @@
 /**********************************************************************
  * Projeto: Benchmark de Multiplicação de Matrizes
- * Descrição: Este código realiza a multiplicação de duas matrizes 
- *            de tamanho N x N, variando automaticamente o valor de N 
- *            e medindo o tempo de alocação de memória, cálculo, 
+ * Descrição: Este código realiza a multiplicação de duas matrizes
+ *            de tamanho N x N, variando automaticamente o valor de N
+ *            e medindo o tempo de alocação de memória, cálculo,
  *            e liberação de memória.
  *            O código salva os resultados em um arquivo de saída.
  *
@@ -20,32 +20,39 @@
  *  - Tempo de liberação de memória
  *
  * Uso:
- *  - Compile e execute o código, e o arquivo de saída será gerado 
+ *  - Compile e execute o código, e o arquivo de saída será gerado
  *    contendo os resultados para diferentes valores de N.
  **********************************************************************/
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-//#include <sys/resource.h>    
+// #include <sys/resource.h>
 
-void multiply(int **mat1, int **mat2, int **res, int N) {
-    for (int i = 0; i < N; i++) {
-        for (int j = 0; j < N; j++) {
+void multiply(int **mat1, int **mat2, int **res, int N)
+{
+    for (int i = 0; i < N; i++)
+    {
+        for (int j = 0; j < N; j++)
+        {
             res[i][j] = 0;
-            for (int k = 0; k < N; k++) {
+            for (int k = 0; k < N; k++)
+            {
                 res[i][j] += mat1[i][k] * mat2[k][j];
             }
         }
     }
 }
 
-int main() {
-   
-    for (int N = 10; N <= 10000; N) {  // Varie N automaticamente de 10 a 10000
+int main()
+{
+
+    for (int N = 10; N <= 10000; N)
+    { // Varie N automaticamente de 10 a 10000
 
         FILE *f = fopen("resultado_c.dat", "a");
-        if (f == NULL) {
+        if (f == NULL)
+        {
             printf("Erro ao abrir o arquivo!\n");
             return 1;
         }
@@ -55,8 +62,9 @@ int main() {
         int **mat1 = (int **)malloc(N * sizeof(int *));
         int **mat2 = (int **)malloc(N * sizeof(int *));
         int **res = (int **)malloc(N * sizeof(int *));
-        
-        for (int i = 0; i < N; i++) {
+
+        for (int i = 0; i < N; i++)
+        {
             mat1[i] = (int *)malloc(N * sizeof(int));
             mat2[i] = (int *)malloc(N * sizeof(int));
             res[i] = (int *)malloc(N * sizeof(int));
@@ -66,10 +74,17 @@ int main() {
         double time_alloc = ((double)(end_alloc - start_alloc)) / CLOCKS_PER_SEC;
 
         // Inicializando as matrizes
-        for (int i = 0; i < N; i++) {
-            for (int j = 0; j < N; j++) {
+        for (int i = 0; i < N; i++)
+        {
+            for (int j = 0; j < N; j++)
+            {
                 mat1[i][j] = i + j;
-                mat2[i][j] = i - j;
+                if (i == j)
+                    mat2[i][j] = 1;
+                else
+                {
+                    mat2[i][j] = 0;
+                }
             }
         }
 
@@ -80,13 +95,24 @@ int main() {
         double time_calc = ((double)(end_calc - start_calc)) / CLOCKS_PER_SEC;
 
         // Medição do uso de memória
-        //struct rusage usage;
-        //getrusage(RUSAGE_SELF, &usage);
-        //long memory_used_kb = usage.ru_maxrss;  // Memória usada em KB
+        // struct rusage usage;
+        // getrusage(RUSAGE_SELF, &usage);
+        // long memory_used_kb = usage.ru_maxrss;  // Memória usada em KB
+
+        // Verificação do resultado
+        for (int i = 0; i < N; i++)
+        {
+            for (int j = 0; j < N; j++)
+            {
+                if (res[i][j] != i + j)
+                    printf("Erro na multiplicação das matrizes para N = %d!\n", N);
+            }
+        }
 
         // Medindo o tempo de liberação de memória
         clock_t start_free = clock();
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < N; i++)
+        {
             free(mat1[i]);
             free(mat2[i]);
             free(res[i]);
@@ -102,13 +128,13 @@ int main() {
         fprintf(f, "Tempo de alocação de memória: %f segundos\n", time_alloc);
         fprintf(f, "Tempo de cálculo: %f segundos\n", time_calc);
         fprintf(f, "Tempo de liberação de memória: %f segundos\n\n", time_free);
-        //fprintf(f, "Memória usada: %ld KB\n", memory_used_kb);
+        // fprintf(f, "Memória usada: %ld KB\n", memory_used_kb);
 
         printf("Resultados para N = %d salvos.\n", N);
 
-         // Altera o valor de N
-        if(N >= 1000)
-            N+=1000;
+        // Altera o valor de N
+        if (N >= 1000)
+            N += 1000;
         else
             N *= 10;
         fclose(f);

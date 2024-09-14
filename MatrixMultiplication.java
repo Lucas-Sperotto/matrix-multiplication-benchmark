@@ -1,4 +1,3 @@
-
 /**********************************************************************
  * Projeto: Benchmark de Multiplicação de Matrizes
  * Descrição: Este código realiza a multiplicação de duas matrizes 
@@ -43,7 +42,6 @@ public class MatrixMultiplication {
         int i, j;
         try {
             FileWriter writer = new FileWriter("resultado_java.dat");
-
             for (int N : new int[] { 10, 100, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000 }) { // Varie
                                                                                                                // N
                                                                                                                // automaticamente
@@ -80,7 +78,7 @@ public class MatrixMultiplication {
                 // Java faz a coleta de lixo automaticamente, então não medimos o tempo de
                 // liberação manual.
 
-                // Inicializando as matrizes
+                // Verificação do resultado
                 for (i = 0; i < N; i++) {
                     for (j = 0; j < N; j++) {
                         if (res[i][j] != i + j)

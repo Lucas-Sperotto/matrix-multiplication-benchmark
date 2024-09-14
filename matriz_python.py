@@ -41,7 +41,7 @@ with open("resultado_python.dat", "w") as f:
         # Medir o tempo de alocação de memória
         start_alloc = time.time()
         mat1 = [[i + j for j in range(N)] for i in range(N)]
-        mat2 = [[i - j for j in range(N)] for i in range(N)]
+        mat2 = [[1 if i == j else 0 for j in range(N)] for i in range(N)]
         end_alloc = time.time()
         time_alloc = end_alloc - start_alloc
 
@@ -55,6 +55,11 @@ with open("resultado_python.dat", "w") as f:
         end_calc = time.time()
         time_calc = end_calc - start_calc
         
+        # Verificação do resultado
+        for i in range(N):
+            for j in range(N):
+                if res[i][j] != i + j:
+                    print(f"Erro na multiplicação das matrizes para N = {N}!")
         
         # Em Python, não precisamos medir o tempo de liberação de memória, pois o garbage collector cuida disso.
 

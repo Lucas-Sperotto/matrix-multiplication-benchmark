@@ -41,12 +41,12 @@ defmodule Main do
   def run do
     {:ok, file} = File.open("resultado_elixir.dat", [:write])
 
-    for N <- [10, 100, 1000, 10000] do  # Varie N automaticamente de 10 a 10000
+    for N <- [10, 100, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000] do  # Varie N automaticamente de 10 a 10000
       
       # Tempo de alocação de memória
       start_alloc = :os.system_time(:millisecond)
       mat1 = for i <- 0..(N-1), do: for j <- 0..(N-1), do: i + j
-      mat2 = for i <- 0..(N-1), do: for j <- 0..(N-1), do: i - j
+      mat2 = for i <- 0..(N-1), do: for j <- 0..(N-1), do: if i == j, do: 1, else: 0
       end_alloc = :os.system_time(:millisecond)
       time_alloc = (end_alloc - start_alloc) / 1000
 
@@ -56,6 +56,15 @@ defmodule Main do
       end_calc = :os.system_time(:millisecond)
       time_calc = (end_calc - start_calc) / 1000
 
+
+      # Verificação do resultado
+      for i <- 0..(N-1) do
+        for j <- 0..(N-1) do
+          if res[i][j] != i + j do
+            IO.puts("Erro na multiplicação das matrizes para N = #{N}!")
+          end
+        end
+      end
       # Não precisamos medir o tempo de liberação de memória em Elixir, pois a coleta de lixo é automática.
 
       # Salvando os resultados no arquivo
