@@ -11,7 +11,7 @@
  * Data: 05/09/2024
  *
  * Parâmetros:
- *  - N: tamanho da matriz (varia de 10 até 10.000)
+ *  - n: tamanho da matriz (varia de 10 até 10.000)
  *
  * Saída: Arquivo de resultados contendo:
  *  - Tempo de alocação de memória
@@ -26,11 +26,11 @@ use std::fs::File;
 use std::io::Write;
 use std::time::Instant;
 
-fn multiply(mat1: &Vec<Vec<i32>>, mat2: &Vec<Vec<i32>>, N: usize) -> Vec<Vec<i32>> {
-    let mut res = vec![vec![0; N]; N];
-    for i in 0..N {
-        for j in 0..N {
-            for k in 0..N {
+fn multiply(mat1: &Vec<Vec<i32>>, mat2: &Vec<Vec<i32>>, n: usize) -> Vec<Vec<i32>> {
+    let mut res = vec![vec![0; n]; n];
+    for i in 0..n {
+        for j in 0..n {
+            for k in 0..n {
                 res[i][j] += mat1[i][k] * mat2[k][j];
             }
         }
