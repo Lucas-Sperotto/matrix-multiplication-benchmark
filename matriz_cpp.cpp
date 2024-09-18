@@ -131,7 +131,7 @@ int main()
         file << "Tempo de liberação de memória: " << time_free << " segundos" << endl;
         // file << "Memória usada: " << memory_used_kb << "KB" << endl << endl;
 
-        file.close();
+        
         cout << "Resultados para N = " << N << " salvos." << endl;
 
         if (N >= 1000)
@@ -139,7 +139,8 @@ int main()
         else
             N *= 10;
     }
-
+    
+    file.close();
     cout << "Todos os resultados foram salvos no arquivo resultado_cpp.dat." << endl;
 
     return 0;
