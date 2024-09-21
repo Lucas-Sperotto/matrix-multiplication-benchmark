@@ -1,0 +1,59 @@
+N = 10
+Tempo de alocação de memória: 4e-06 segundos
+Tempo de cálculo: 1.4e-05 segundos
+Tempo de liberação de memória: 4e-06 segundos
+
+N = 100
+Tempo de alocação de memória: 0.000119 segundos
+Tempo de cálculo: 0.012644 segundos
+Tempo de liberação de memória: 3.3e-05 segundos
+
+N = 1000
+Tempo de alocação de memória: 0.00811 segundos
+Tempo de cálculo: 9.84804 segundos
+Tempo de liberação de memória: 0.001288 segundos
+
+N = 2000
+Tempo de alocação de memória: 0.011861 segundos
+Tempo de cálculo: 116.647 segundos
+Tempo de liberação de memória: 0.004151 segundos
+
+N = 3000
+Tempo de alocação de memória: 0.018774 segundos
+Tempo de cálculo: 457.615 segundos
+Tempo de liberação de memória: 0.008647 segundos
+
+N = 4000
+Tempo de alocação de memória: 0.02569 segundos
+Tempo de cálculo: 1134.14 segundos
+Tempo de liberação de memória: 0.014073 segundos
+
+N = 5000
+Tempo de alocação de memória: 0.033018 segundos
+Tempo de cálculo: 2313.96 segundos
+Tempo de liberação de memória: 0.020619 segundos
+
+N = 6000
+Tempo de alocação de memória: 0.040486 segundos
+Tempo de cálculo: 4312.39 segundos
+Tempo de liberação de memória: 0.028778 segundos
+
+N = 7000
+Tempo de alocação de memória: 0.047409 segundos
+Tempo de cálculo: 7313.7 segundos
+Tempo de liberação de memória: 0.038854 segundos
+
+N = 8000
+Tempo de alocação de memória: 0.054951 segundos
+Tempo de cálculo: 12092.4 segundos
+Tempo de liberação de memória: 0.050197 segundos
+
+N = 9000
+Tempo de alocação de memória: 0.063751 segundos
+Tempo de cálculo: 17448.9 segundos
+Tempo de liberação de memória: 0.063153 segundos
+
+N = 10000
+Tempo de alocação de memória: 0.085732 segundos
+Tempo de cálculo: 23592.2 segundos
+Tempo de liberação de memória: 0.097424 segundos

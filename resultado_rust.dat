@@ -1,0 +1,8 @@
+N = 10
+Tempo de alocação de memória: 0.000019 segundos
+Tempo de cálculo: 0.000252 segundos
+
+N = 100
+Tempo de alocação de memória: 0.000736 segundos
+Tempo de cálculo: 0.161637 segundos
+
