@@ -41,3 +41,7 @@ Tempo de cálculo: 73838.367550 segundos
 N = 9000
 Tempo de alocação de memória: 3.164741 segundos
 Tempo de cálculo: 105774.241219 segundos
+
+N = 10000
+Tempo de alocação de memória: 3.909494 segundos
+Tempo de cálculo: 146144.461383 segundos
