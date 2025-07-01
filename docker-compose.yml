@@ -1,0 +1,71 @@
+# version: '3.8'
+
+services:
+  java:
+    image: openjdk:11
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: bash -c "javac MatrixMultiplication.java && java MatrixMultiplication"
+    profiles: ["java"]
+
+  c:
+    image: gcc:latest
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: bash -c "gcc -o matriz_c matriz_c.c && ./matriz_c"
+    profiles: ["c"]
+
+  cpp:
+    image: gcc:latest
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: bash -c "g++ -o matriz_cpp matriz_cpp.cpp && ./matriz_cpp"
+    profiles: ["cpp"]
+
+  python:
+    image: python:3.9
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: python matriz_python.py
+    profiles: ["python"]
+
+  rust:
+    image: rust:latest
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: bash -c "rustc matriz_rust.rs && ./matriz_rust"
+    profiles: ["rust"]
+
+  elixir:
+    image: elixir:latest
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: elixir matriz_multiplication.exs
+    profiles: ["elixir"]
+
+  julia:
+    image: julia:latest
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: julia matriz_Julia.jl
+    profiles: ["julia"]
+
+  all:
+    image: busybox
+    depends_on:
+      - java
+      - c
+      - cpp
+      - python
+      - rust
+      - elixir
+      - julia
+    command: echo "All benchmarks completed"
+    profiles: ["all"]
