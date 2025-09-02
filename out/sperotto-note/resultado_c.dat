@@ -1,0 +1,30 @@
+N = 10
+Tempo de alocação de memória: 0.000001 segundos
+Tempo de cálculo: 0.000001 segundos
+Tempo de liberação de memória: 0.000001 segundos
+
+N = 100
+Tempo de alocação de memória: 0.000034 segundos
+Tempo de cálculo: 0.000349 segundos
+Tempo de liberação de memória: 0.000003 segundos
+
+N = 1000
+Tempo de alocação de memória: 0.005336 segundos
+Tempo de cálculo: 0.824436 segundos
+Tempo de liberação de memória: 0.000499 segundos
+
+N = 2000
+Tempo de alocação de memória: 0.009454 segundos
+Tempo de cálculo: 14.341240 segundos
+Tempo de liberação de memória: 0.001761 segundos
+
+N = 3000
+Tempo de alocação de memória: 0.011436 segundos
+Tempo de cálculo: 103.182903 segundos
+Tempo de liberação de memória: 0.003795 segundos
+
+N = 4000
+Tempo de alocação de memória: 0.014328 segundos
+Tempo de cálculo: 273.021984 segundos
+Tempo de liberação de memória: 0.010167 segundos
+
