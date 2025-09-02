@@ -26,7 +26,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
+#include <time.h> // para medição do tempo
 // #include <sys/resource.h>
 
 void multiply(int **mat1, int **mat2, int **res, int N)
