@@ -61,7 +61,7 @@ echo "Compilando matriz_cpp.cpp..."
 g++ src/matriz_cpp.cpp -o matriz_cpp -O3
 if [ $? -eq 0 ]; then
     echo "Executando C++..."
-    ./matriz_cpp'
+    ./matriz_cpp
     mv resultado_cpp.dat "$OUT_DIR/"
 else
     echo "Erro na compilação de matriz_cpp.cpp"
