@@ -36,7 +36,7 @@ def multiply(mat1, mat2, N):
 # Abrir o arquivo para salvar os resultados
 with open("resultado_python.dat", "w") as f:
 
-    for N in [10, 100, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000]:  # Varie N automaticamente de 10 a 10000
+    for N in [10, 100, 1000, 2000, 3000, 4000]:  # Varie N automaticamente de 10 a 10000
         
         # Medir o tempo de alocação de memória
         start_alloc = time.time()

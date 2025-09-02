@@ -1,0 +1,87 @@
+#!/bin/bash
+
+
+# ----------------------------
+# Verificação e instalação de requisitos
+# ----------------------------
+
+check_install() {
+    PKG=$1
+    CMD=$2
+    if ! command -v "$CMD" &> /dev/null; then
+        echo "[$PKG] não encontrado. Instalando..."
+        sudo apt update
+        sudo apt install -y "$PKG"
+    else
+        echo "[$PKG] já está instalado."
+    fi
+}
+
+echo "🔍 Verificando dependências..."
+check_install gcc gcc
+check_install g++ g++
+check_install default-jre java
+check_install default-jdk javac
+check_install python3 python3
+
+echo "✅ Todas as dependências verificadas."
+echo "-----------------------------------"
+
+
+# ----------------------------
+# Execução dos benchmarks
+# ----------------------------
+
+# Lista de valores de N
+Ns=(10 100 1000 2000 3000 4000)
+
+# Pergunta o nome da execução
+read -p "Digite o nome da execução: " RUN_NAME
+
+# Cria pasta de saída
+OUT_DIR="out/$RUN_NAME"
+mkdir -p "$OUT_DIR"
+
+echo "Resultados serão salvos em $OUT_DIR"
+echo "-----------------------------------"
+
+# 1. Compilar e executar C
+echo "Compilando matriz_c.c..."
+gcc src/matriz_c.c -o matriz_c -O3
+if [ $? -eq 0 ]; then
+    echo "Executando C..."
+    ./matriz_c
+    mv resultado_c.dat "$OUT_DIR/"
+else
+    echo "Erro na compilação de matriz_c.c"
+fi
+
+# 2. Compilar e executar C++
+echo "Compilando matriz_cpp.cpp..."
+g++ src/matriz_cpp.cpp -o matriz_cpp -O3
+if [ $? -eq 0 ]; then
+    echo "Executando C++..."
+    ./matriz_cpp'
+    mv resultado_cpp.dat "$OUT_DIR/"
+else
+    echo "Erro na compilação de matriz_cpp.cpp"
+fi
+
+# 3. Compilar e executar Java
+echo "Compilando MatrixMultiplication.java..."
+javac src/MatrixMultiplication.java
+if [ $? -eq 0 ]; then
+    echo "Executando Java..."
+    java src/MatrixMultiplication
+    mv resultado_java.dat "$OUT_DIR/" 2>/dev/null || echo "Arquivo de saída Java não encontrado."
+else
+    echo "Erro na compilação de MatrixMultiplication.java"
+fi
+
+# 4. Executar Python
+echo "Executando Python..."
+python3 src/matriz_python.py
+mv resultado_python.dat "$OUT_DIR/"
+
+echo "-----------------------------------"
+echo "Execução concluída! Resultados em: $OUT_DIR"
