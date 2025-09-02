@@ -24,6 +24,16 @@ check_install default-jre java
 check_install default-jdk javac
 check_install python3 python3
 
+# ----------------------------
+# Verificação psutil (Python)
+# ----------------------------
+python3 -c "import psutil" 2>/dev/null
+if [ $? -ne 0 ]; then
+    echo "📦 Instalando python3-psutil (sudo pode ser solicitado)..."
+    sudo apt update
+    sudo apt install -y python3-psutil
+fi
+
 echo "✅ Todas as dependências verificadas."
 echo "-----------------------------------"
 
@@ -72,7 +82,7 @@ echo "Compilando MatrixMultiplication.java..."
 javac src/MatrixMultiplication.java
 if [ $? -eq 0 ]; then
     echo "Executando Java..."
-    java src/MatrixMultiplication
+    java -cp src MatrixMultiplication
     mv resultado_java.dat "$OUT_DIR/" 2>/dev/null || echo "Arquivo de saída Java não encontrado."
 else
     echo "Erro na compilação de MatrixMultiplication.java"
