@@ -6,7 +6,7 @@
  *            e liberação de memória.
  *            O código salva os resultados em um arquivo de saída.
  *
- * Linguagem: C
+ * Linguagem: C++
  *
  * Autores: Lucas Kriesel Sperotto, Marcos Adriano Silva David
  * Data: 05/09/2024
@@ -24,10 +24,12 @@
  *    contendo os resultados para diferentes valores de N.
  **********************************************************************/
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h> // para medição do tempo
+#include <iostream>
+#include <fstream>
+#include <ctime>
 // #include <sys/resource.h>
+
+using namespace std;
 
 void multiply(int **mat1, int **mat2, int **res, int N)
 {
@@ -47,31 +49,30 @@ void multiply(int **mat1, int **mat2, int **res, int N)
 int main()
 {
 
-    for (int N = 10; N <= 10000; N)
+    ofstream file("resultado_cpp.dat");
+    if (!file.is_open())
+    {
+        cout << "Erro ao abrir o arquivo!" << endl;
+        return 1;
+    }
+
+    for (int N = 10; N <= 4000;)
     { // Varie N automaticamente de 10 a 10000
 
-        FILE *f = fopen("resultado_c.dat", "a");
-        if (f == NULL)
-        {
-            printf("Erro ao abrir o arquivo!\n");
-            return 1;
-        }
-
-        // Medindo o tempo de alocação de memória
+        // Tempo de alocação de memória
         clock_t start_alloc = clock();
-        int **mat1 = (int **)malloc(N * sizeof(int *));
-        int **mat2 = (int **)malloc(N * sizeof(int *));
-        int **res = (int **)malloc(N * sizeof(int *));
+        int **mat1 = new int *[N];
+        int **mat2 = new int *[N];
+        int **res = new int *[N];
 
         for (int i = 0; i < N; i++)
         {
-            mat1[i] = (int *)malloc(N * sizeof(int));
-            mat2[i] = (int *)malloc(N * sizeof(int));
-            res[i] = (int *)malloc(N * sizeof(int));
+            mat1[i] = new int[N];
+            mat2[i] = new int[N];
+            res[i] = new int[N];
         }
-
         clock_t end_alloc = clock();
-        double time_alloc = ((double)(end_alloc - start_alloc)) / CLOCKS_PER_SEC;
+        double time_alloc = double(end_alloc - start_alloc) / CLOCKS_PER_SEC;
 
         // Inicializando as matrizes
         for (int i = 0; i < N; i++)
@@ -88,11 +89,11 @@ int main()
             }
         }
 
-        // Medindo o tempo de cálculo
+        // Tempo do cálculo
         clock_t start_calc = clock();
         multiply(mat1, mat2, res, N);
         clock_t end_calc = clock();
-        double time_calc = ((double)(end_calc - start_calc)) / CLOCKS_PER_SEC;
+        double time_calc = double(end_calc - start_calc) / CLOCKS_PER_SEC;
 
         // Medição do uso de memória
         // struct rusage usage;
@@ -105,41 +106,42 @@ int main()
             for (int j = 0; j < N; j++)
             {
                 if (res[i][j] != i + j)
-                    printf("Erro na multiplicação das matrizes para N = %d!\n", N);
+                    cout << "Erro na multiplicação das matrizes para N = " << N << "!\n";
             }
         }
 
-        // Medindo o tempo de liberação de memória
+        // Tempo de liberação de memória
         clock_t start_free = clock();
         for (int i = 0; i < N; i++)
         {
-            free(mat1[i]);
-            free(mat2[i]);
-            free(res[i]);
+            delete[] mat1[i];
+            delete[] mat2[i];
+            delete[] res[i];
         }
-        free(mat1);
-        free(mat2);
-        free(res);
+        delete[] mat1;
+        delete[] mat2;
+        delete[] res;
         clock_t end_free = clock();
-        double time_free = ((double)(end_free - start_free)) / CLOCKS_PER_SEC;
+        double time_free = double(end_free - start_free) / CLOCKS_PER_SEC;
 
         // Salvando os resultados no arquivo
-        fprintf(f, "N = %d\n", N);
-        fprintf(f, "Tempo de alocação de memória: %f segundos\n", time_alloc);
-        fprintf(f, "Tempo de cálculo: %f segundos\n", time_calc);
-        fprintf(f, "Tempo de liberação de memória: %f segundos\n\n", time_free);
-        // fprintf(f, "Memória usada: %ld KB\n", memory_used_kb);
+        file << "N = " << N << endl;
+        file << "Tempo de alocação de memória: " << time_alloc << " segundos" << endl;
+        file << "Tempo de cálculo: " << time_calc << " segundos" << endl;
+        file << "Tempo de liberação de memória: " << time_free << " segundos" << endl;
+        // file << "Memória usada: " << memory_used_kb << "KB" << endl << endl;
 
-        printf("Resultados para N = %d salvos.\n", N);
+        
+        cout << "Resultados para N = " << N << " salvos." << endl;
 
-        // Altera o valor de N
         if (N >= 1000)
             N += 1000;
         else
             N *= 10;
-        fclose(f);
     }
+    
+    file.close();
+    cout << "Todos os resultados foram salvos no arquivo resultado_cpp.dat." << endl;
 
-    printf("Todos os resultados foram salvos no arquivo resultado_c.dat.\n");
     return 0;
 }
