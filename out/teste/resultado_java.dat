@@ -1,0 +1,24 @@
+N = 10
+Tempo de alocação de memória: 6.853E-6 segundos
+Tempo de cálculo: 2.1495E-5 segundos
+
+N = 100
+Tempo de alocação de memória: 2.28813E-4 segundos
+Tempo de cálculo: 0.003142 segundos
+
+N = 1000
+Tempo de alocação de memória: 0.009558456 segundos
+Tempo de cálculo: 0.888605111 segundos
+
+N = 2000
+Tempo de alocação de memória: 0.031901609 segundos
+Tempo de cálculo: 47.979997761 segundos
+
+N = 3000
+Tempo de alocação de memória: 0.066912726 segundos
+Tempo de cálculo: 209.123666217 segundos
+
+N = 4000
+Tempo de alocação de memória: 0.099202687 segundos
+Tempo de cálculo: 520.873290401 segundos
+
