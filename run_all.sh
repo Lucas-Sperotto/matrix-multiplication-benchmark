@@ -60,8 +60,8 @@ echo "Compilando matriz_c.c..."
 gcc src/matriz_c.c -o matriz_c -O3
 if [ $? -eq 0 ]; then
     echo "Executando C..."
-    ./matriz_c
-    mv resultado_c.csv "$OUT_DIR/"
+    #./matriz_c
+   # mv resultado_c.csv "$OUT_DIR/"
 else
     echo "Erro na compilação de matriz_c.c"
 fi
@@ -71,8 +71,8 @@ echo "Compilando matriz_cpp.cpp..."
 g++ src/matriz_cpp.cpp -o matriz_cpp -O3
 if [ $? -eq 0 ]; then
     echo "Executando C++..."
-    ./matriz_cpp
-    mv resultado_cpp.csv "$OUT_DIR/"
+   # ./matriz_cpp
+    #mv resultado_cpp.csv "$OUT_DIR/"
 else
     echo "Erro na compilação de matriz_cpp.cpp"
 fi
@@ -82,16 +82,22 @@ echo "Compilando MatrixMultiplication.java..."
 javac src/MatrixMultiplication.java
 if [ $? -eq 0 ]; then
     echo "Executando Java..."
-    java -cp src MatrixMultiplication
-    mv resultado_java.csv "$OUT_DIR/" 2>/dev/null || echo "Arquivo de saída Java não encontrado."
+    #java -cp src MatrixMultiplication
+    #mv resultado_java.csv "$OUT_DIR/" 2>/dev/null || echo "Arquivo de saída Java não encontrado."
 else
     echo "Erro na compilação de MatrixMultiplication.java"
 fi
 
 # 4. Executar Python
 echo "Executando Python..."
-python3 src/matriz_python.py
-mv resultado_python.csv "$OUT_DIR/"
+#python3 src/matriz_python.py
+#mv resultado_python.csv "$OUT_DIR/"
 
 echo "-----------------------------------"
 echo "Execução concluída! Resultados em: $OUT_DIR"
+
+# ----------------------------
+# Geração de gráficos
+# ----------------------------
+echo "Gerando gráficos..."
+python3 src/plot_benchmarks.py "$OUT_DIR"
