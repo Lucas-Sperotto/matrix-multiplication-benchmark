@@ -1,3 +1,4 @@
+
 /**********************************************************************
  * Projeto: Benchmark de Multiplicação de Matrizes
  * Descrição: Este código realiza a multiplicação de duas matrizes 
@@ -45,12 +46,12 @@ public class MatrixMultiplication {
 
             writer.write("N,TCS,TAM\n");
 
-            for (int N : new int[] { 10, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, }) { // Varie
-                                                                                                               // N
-                                                                                                               // automaticamente
-                                                                                                               // de 10
-                                                                                                               // a
-                                                                                                               // 10000
+            for (int N : new int[] { 10, 100, 500, 1000, 1500, 2000, 2500, 3000, }) { // Varie
+                                                                                      // N
+                                                                                      // automaticamente
+                                                                                      // de 10
+                                                                                      // a
+                                                                                      // 10000
 
                 // Tempo de alocação de memória
                 long startAlloc = System.nanoTime();
@@ -93,7 +94,6 @@ public class MatrixMultiplication {
                 writer.write(N + ",");
                 writer.write(timeCalc + ",");
                 writer.write(timeAlloc + "\n");
-                
 
                 System.out.println("Resultados para N = " + N + " salvos.");
 

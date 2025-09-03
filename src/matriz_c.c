@@ -56,8 +56,12 @@ int main()
     fprintf(f, "N,TCS,TAM,TLM\n"); //
 
     // Varie N automaticamente de 10 a 1000
-    for (int N = 10; N <= 1000; N)
+    int Ns[] = {10, 100, 500, 1000, 1500, 2000, 2500, 3000};
+    int length = sizeof(Ns) / sizeof(Ns[0]);
+
+    for (int i = 0; i < length; i++)
     {
+        int N = Ns[i];
 
         // Medindo o tempo de alocação de memória
         clock_t start_alloc = clock();
@@ -133,12 +137,6 @@ int main()
         // fprintf(f, "Memória usada: %ld KB\n", memory_used_kb);
 
         printf("Resultados para N = %d salvos.\n", N);
-
-        // Altera o valor de N
-        if (N >= 1000)
-            N += 100;
-        else
-            N += 100;
     }
     fclose(f);
     printf("Todos os resultados foram salvos no arquivo resultado_c.csv.\n");

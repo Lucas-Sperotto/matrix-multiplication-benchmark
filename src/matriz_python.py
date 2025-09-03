@@ -38,7 +38,7 @@ with open("resultado_python.csv", "w") as f:
 
     f.write(f"N,TCS,TAM\n")
 
-    for N in [10, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]:  # Varie N automaticamente de 10 a 10000
+    for N in [10, 100, 500, 1000, 1500, 2000, 2500, 3000]:  # Varie N automaticamente de 10 a 10000
         
         # Medir o tempo de alocação de memória
         start_alloc = time.time()

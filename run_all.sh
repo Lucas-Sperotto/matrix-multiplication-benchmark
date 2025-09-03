@@ -43,7 +43,7 @@ echo "-----------------------------------"
 # ----------------------------
 
 # Lista de valores de N
-Ns=(10 100 1000 2000 3000 4000)
+Ns=(10 100 500 1000 1500 2000 2500 3000)
 
 # Pergunta o nome da execução
 read -p "Digite o nome da execução: " RUN_NAME
@@ -61,7 +61,7 @@ gcc src/matriz_c.c -o matriz_c -O3
 if [ $? -eq 0 ]; then
     echo "Executando C..."
     ./matriz_c
-    mv resultado_c.dat "$OUT_DIR/"
+    mv resultado_c.csv "$OUT_DIR/"
 else
     echo "Erro na compilação de matriz_c.c"
 fi
@@ -72,7 +72,7 @@ g++ src/matriz_cpp.cpp -o matriz_cpp -O3
 if [ $? -eq 0 ]; then
     echo "Executando C++..."
     ./matriz_cpp
-    mv resultado_cpp.dat "$OUT_DIR/"
+    mv resultado_cpp.csv "$OUT_DIR/"
 else
     echo "Erro na compilação de matriz_cpp.cpp"
 fi
@@ -83,7 +83,7 @@ javac src/MatrixMultiplication.java
 if [ $? -eq 0 ]; then
     echo "Executando Java..."
     java -cp src MatrixMultiplication
-    mv resultado_java.dat "$OUT_DIR/" 2>/dev/null || echo "Arquivo de saída Java não encontrado."
+    mv resultado_java.csv "$OUT_DIR/" 2>/dev/null || echo "Arquivo de saída Java não encontrado."
 else
     echo "Erro na compilação de MatrixMultiplication.java"
 fi
@@ -91,7 +91,7 @@ fi
 # 4. Executar Python
 echo "Executando Python..."
 python3 src/matriz_python.py
-mv resultado_python.dat "$OUT_DIR/"
+mv resultado_python.csv "$OUT_DIR/"
 
 echo "-----------------------------------"
 echo "Execução concluída! Resultados em: $OUT_DIR"
