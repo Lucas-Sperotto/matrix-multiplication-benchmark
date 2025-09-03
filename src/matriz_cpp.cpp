@@ -142,7 +142,7 @@ int main()
     }
     
     file.close();
-    cout << "Todos os resultados foram salvos no arquivo resultado_cpp.dat." << endl;
+    cout << "Todos os resultados foram salvos no arquivo resultado_cpp.csv." << endl;
 
     return 0;
 }

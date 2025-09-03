@@ -100,7 +100,7 @@ public class MatrixMultiplication {
             }
 
             writer.close();
-            System.out.println("Todos os resultados foram salvos no arquivo resultado_java.dat.");
+            System.out.println("Todos os resultados foram salvos no arquivo resultado_java.csv.");
         } catch (IOException e) {
             System.out.println("Ocorreu um erro ao salvar os resultados.");
             e.printStackTrace();
