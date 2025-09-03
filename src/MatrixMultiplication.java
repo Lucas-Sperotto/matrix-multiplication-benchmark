@@ -41,8 +41,11 @@ public class MatrixMultiplication {
     public static void main(String[] args) {
         int i, j;
         try {
-            FileWriter writer = new FileWriter("resultado_java.dat");
-            for (int N : new int[] { 10, 100, 1000, 2000, 3000, 4000 }) { // Varie
+            FileWriter writer = new FileWriter("resultado_java.csv");
+
+            writer.write("N,TCS,TAM\n");
+
+            for (int N : new int[] { 10, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, }) { // Varie
                                                                                                                // N
                                                                                                                // automaticamente
                                                                                                                // de 10
@@ -87,9 +90,10 @@ public class MatrixMultiplication {
                 }
 
                 // Salvando os resultados no arquivo
-                writer.write("N = " + N + "\n");
-                writer.write("Tempo de alocação de memória: " + timeAlloc + " segundos\n");
-                writer.write("Tempo de cálculo: " + timeCalc + " segundos\n\n");
+                writer.write(N + ",");
+                writer.write(timeCalc + ",");
+                writer.write(timeAlloc + "\n");
+                
 
                 System.out.println("Resultados para N = " + N + " salvos.");
 
