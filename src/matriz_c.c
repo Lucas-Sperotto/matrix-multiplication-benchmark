@@ -46,16 +46,19 @@ void multiply(int **mat1, int **mat2, int **res, int N)
 
 int main()
 {
-
-    for (int N = 10; N <= 4000; N)
-    { // Varie N automaticamente de 10 a 10000
-
-        FILE *f = fopen("resultado_c.dat", "a");
+     FILE *f = fopen("resultado_c.csv", "w");
         if (f == NULL)
         {
             printf("Erro ao abrir o arquivo!\n");
             return 1;
         }
+
+    fprintf(f, "N,TCS,TAM,TLM\n");//
+
+    for (int N = 10; N <= 1000; N)
+    { // Varie N automaticamente de 10 a 10000
+
+       
 
         // Medindo o tempo de alocação de memória
         clock_t start_alloc = clock();
@@ -124,22 +127,23 @@ int main()
         double time_free = ((double)(end_free - start_free)) / CLOCKS_PER_SEC;
 
         // Salvando os resultados no arquivo
-        fprintf(f, "N = %d\n", N);
-        fprintf(f, "Tempo de alocação de memória: %f segundos\n", time_alloc);
-        fprintf(f, "Tempo de cálculo: %f segundos\n", time_calc);
-        fprintf(f, "Tempo de liberação de memória: %f segundos\n\n", time_free);
+        
+        fprintf(f, "%d,", N);// valor de N
+        fprintf(f, "%E,", time_calc);//Tempo de cálculo: %f segundos\n
+        fprintf(f, "%E,", time_alloc); //Tempo de alocação de memória: %f segundos\n        
+        fprintf(f, "%E\n", time_free);//Tempo de liberação de memória: %f segundos
         // fprintf(f, "Memória usada: %ld KB\n", memory_used_kb);
 
         printf("Resultados para N = %d salvos.\n", N);
 
         // Altera o valor de N
         if (N >= 1000)
-            N += 1000;
+            N += 100;
         else
-            N *= 10;
-        fclose(f);
+            N += 100;
+        
     }
-
+    fclose(f);
     printf("Todos os resultados foram salvos no arquivo resultado_c.dat.\n");
     return 0;
 }
