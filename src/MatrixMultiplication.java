@@ -91,9 +91,9 @@ public class MatrixMultiplication {
                 }
 
                 // Salvando os resultados no arquivo
-                writer.write(N + ",");
-                writer.write(timeCalc + ",");
-                writer.write(timeAlloc + "\n");
+                writer.write(String.format("%.6e", N) + ",");
+                writer.write(String.format("%.6e", timeCalc) + ",");
+                writer.write(String.format("%.6e", timeAlloc) + "\n");
 
                 System.out.println("Resultados para N = " + N + " salvos.");
 

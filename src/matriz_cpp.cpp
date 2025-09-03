@@ -27,6 +27,7 @@
 #include <iostream>
 #include <fstream>
 #include <ctime>
+#include <iomanip>  // para std::scientific e std::setprecision
 // #include <sys/resource.h>
 
 using namespace std;
@@ -56,6 +57,9 @@ int main()
         return 1;
     }
     file << "N,TCS,TAM,TLM" << endl;
+
+     // Configura notação científica e precisão
+    file << std::scientific << std::setprecision(6);
 
     // Varie N automaticamente de 10 a 10000
     for (int N : {10, 100, 500, 1000, 1500, 2000, 2500, 3000})
