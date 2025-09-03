@@ -49,14 +49,15 @@ void multiply(int **mat1, int **mat2, int **res, int N)
 int main()
 {
 
-    ofstream file("resultado_cpp.dat");
+    ofstream file("resultado_cpp.csv");
     if (!file.is_open())
     {
         cout << "Erro ao abrir o arquivo!" << endl;
         return 1;
     }
+    file << "N,TCS,TAM,TLM" << endl;
 
-    for (int N = 10; N <= 4000;)
+    for (int N = 10; N <= 1000;)
     { // Varie N automaticamente de 10 a 10000
 
         // Tempo de alocação de memória
@@ -125,19 +126,19 @@ int main()
         double time_free = double(end_free - start_free) / CLOCKS_PER_SEC;
 
         // Salvando os resultados no arquivo
-        file << "N = " << N << endl;
-        file << "Tempo de alocação de memória: " << time_alloc << " segundos" << endl;
-        file << "Tempo de cálculo: " << time_calc << " segundos" << endl;
-        file << "Tempo de liberação de memória: " << time_free << " segundos" << endl;
+        file << N << ",";
+        file << time_calc << ","; //Tempo de cálculo segundos
+        file << time_alloc << ","; //Tempo de alocação de memória segundos     
+        file << time_free << endl; //Tempo de liberação de memória: %f segundos
         // file << "Memória usada: " << memory_used_kb << "KB" << endl << endl;
 
         
         cout << "Resultados para N = " << N << " salvos." << endl;
 
         if (N >= 1000)
-            N += 1000;
+            N += 100;
         else
-            N *= 10;
+            N += 100;
     }
     
     file.close();
