@@ -13,12 +13,12 @@ from typing import Dict, List
 # Também pode sobrescrever por variáveis de ambiente:
 #   REF_SCALE, REF_POWER
 # ============================
-SCALE = float(os.environ.get("REF_SCALE", "1.0E-7"))
-POWER = float(os.environ.get("REF_POWER", "2.0"))
+#SCALE = float(os.environ.get("REF_SCALE", "1.0E-7"))
+#POWER = float(os.environ.get("REF_POWER", "2.0"))
 
-def f_ref(n_values):
-    """Função de referência editável (por padrão: SCALE * N**POWER)."""
-    return [SCALE * (float(n) ** POWER) for n in n_values]
+#def f_ref(n_values):
+#    """Função de referência editável (por padrão: SCALE * N**POWER)."""
+#    return [SCALE * (float(n) ** POWER) for n in n_values]
 
 # ============================
 # Entrada
@@ -124,13 +124,14 @@ def plot_metric(metric: str):
         return
 
     # Curva de referência (pontilhada) usando todos os N únicos encontrados
-    N_sorted = sorted(all_N_values)
-    yref = f_ref(N_sorted)
-    # Apenas para informar no rótulo a forma da função
-    ref_label = f"ref: {SCALE}·N^{POWER}"
-    plt.plot(N_sorted, yref, linestyle="--", label=ref_label)
+    #N_sorted = sorted(all_N_values)
+    #yref = f_ref(N_sorted)
 
-    plt.xlabel("N (tamanho da matriz)")
+    # Apenas para informar no rótulo a forma da função
+    #ref_label = f"ref: {SCALE}·N^{POWER}"
+    #plt.plot(N_sorted, yref, linestyle="--", label=ref_label)
+
+    plt.xlabel("N (matriz com NxN elementos)")
     plt.ylabel(f"{metric} (s)")
     plt.title(f"Comparação por linguagem - {TITLES.get(metric, metric)}")
     plt.legend()

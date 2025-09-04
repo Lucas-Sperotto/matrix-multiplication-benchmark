@@ -46,12 +46,7 @@ public class MatrixMultiplication {
 
             writer.write("N,TCS,TAM\n");
 
-            for (int N : new int[] { 10, 100, 500, 1000, 1500, 2000, 2500, 3000, }) { // Varie
-                                                                                      // N
-                                                                                      // automaticamente
-                                                                                      // de 10
-                                                                                      // a
-                                                                                      // 10000
+            for (int N : new int[] { 10, 100, 500, 1000, 1500, 2000, 2500, 3000, }) { // Varie N automaticamente
 
                 // Tempo de alocação de memória
                 long startAlloc = System.nanoTime();
@@ -91,7 +86,7 @@ public class MatrixMultiplication {
                 }
 
                 // Salvando os resultados no arquivo
-                writer.write(String.format("%.6e", N) + ",");
+                writer.write(N + ",");
                 writer.write(String.format("%.6e", timeCalc) + ",");
                 writer.write(String.format("%.6e", timeAlloc) + "\n");
 

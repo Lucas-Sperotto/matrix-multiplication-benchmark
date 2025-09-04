@@ -67,8 +67,8 @@ with open("resultado_python.csv", "w") as f:
 
         # Salvando os resultados no arquivo
         f.write(f"{N},")
-        f.write(f"{time_calc},")
-        f.write(f"{time_alloc}\n")        
+        f.write(f"{time_calc:.6e},")
+        f.write(f"{time_alloc:.6e}\n")        
         #f.write(f"Memória usada: {memory_info} KB\n")
         print(f"Resultados para N = {N} salvos.")
 

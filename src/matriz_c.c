@@ -131,9 +131,9 @@ int main()
 
         // Salvando os resultados no arquivo
         fprintf(f, "%d,", N);          // valor de N
-        fprintf(f, "%E,", time_calc);  // Tempo de cálculo: %f segundos\n
-        fprintf(f, "%E,", time_alloc); // Tempo de alocação de memória: %f segundos\n
-        fprintf(f, "%E\n", time_free); // Tempo de liberação de memória: %f segundos
+        fprintf(f, "%e,", time_calc);  // Tempo de cálculo: %f segundos\n
+        fprintf(f, "%e,", time_alloc); // Tempo de alocação de memória: %f segundos\n
+        fprintf(f, "%e\n", time_free); // Tempo de liberação de memória: %f segundos
         // fprintf(f, "Memória usada: %ld KB\n", memory_used_kb);
 
         printf("Resultados para N = %d salvos.\n", N);
