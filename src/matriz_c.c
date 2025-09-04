@@ -44,7 +44,7 @@ void multiply(int **mat1, int **mat2, int **res, int N)
     }
 }
 
-int main()
+int main(int argc, char **argv)
 {
     FILE *f = fopen("resultado_c.csv", "w");
     if (f == NULL)
@@ -58,13 +58,19 @@ int main()
     // Varie N automaticamente de 10 a 1000
     int Ns[] = {10, 100, 500, 1000}; //, 1500, 2000, 2500, 3000};
     int length = sizeof(Ns) / sizeof(Ns[0]);
+    int M = 1;
 
-    for (int i = 0; i < length; i++)
+    if(argc == 2)   
+    M = atoi(argv[1]);
+
+    printf("M = %d\n\n", M);
+
+    for (int n = 0; n < length; n++)
     {   
-        int N = Ns[i];
+        int N = Ns[n];
         double time_free = 0.0, time_alloc = 0.0, time_calc = 0.0;
 
-        for (int M = 0; M <= 9; M++)
+        for (int m = 1; m<=M; m++)
         {            
 
             // Medindo o tempo de alocação de memória
@@ -143,9 +149,9 @@ int main()
         }
         // Salvando os resultados no arquivo
         fprintf(f, "%d,", N);          // valor de N
-        fprintf(f, "%e,", (time_calc / 10.0));  // Tempo de cálculo: %f segundos\n
-        fprintf(f, "%e,", (time_alloc/ 10.0)); // Tempo de alocação de memória: %f segundos\n
-        fprintf(f, "%e\n", (time_free/ 10.0)); // Tempo de liberação de memória: %f segundos
+        fprintf(f, "%e,", (time_calc / (double)M));  // Tempo de cálculo: %f segundos\n
+        fprintf(f, "%e,", (time_alloc/ (double)M)); // Tempo de alocação de memória: %f segundos\n
+        fprintf(f, "%e\n", (time_free/ (double)M)); // Tempo de liberação de memória: %f segundos
         // fprintf(f, "Memória usada: %ld KB\n", memory_used_kb);
         
     }
