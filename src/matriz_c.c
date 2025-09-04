@@ -44,7 +44,7 @@ void multiply(int **mat1, int **mat2, int **res, int N)
     }
 }
 
-int main()
+int main(int argc, char **argv)
 {
     FILE *f = fopen("resultado_c.csv", "w");
     if (f == NULL)
@@ -56,87 +56,104 @@ int main()
     fprintf(f, "N,TCS,TAM,TLM\n"); //
 
     // Varie N automaticamente de 10 a 1000
-    int Ns[] = {10, 100, 500, 1000, 1500, 2000, 2500, 3000};
+    int Ns[] = {10, 100, 500, 1000}; //, 1500, 2000, 2500, 3000};
     int length = sizeof(Ns) / sizeof(Ns[0]);
+    int M = 1;
 
-    for (int i = 0; i < length; i++)
-    {
-        int N = Ns[i];
+    if(argc == 2)   
+    M = atoi(argv[1]);
 
-        // Medindo o tempo de alocação de memória
-        clock_t start_alloc = clock();
-        int **mat1 = (int **)malloc(N * sizeof(int *));
-        int **mat2 = (int **)malloc(N * sizeof(int *));
-        int **res = (int **)malloc(N * sizeof(int *));
+    printf("M = %d\n\n", M);
 
-        for (int i = 0; i < N; i++)
-        {
-            mat1[i] = (int *)malloc(N * sizeof(int));
-            mat2[i] = (int *)malloc(N * sizeof(int));
-            res[i] = (int *)malloc(N * sizeof(int));
-        }
+    for (int n = 0; n < length; n++)
+    {   
+        int N = Ns[n];
+        double time_free = 0.0, time_alloc = 0.0, time_calc = 0.0;
 
-        clock_t end_alloc = clock();
-        double time_alloc = ((double)(end_alloc - start_alloc)) / CLOCKS_PER_SEC;
+        for (int m = 1; m<=M; m++)
+        {            
 
-        // Inicializando as matrizes
-        for (int i = 0; i < N; i++)
-        {
-            for (int j = 0; j < N; j++)
+            // Medindo o tempo de alocação de memória
+            clock_t start_alloc = clock();
+            int **mat1 = (int **)malloc(N * sizeof(int *));
+            int **mat2 = (int **)malloc(N * sizeof(int *));
+            int **res = (int **)malloc(N * sizeof(int *));
+
+            for (int i = 0; i < N; i++)
             {
-                mat1[i][j] = i + j;
-                if (i == j)
-                    mat2[i][j] = 1;
-                else
+                mat1[i] = (int *)malloc(N * sizeof(int));
+                mat2[i] = (int *)malloc(N * sizeof(int));
+                res[i] = (int *)malloc(N * sizeof(int));
+            }
+
+            clock_t end_alloc = clock();
+            time_alloc += ((double)(end_alloc - start_alloc)) / CLOCKS_PER_SEC;
+
+            // Inicializando as matrizes
+            for (int i = 0; i < N; i++)
+            {
+                for (int j = 0; j < N; j++)
                 {
-                    mat2[i][j] = 0;
+                    mat1[i][j] = i + j;
+                    if (i == j)
+                        mat2[i][j] = 1;
+                    else
+                    {
+                        mat2[i][j] = 0;
+                    }
                 }
             }
-        }
 
-        // Medindo o tempo de cálculo
-        clock_t start_calc = clock();
-        multiply(mat1, mat2, res, N);
-        clock_t end_calc = clock();
-        double time_calc = ((double)(end_calc - start_calc)) / CLOCKS_PER_SEC;
+            // Medindo o tempo de cálculo
+            clock_t start_calc = clock();
+            multiply(mat1, mat2, res, N);
+            clock_t end_calc = clock();
+            time_calc += ((double)(end_calc - start_calc)) / CLOCKS_PER_SEC;
 
-        // Medição do uso de memória
-        // struct rusage usage;
-        // getrusage(RUSAGE_SELF, &usage);
-        // long memory_used_kb = usage.ru_maxrss;  // Memória usada em KB
+            // Medição do uso de memória
+            // struct rusage usage;
+            // getrusage(RUSAGE_SELF, &usage);
+            // long memory_used_kb = usage.ru_maxrss;  // Memória usada em KB
 
-        // Verificação do resultado
-        for (int i = 0; i < N; i++)
-        {
-            for (int j = 0; j < N; j++)
+            // Verificação do resultado
+            for (int i = 0; i < N; i++)
             {
-                if (res[i][j] != i + j)
-                    printf("Erro na multiplicação das matrizes para N = %d!\n", N);
+                for (int j = 0; j < N; j++)
+                {
+                    if (res[i][j] != i + j)
+                        printf("Erro na multiplicação das matrizes para N = %d!\n", N);
+                }
             }
-        }
 
-        // Medindo o tempo de liberação de memória
-        clock_t start_free = clock();
-        for (int i = 0; i < N; i++)
-        {
-            free(mat1[i]);
-            free(mat2[i]);
-            free(res[i]);
+            // Medindo o tempo de liberação de memória
+            clock_t start_free = clock();
+            for (int i = 0; i < N; i++)
+            {
+                free(mat1[i]);
+                free(mat2[i]);
+                free(res[i]);
+            }
+            free(mat1);
+            free(mat2);
+            free(res);
+            clock_t end_free = clock();
+            time_free += ((double)(end_free - start_free)) / CLOCKS_PER_SEC;     
+             // Salvando os resultados no arquivo
+        printf( "%d,", N);          // valor de N
+        printf( "%e,", (time_calc));  // Tempo de cálculo: %f segundos\n
+        printf( "%e,", (time_alloc)); // Tempo de alocação de memória: %f segundos\n
+        printf( "%e\n", (time_free)); // Tempo de liberação de memória: %f segundos
+        // fprintf(f, "Memória usada: %ld KB\n", memory_used_kb);
+               
+            //printf("Resultados para N = %d salvos M = %d.\n", N, M);
         }
-        free(mat1);
-        free(mat2);
-        free(res);
-        clock_t end_free = clock();
-        double time_free = ((double)(end_free - start_free)) / CLOCKS_PER_SEC;
-
         // Salvando os resultados no arquivo
         fprintf(f, "%d,", N);          // valor de N
-        fprintf(f, "%e,", time_calc);  // Tempo de cálculo: %f segundos\n
-        fprintf(f, "%e,", time_alloc); // Tempo de alocação de memória: %f segundos\n
-        fprintf(f, "%e\n", time_free); // Tempo de liberação de memória: %f segundos
+        fprintf(f, "%e,", (time_calc / (double)M));  // Tempo de cálculo: %f segundos\n
+        fprintf(f, "%e,", (time_alloc/ (double)M)); // Tempo de alocação de memória: %f segundos\n
+        fprintf(f, "%e\n", (time_free/ (double)M)); // Tempo de liberação de memória: %f segundos
         // fprintf(f, "Memória usada: %ld KB\n", memory_used_kb);
-
-        printf("Resultados para N = %d salvos.\n", N);
+        
     }
     fclose(f);
     printf("Todos os resultados foram salvos no arquivo resultado_c.csv.\n");
