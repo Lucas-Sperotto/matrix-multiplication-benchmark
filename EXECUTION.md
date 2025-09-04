@@ -5,19 +5,20 @@ Esta seção explica, passo a passo, como rodar **todos os benchmarks** (C, C++,
 * `run_all.sh` → Linux / WSL
 * `run_all.ps1` → Windows (PowerShell)
 
-A estrutura esperada do projeto é algo como:
+Estrutura do Projeto:
 
-```
+````text
 .
-├─ run_all.sh
-├─ run_all.ps1
+├─ run\_all.sh
+├─ run\_all.ps1
 ├─ src/
-│  ├─ matriz_c.c
-│  ├─ matriz_cpp.cpp
+│  ├─ matriz\_c.c
+│  ├─ matriz\_cpp.cpp
 │  ├─ MatrixMultiplication.java
-│  └─ matriz_python.py
+│  ├─ matriz\_python.py
+│  └─ plot\_benchmarks.py
 └─ out/
-```
+````
 
 Os resultados são salvos em `out/<NOME_DA_EXECUCAO>/` nos arquivos:
 
@@ -30,7 +31,7 @@ Os resultados são salvos em `out/<NOME_DA_EXECUCAO>/` nos arquivos:
 
 ## 1) Executando no Linux / WSL (`run_all.sh`)
 
-### Pré-requisitos
+### Pré-requisitos do linux
 
 * **gcc** e **g++**
 * **Java JDK** (para `javac`) e **JRE** (para `java`)
@@ -57,20 +58,21 @@ chmod +x ./run_all.sh        # apenas na primeira vez
 O script vai:
 
 1. Verificar/instalar dependências (quando aplicável no seu sistema).
-2. Pedir um **nome para a execução** (ex.: `meu_pc_i7_2025-09-03`).
+2. Pedir um **nome para a execução** (ex.: `meu_id-meu_pc`).
 3. Compilar e rodar C, C++, Java e Python.
 4. Mover os resultados para `out/<NOME_DA_EXECUCAO>/`.
+5. Gerar automaticamente os gráficos comparativos e vai salvar em `out/<NOME_DA_EXECUCAO>/`.
 
 ---
 
 ## 2) Executando no Windows (PowerShell) — `run_all.ps1`
 
-### Pré-requisitos
+### Pré-requisitos do Windows
 
 * **PowerShell** (padrão no Windows 10/11)
 * **winget** (recomendado para instalar dependências)
 * **MSYS2/MinGW-w64** (para `gcc` e `g++`) **ou** outro toolchain equivalente
-* **Java JDK/JRE** (recomendado Temurin 17)
+* **Java JDK/JRE** (recomendamos open jdk)
 * **Python 3** + **pip**
 * Pacote Python: **psutil**
 
@@ -84,6 +86,7 @@ O script vai:
   ```
 
   Adicione `C:\msys64\mingw64\bin` ao **PATH** do Windows.
+
 * **Java (Temurin 17)**:
 
   * Via winget (em PowerShell):
@@ -92,6 +95,7 @@ O script vai:
     winget install -e --id EclipseAdoptium.Temurin.17.JDK
     winget install -e --id EclipseAdoptium.Temurin.17.JRE
     ```
+
 * **Python 3**:
 
   ```powershell
@@ -107,7 +111,7 @@ Se necessário, habilite a execução de scripts no PowerShell **como Administra
 Set-ExecutionPolicy RemoteSigned
 ```
 
-### Execução
+### Para Executar
 
 > No **PowerShell**, dentro da **raiz do repositório**:
 
@@ -115,24 +119,17 @@ Set-ExecutionPolicy RemoteSigned
 .\run_all.ps1
 ```
 
-O script vai:
-
-1. Verificar dependências (tenta instalar via `winget` quando possível).
-2. Pedir um **nome para a execução**.
-3. Compilar e rodar C, C++, Java e Python.
-4. Mover os resultados para `out\<NOME_DA_EXECUCAO>\`.
-
 ---
 
 ## 3) Personalizando os tamanhos de N
 
 Os tamanhos de matriz `N` são definidos dentro dos códigos (ou do script). Para usar:
 
-```
+```text
 10, 100, 500, 1000, 1500, 2000, 2500, 3000
 ```
 
-ajuste **uma** vez no local central (no script, se ele estiver parametrizando) ou diretamente em:
+Edite diretamente os arrays de valores em:
 
 * `src/matriz_c.c`
 * `src/matriz_cpp.cpp`
@@ -163,9 +160,10 @@ for (int i = 0; i < len; ++i) { int N = Ns[i]; /* ... */ }
 
 Exemplo:
 
-```
+```text
+
 out/
-└─ meu_pc_i7_2025-09-03/
+└─ meu_id-meu_pc/
    ├─ resultado_c.dat
    ├─ resultado_cpp.dat
    ├─ resultado_java.dat
@@ -209,7 +207,6 @@ chmod +x ./run_all.sh
 
 * Prefira compilar com **otimização** (`-O3`) para C/C++.
 * Feche programas pesados e rode em condições semelhantes.
-* Se quiser **múltiplas repetições por N** para tirar a média, implemente as repetições **dentro de cada código** (C/C++/Java/Python) e gere a média no próprio `resultado_*.dat`.
 * Padronize `RUN_NAME` com informações da máquina/data (ex.: `ryzen7_5700U_2025-09-03`) para comparar execuções entre computadores.
 
 ---

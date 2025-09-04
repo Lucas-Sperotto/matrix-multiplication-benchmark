@@ -1,6 +1,7 @@
 # Análise de Operações na Multiplicação de Matrizes
 
-Este documento detalha o número de operações necessárias para a multiplicação de duas matrizes $`N \times N`$ utilizando um algoritmo cúbico de três laços.
+Este documento detalha o número de operações necessárias para a multiplicação de duas matrizes $`N \times N`$ utilizando um algoritmo cúbico de três laços `for`).  
+Ele serve de **fundamentação teórica** para interpretar os resultados experimentais deste projeto.
 
 ## Estimativa do Número Total de Operações
 
@@ -87,3 +88,12 @@ $`
    $`
    1000^3 - 1000^2 = 1.000.000.000 - 1.000.000 = 999.000.000 \, \text{somas}
    `$
+
+---
+
+## Relação com os benchmarks
+
+Nos gráficos gerados pelo script `plot_benchmarks.py`, a curva de referência $`(N^3)`$ aparece como linha pontilhada, representando essa complexidade teórica.  
+Os resultados experimentais devem se aproximar (em escala) desse crescimento.
+
+---
