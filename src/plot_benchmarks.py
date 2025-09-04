@@ -81,9 +81,9 @@ ncols = {lang: detect_N_column(df) for lang, df in dfs.items()}
 # Métricas fixas
 METRICS = ["TCS", "TAM", "TDM"]  # cálculo, alocação, desalocação
 TITLES = {
-    "TCS": "Tempo de Cálculo da Multiplicação (TCS)",
-    "TAM": "Tempo de Alocação de Memória (TAM)",
-    "TDM": "Tempo de Desalocação de Memória (TDM)",
+    "TCS": "Tempo de Cálculo da Multiplicação",
+    "TAM": "Tempo de Alocação de Memória",
+    "TDM": "Tempo de Desalocação de Memória",
 }
 
 # ============================
