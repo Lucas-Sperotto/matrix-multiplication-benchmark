@@ -27,7 +27,7 @@
 #include <iostream>
 #include <fstream>
 #include <ctime>
-#include <iomanip>  // para std::scientific e std::setprecision
+#include <iomanip> // para std::scientific e std::setprecision
 // #include <sys/resource.h>
 
 using namespace std;
@@ -47,7 +47,7 @@ void multiply(int **mat1, int **mat2, int **res, int N)
     }
 }
 
-int main()
+int main(int argc, char **argv)
 {
 
     ofstream file("resultado_cpp.csv");
@@ -58,83 +58,99 @@ int main()
     }
     file << "N,TCS,TAM,TLM" << endl;
 
-     // Configura notação científica e precisão
+    int M = 1;
+
+    if (argc == 2)
+        M = atoi(argv[1]);
+
+    printf("M = %d\n\n", M);
+
+    // Configura notação científica e precisão
     file << std::scientific << std::setprecision(6);
 
     // Varie N automaticamente de 10 a 10000
-    for (int N : {10, 100, 500, 1000, 1500, 2000, 2500, 3000})
+    for (int N : {10, 100, 500, 1000})
     {
+        double time_free = 0.0, time_alloc = 0.0, time_calc = 0.0;
 
-        // Tempo de alocação de memória
-        clock_t start_alloc = clock();
-        int **mat1 = new int *[N];
-        int **mat2 = new int *[N];
-        int **res = new int *[N];
-
-        for (int i = 0; i < N; i++)
+        for (int m = 1; m <= M; m++)
         {
-            mat1[i] = new int[N];
-            mat2[i] = new int[N];
-            res[i] = new int[N];
-        }
-        clock_t end_alloc = clock();
-        double time_alloc = double(end_alloc - start_alloc) / CLOCKS_PER_SEC;
 
-        // Inicializando as matrizes
-        for (int i = 0; i < N; i++)
-        {
-            for (int j = 0; j < N; j++)
+            // Tempo de alocação de memória
+            clock_t start_alloc = clock();
+            int **mat1 = new int *[N];
+            int **mat2 = new int *[N];
+            int **res = new int *[N];
+
+            for (int i = 0; i < N; i++)
             {
-                mat1[i][j] = i + j;
-                if (i == j)
-                    mat2[i][j] = 1;
-                else
+                mat1[i] = new int[N];
+                mat2[i] = new int[N];
+                res[i] = new int[N];
+            }
+            clock_t end_alloc = clock();
+            time_alloc += double(end_alloc - start_alloc) / CLOCKS_PER_SEC;
+
+            // Inicializando as matrizes
+            for (int i = 0; i < N; i++)
+            {
+                for (int j = 0; j < N; j++)
                 {
-                    mat2[i][j] = 0;
+                    mat1[i][j] = i + j;
+                    if (i == j)
+                        mat2[i][j] = 1;
+                    else
+                    {
+                        mat2[i][j] = 0;
+                    }
                 }
             }
-        }
 
-        // Tempo do cálculo
-        clock_t start_calc = clock();
-        multiply(mat1, mat2, res, N);
-        clock_t end_calc = clock();
-        double time_calc = double(end_calc - start_calc) / CLOCKS_PER_SEC;
+            // Tempo do cálculo
+            clock_t start_calc = clock();
+            multiply(mat1, mat2, res, N);
+            clock_t end_calc = clock();
+            time_calc += double(end_calc - start_calc) / CLOCKS_PER_SEC;
 
-        // Medição do uso de memória
-        // struct rusage usage;
-        // getrusage(RUSAGE_SELF, &usage);
-        // long memory_used_kb = usage.ru_maxrss;  // Memória usada em KB
+            // Medição do uso de memória
+            // struct rusage usage;
+            // getrusage(RUSAGE_SELF, &usage);
+            // long memory_used_kb = usage.ru_maxrss;  // Memória usada em KB
 
-        // Verificação do resultado
-        for (int i = 0; i < N; i++)
-        {
-            for (int j = 0; j < N; j++)
+            // Verificação do resultado
+            for (int i = 0; i < N; i++)
             {
-                if (res[i][j] != i + j)
-                    cout << "Erro na multiplicação das matrizes para N = " << N << "!\n";
+                for (int j = 0; j < N; j++)
+                {
+                    if (res[i][j] != i + j)
+                        cout << "Erro na multiplicação das matrizes para N = " << N << "!\n";
+                }
             }
-        }
 
-        // Tempo de liberação de memória
-        clock_t start_free = clock();
-        for (int i = 0; i < N; i++)
-        {
-            delete[] mat1[i];
-            delete[] mat2[i];
-            delete[] res[i];
-        }
-        delete[] mat1;
-        delete[] mat2;
-        delete[] res;
-        clock_t end_free = clock();
-        double time_free = double(end_free - start_free) / CLOCKS_PER_SEC;
+            // Tempo de liberação de memória
+            clock_t start_free = clock();
+            for (int i = 0; i < N; i++)
+            {
+                delete[] mat1[i];
+                delete[] mat2[i];
+                delete[] res[i];
+            }
+            delete[] mat1;
+            delete[] mat2;
+            delete[] res;
+            clock_t end_free = clock();
+            time_free += double(end_free - start_free) / CLOCKS_PER_SEC;
 
+            cout << N << ",";
+            cout << time_calc << ",";  // Tempo de cálculo segundos
+            cout << time_alloc << ","; // Tempo de alocação de memória segundos
+            cout << time_free << endl; // Tempo de liberação de memória: %f segundos
+        }
         // Salvando os resultados no arquivo
         file << N << ",";
-        file << time_calc << ",";  // Tempo de cálculo segundos
-        file << time_alloc << ","; // Tempo de alocação de memória segundos
-        file << time_free << endl; // Tempo de liberação de memória: %f segundos
+        file << (time_calc / (double)M) << ",";  // Tempo de cálculo segundos
+        file << (time_alloc / (double)M) << ","; // Tempo de alocação de memória segundos
+        file << (time_free / (double)M) << endl; // Tempo de liberação de memória: %f segundos
         // file << "Memória usada: " << memory_used_kb << "KB" << endl << endl;
 
         cout << "Resultados para N = " << N << " salvos." << endl;
