@@ -101,15 +101,16 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    cout << "B = " + B;
-    cout << "Numero de pontos = " + Npts;
-    cout << "M = " + M;
+    cout << "B = " << B << endl;;
+    cout << "Numero de pontos = " << Npts << endl;;
+    cout << "M = " << M << endl;
     // Configura notação científica e precisão
     file << std::scientific << std::setprecision(6);
 
     // Varie N automaticamente de 10 a 10000
-    for (int N : {10, 100, 500, 1000})
+    for (int n = 0; n < Npts; n++)
     {
+        int N = Ns[n];
         double time_free = 0.0, time_alloc = 0.0, time_calc = 0.0;
 
         for (int m = 1; m <= M; m++)
