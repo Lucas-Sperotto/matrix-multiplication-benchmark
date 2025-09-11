@@ -17,22 +17,33 @@ check_install() {
     fi
 }
 
+check_python_package() {
+    PKG=$1
+    python3 -c "import $PKG" 2>/dev/null
+    if [ $? -ne 0 ]; then
+        echo "❌ Pacote Python '$PKG' não encontrado. Tentando instalar com apt..."
+        if apt-cache search "python3-$PKG" | grep -q "python3-$PKG"; then
+            sudo apt-get install -y "python3-$PKG"
+        else
+            echo "⚠️  Pacote python3-$PKG não encontrado no apt. Instalando com pip..."
+            pip3 install --user "$PKG"
+        fi
+    else
+        echo "✅ Pacote Python '$PKG' já está instalado."
+    fi
+}
+
 echo "🔍 Verificando dependências..."
 check_install gcc gcc
 check_install g++ g++
 check_install default-jre java
 check_install default-jdk javac
 check_install python3 python3
+check_python_package pandas
+check_python_package matplotlib
+check_python_package psutil
 
-# ----------------------------
-# Verificação psutil (Python)
-# ----------------------------
-python3 -c "import psutil" 2>/dev/null
-if [ $? -ne 0 ]; then
-    echo "📦 Instalando python3-psutil (sudo pode ser solicitado)..."
-    sudo apt update
-    sudo apt install -y python3-psutil
-fi
+
 
 echo "✅ Todas as dependências verificadas."
 echo "-----------------------------------"
@@ -76,26 +87,26 @@ echo "Compilando matriz_cpp.cpp..."
 g++ src/matriz_cpp.cpp -o matriz_cpp -O3
 if [ $? -eq 0 ]; then
     echo "Executando C++..."
-    ./matriz_cpp "$M"
+    ./matriz_cpp "$B" "$Npts" "$M"
     mv resultado_cpp.csv "$OUT_DIR/"
 else
     echo "Erro na compilação de matriz_cpp.cpp"
 fi
 
 # 3. Compilar e executar Java
-echo "Compilando MatrixMultiplication.java..."
-javac src/MatrixMultiplication.java
+echo "Compilando matriz_java.java..."
+javac src/matriz_java.java
 if [ $? -eq 0 ]; then
     echo "Executando Java..."
-    java -cp src MatrixMultiplication "$M"
+    java -cp src matriz_java "$B" "$Npts" "$M"
     mv resultado_java.csv "$OUT_DIR/" 2>/dev/null || echo "Arquivo de saída Java não encontrado."
 else
-    echo "Erro na compilação de MatrixMultiplication.java"
+    echo "Erro na compilação de matriz_java.java"
 fi
 
 # 4. Executar Python
 echo "Executando Python..."
-python3 src/matriz_python.py "$M"
+python3 src/matriz_python.py "$B" "$Npts" "$M"
 mv resultado_python.csv "$OUT_DIR/"
 
 echo "-----------------------------------"
