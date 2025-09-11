@@ -46,15 +46,19 @@ void multiply(int **mat1, int **mat2, int **res, int N)
 }
 
 // Função para gerar pontos em escala logarítmica
-int* logspace(double b, int Npts) {
+int *logspace(double b, int Npts)
+{
     double a = 100.0; // valor inicial fixo
-    if (Npts < 2) return NULL;
+    if (Npts < 2)
+        return NULL;
 
     int *arr = malloc(Npts * sizeof(int));
-    if (!arr) return NULL;
+    if (!arr)
+        return NULL;
 
-    double r = pow(b / a, 1.0 / (Npts - 1));  // razão geométrica
-    for (int i = 0; i < Npts; i++) {
+    double r = pow(b / a, 1.0 / (Npts - 1)); // razão geométrica
+    for (int i = 0; i < Npts; i++)
+    {
         arr[i] = (int)(a * pow(r, i) + 0.5); // arredonda para o inteiro mais próximo
     }
 
@@ -71,37 +75,39 @@ int main(int argc, char **argv)
     }
 
     fprintf(f, "N,TCS,TAM,TLM\n"); //
- 
+
     int M = 1;
 
-        if (argc < 4) {
+    if (argc < 4)
+    {
         printf("Uso: %s <B> <Npts> <M>\n", argv[0]);
         printf("Exemplo: %s 4000 12 5\n", argv[0]);
         return 1;
     }
 
-    int B = atoi(argv[1]);     // valor máximo
-    int Npts = atoi(argv[2]);  // quantidade de pontos
-    M = atoi(argv[3]);     // número de repetições
+    int B = atoi(argv[1]);    // valor máximo
+    int Npts = atoi(argv[2]); // quantidade de pontos
+    M = atoi(argv[3]);        // número de repetições
 
     int *Ns = logspace(B, Npts);
 
-    if (Ns == NULL) {
+    if (Ns == NULL)
+    {
         printf("Erro ao gerar escala logarítmica.\n");
         return 1;
     }
-  
+
     printf("B = %d\n\n", B);
-    printf("Npts = %d\n\n", M);
-    printf("M = %d\n\n", Npts);
+    printf("Npts = %d\n\n", Npts);
+    printf("M = %d\n\n", M);
 
     for (int n = 0; n < Npts; n++)
-    {   
+    {
         int N = Ns[n];
         double time_free = 0.0, time_alloc = 0.0, time_calc = 0.0;
 
-        for (int m = 1; m<=M; m++)
-        {            
+        for (int m = 1; m <= M; m++)
+        {
 
             // Medindo o tempo de alocação de memória
             clock_t start_alloc = clock();
@@ -167,23 +173,22 @@ int main(int argc, char **argv)
             free(mat2);
             free(res);
             clock_t end_free = clock();
-            time_free += ((double)(end_free - start_free)) / CLOCKS_PER_SEC;     
-             // Salvando os resultados no arquivo
-        printf( "%d,", N);          // valor de N
-        printf( "%e,", (time_calc));  // Tempo de cálculo: %f segundos\n
-        printf( "%e,", (time_alloc)); // Tempo de alocação de memória: %f segundos\n
-        printf( "%e\n", (time_free)); // Tempo de liberação de memória: %f segundos
-        // fprintf(f, "Memória usada: %ld KB\n", memory_used_kb);
-               
-            //printf("Resultados para N = %d salvos M = %d.\n", N, M);
+            time_free += ((double)(end_free - start_free)) / CLOCKS_PER_SEC;
+            // Salvando os resultados no arquivo
+            printf("%d,", N);            // valor de N
+            printf("%e,", (time_calc));  // Tempo de cálculo: %f segundos\n
+            printf("%e,", (time_alloc)); // Tempo de alocação de memória: %f segundos\n
+            printf("%e\n", (time_free)); // Tempo de liberação de memória: %f segundos
+            // fprintf(f, "Memória usada: %ld KB\n", memory_used_kb);
+
+            // printf("Resultados para N = %d salvos M = %d.\n", N, M);
         }
         // Salvando os resultados no arquivo
-        fprintf(f, "%d,", N);          // valor de N
+        fprintf(f, "%d,", N);                        // valor de N
         fprintf(f, "%e,", (time_calc / (double)M));  // Tempo de cálculo: %f segundos\n
-        fprintf(f, "%e,", (time_alloc/ (double)M)); // Tempo de alocação de memória: %f segundos\n
-        fprintf(f, "%e\n", (time_free/ (double)M)); // Tempo de liberação de memória: %f segundos
+        fprintf(f, "%e,", (time_alloc / (double)M)); // Tempo de alocação de memória: %f segundos\n
+        fprintf(f, "%e\n", (time_free / (double)M)); // Tempo de liberação de memória: %f segundos
         // fprintf(f, "Memória usada: %ld KB\n", memory_used_kb);
-        
     }
     fclose(f);
     printf("Todos os resultados foram salvos no arquivo resultado_c.csv.\n");

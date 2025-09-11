@@ -28,6 +28,8 @@
 #include <fstream>
 #include <ctime>
 #include <iomanip> // para std::scientific e std::setprecision
+#include <cmath>
+#include <vector>
 // #include <sys/resource.h>
 
 using namespace std;
@@ -47,6 +49,26 @@ void multiply(int **mat1, int **mat2, int **res, int N)
     }
 }
 
+std::vector<int> logspace(double b, int Npts)
+{
+    double a = 100.0; // valor inicial fixo
+    std::vector<int> arr;
+
+    if (Npts < 2)
+        return arr; // retorna vetor vazio se Npts < 2
+
+    arr.reserve(Npts); // otimiza alocação
+
+    double r = std::pow(b / a, 1.0 / (Npts - 1)); // razão geométrica
+
+    for (int i = 0; i < Npts; i++)
+    {
+        arr.push_back(static_cast<int>(std::round(a * std::pow(r, i))));
+    }
+
+    return arr;
+}
+
 int main(int argc, char **argv)
 {
 
@@ -60,11 +82,28 @@ int main(int argc, char **argv)
 
     int M = 1;
 
-    if (argc == 2)
-        M = atoi(argv[1]);
+    if (argc < 4)
+    {
+        printf("Uso: %s <B> <Npts> <M>\n", argv[0]);
+        printf("Exemplo: %s 4000 12 5\n", argv[0]);
+        return 1;
+    }
 
-    printf("M = %d\n\n", M);
+    int B = atoi(argv[1]);    // valor máximo
+    int Npts = atoi(argv[2]); // quantidade de pontos
+    M = atoi(argv[3]);        // número de repetições
 
+    std::vector<int> Ns = logspace(B, Npts);
+
+    if (Ns.empty())
+    {
+        std::cout << "Erro ao gerar escala logarítmica.\n";
+        return 1;
+    }
+
+    cout << "B = " + B;
+    cout << "Numero de pontos = " + Npts;
+    cout << "M = " + M;
     // Configura notação científica e precisão
     file << std::scientific << std::setprecision(6);
 
