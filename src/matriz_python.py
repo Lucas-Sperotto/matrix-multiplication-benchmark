@@ -35,19 +35,44 @@ def multiply(mat1, mat2, N):
                 res[i][j] += mat1[i][k] * mat2[k][j]
     return res
 
+def logspace(b, npts, a=100.0):
+    """Gera npts pontos entre a e b em escala logarítmica"""
+    if npts < 2:
+        return None
+    
+    r = (b / a) ** (1.0 / (npts - 1))  # razão geométrica
+    arr = [int(round(a * (r ** i))) for i in range(npts)]
+    return arr
+
 # Abrir o arquivo para salvar os resultados
 with open("resultado_python.csv", "w") as f:
 
-    f.write(f"N,TCS,TAM\n")
 
-    M = 1  # valor padrão
+    if len(sys.argv) < 4:
+        print(f"Uso: python {sys.argv[0]} <B> <Npts> <M>")
+        print(f"Exemplo: python {sys.argv[0]} 4000 12 5")
+        sys.exit(1)
+
+    B = int(sys.argv[1])      # valor máximo
+    Npts = int(sys.argv[2])   # quantidade de pontos
+    M = int(sys.argv[3])      # número de repetições
+
+    Ns = logspace(B, Npts)
+    if Ns is None:
+        print("Erro ao gerar escala logarítmica.")
+        sys.exit(1)
+        
+    f.write(f"N,TCS,TAM\n")
+    
 
     if len(sys.argv) == 2:  # se passou 1 argumento além do nome do script
         M = int(sys.argv[1])  # converte string para inteiro
     
+    print("B:", B)
+    print("Npts:", Npts)
     print("M:", M)
 
-    for N in [10, 100, 500, 1000]:  # Varie N automaticamente de 10 a 10000
+    for N in Ns:  # Varie N automaticamente de 10 a 10000
 
         time_alloc = 0.0
         time_calc = 0.0
