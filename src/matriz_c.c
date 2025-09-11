@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h> // para medição do tempo
+#include <math.h>
 // #include <sys/resource.h>
 
 void multiply(int **mat1, int **mat2, int **res, int N)
@@ -44,6 +45,22 @@ void multiply(int **mat1, int **mat2, int **res, int N)
     }
 }
 
+// Função para gerar pontos em escala logarítmica
+int* logspace(double b, int Npts) {
+    double a = 100.0; // valor inicial fixo
+    if (Npts < 2) return NULL;
+
+    int *arr = malloc(Npts * sizeof(int));
+    if (!arr) return NULL;
+
+    double r = pow(b / a, 1.0 / (Npts - 1));  // razão geométrica
+    for (int i = 0; i < Npts; i++) {
+        arr[i] = (int)(a * pow(r, i) + 0.5); // arredonda para o inteiro mais próximo
+    }
+
+    return arr;
+}
+
 int main(int argc, char **argv)
 {
     FILE *f = fopen("resultado_c.csv", "w");
@@ -54,18 +71,29 @@ int main(int argc, char **argv)
     }
 
     fprintf(f, "N,TCS,TAM,TLM\n"); //
-
-    // Varie N automaticamente de 10 a 1000
-    int Ns[] = {10, 100, 500, 1000}; //, 1500, 2000, 2500, 3000};
-    int length = sizeof(Ns) / sizeof(Ns[0]);
+ 
     int M = 1;
 
-    if(argc == 2)   
-    M = atoi(argv[1]);
+        if (argc < 4) {
+        printf("Uso: %s <B> <Npts> <M>\n", argv[0]);
+        printf("Exemplo: %s 4000 12 5\n", argv[0]);
+        return 1;
+    }
 
+    int B = atoi(argv[1]);     // valor máximo
+    int Npts = atoi(argv[2]);  // quantidade de pontos
+    M = atoi(argv[3]);     // número de repetições
+
+    int *Ns = logspace(B, Npts);
+
+    if (Ns == NULL) {
+        printf("Erro ao gerar escala logarítmica.\n");
+        return 1;
+    }
+  
     printf("M = %d\n\n", M);
 
-    for (int n = 0; n < length; n++)
+    for (int n = 0; n < Npts; n++)
     {   
         int N = Ns[n];
         double time_free = 0.0, time_alloc = 0.0, time_calc = 0.0;
