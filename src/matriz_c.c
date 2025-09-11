@@ -91,7 +91,9 @@ int main(int argc, char **argv)
         return 1;
     }
   
-    printf("M = %d\n\n", M);
+    printf("B = %d\n\n", B);
+    printf("Npts = %d\n\n", M);
+    printf("M = %d\n\n", Npts);
 
     for (int n = 0; n < Npts; n++)
     {   
