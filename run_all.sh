@@ -9,11 +9,11 @@ check_install() {
     PKG=$1
     CMD=$2
     if ! command -v "$CMD" &> /dev/null; then
-        echo "[$PKG] não encontrado. Instalando..."
+        echo "❌ [$PKG] não encontrado. Instalando..."
         sudo apt update
         sudo apt install -y "$PKG"
     else
-        echo "[$PKG] já está instalado."
+        echo "✅ [$PKG] já está instalado."
     fi
 }
 
