@@ -73,7 +73,7 @@ read -p "Digite a quantidade de execuções para o calculo da media: " M
 
 # 1. Compilar e executar C
 echo "Compilando matriz_c.c..."
-gcc src/matriz_c.c -o matriz_c -lm
+gcc src/matriz_c.c -o matriz_c -lm -O3
 if [ $? -eq 0 ]; then
     echo "Executando C..."
     ./matriz_c "$B" "$Npts" "$M"

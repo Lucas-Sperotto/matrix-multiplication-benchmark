@@ -105,7 +105,7 @@ int main(int argc, char **argv)
     {
         int N = Ns[n];
         double time_free = 0.0, time_alloc = 0.0, time_calc = 0.0;
-
+printf("%d:\n", N);
         for (int m = 1; m <= M; m++)
         {
 
@@ -144,7 +144,7 @@ int main(int argc, char **argv)
             clock_t start_calc = clock();
             multiply(mat1, mat2, res, N);
             clock_t end_calc = clock();
-            time_calc += ((double)(end_calc - start_calc)) / CLOCKS_PER_SEC;
+            time_calc += (((double)(end_calc - start_calc)) / CLOCKS_PER_SEC);
 
             // Medição do uso de memória
             // struct rusage usage;
@@ -175,10 +175,16 @@ int main(int argc, char **argv)
             clock_t end_free = clock();
             time_free += ((double)(end_free - start_free)) / CLOCKS_PER_SEC;
             // Salvando os resultados no arquivo
-            printf("%d,", N);            // valor de N
-            printf("%e,", (time_calc));  // Tempo de cálculo: %f segundos\n
-            printf("%e,", (time_alloc)); // Tempo de alocação de memória: %f segundos\n
-            printf("%e\n", (time_free)); // Tempo de liberação de memória: %f segundos
+            // printf("%d,", N);            // valor de N
+            // printf("%e,", (time_calc));  // Tempo de cálculo: %f segundos\n
+            // printf("%e,", (time_alloc)); // Tempo de alocação de memória: %f segundos\n
+            // printf("%e\n", (time_free)); // Tempo de liberação de memória: %f segundos
+
+                                                                        // valor de N
+            printf("[%d]:\t%e\n", m, (((double)(end_calc - start_calc)) / CLOCKS_PER_SEC)); // Tempo de cálculo: %f segundos\n
+            // printf("%e,", (time_alloc)); // Tempo de alocação de memória: %f segundos\n
+            // printf("%e\n", (time_free)); // Tempo de liberação de memória: %f segundos
+
             // fprintf(f, "Memória usada: %ld KB\n", memory_used_kb);
 
             // printf("Resultados para N = %d salvos M = %d.\n", N, M);
