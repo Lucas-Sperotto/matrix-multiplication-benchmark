@@ -71,6 +71,9 @@ read -p "Digite o tamanho maximo de Matriz: " B
 read -p "Digite o numero de pontos na escala Log:" Npts
 read -p "Digite a quantidade de execuções para o calculo da media: " M
 
+
+
+
 # 1. Compilar e executar C
 echo "Compilando matriz_c.c..."
 gcc src/matriz_c.c -o matriz_c -lm -O3
@@ -111,6 +114,11 @@ mv resultado_python.csv "$OUT_DIR/"
 
 echo "-----------------------------------"
 echo "Execução concluída! Resultados em: $OUT_DIR"
+
+# 5. Capturando informações de hardware
+echo "Capturando informações de hardware"
+./gen_sysinfo_md.sh
+mv system_info.md "$OUT_DIR/"
 
 # ----------------------------
 # Geração de gráficos
