@@ -65,6 +65,25 @@ int *logspace(double b, int Npts)
     return arr;
 }
 
+int *linear(double b, int Npts)
+{
+    double a = 100.0; // valor inicial fixo
+    if (Npts < 2)
+        return NULL;
+
+    int *arr = malloc(Npts * sizeof(int));
+    if (!arr)
+        return NULL;
+
+    double step = (b - a) / (Npts - 1); // passo linear
+    for (int i = 0; i < Npts; i++)
+    {
+        arr[i] = (int)(a + step * i + 0.5); // arredonda para o inteiro mais próximo
+    }
+
+    return arr;
+}
+
 int main(int argc, char **argv)
 {
     FILE *f = fopen("resultado_c.csv", "w");
@@ -78,22 +97,28 @@ int main(int argc, char **argv)
 
     int M = 1;
 
-    if (argc < 4)
+    if (argc <= 4)
     {
-        printf("Uso: %s <B> <Npts> <M>\n", argv[0]);
-        printf("Exemplo: %s 4000 12 5\n", argv[0]);
+        printf("Uso: %s <B> <Npts> <M> <Escala>\n", argv[0]);
+        printf("Exemplo: %s 4000 12 5 1\n", argv[0]);
         return 1;
     }
 
     int B = atoi(argv[1]);    // valor máximo
     int Npts = atoi(argv[2]); // quantidade de pontos
     M = atoi(argv[3]);        // número de repetições
+    int escala = atoi(argv[4]); // escala do grafico
 
-    int *Ns = logspace(B, Npts);
+    int *Ns = NULL; 
+
+    if(escala == 1)
+        Ns = linear(B, Npts);
+    else
+        Ns = logspace(B, Npts);
 
     if (Ns == NULL)
     {
-        printf("Erro ao gerar escala logarítmica.\n");
+        printf("Erro ao gerar escala .\n");
         return 1;
     }
 
@@ -105,7 +130,7 @@ int main(int argc, char **argv)
     {
         int N = Ns[n];
         double time_free = 0.0, time_alloc = 0.0, time_calc = 0.0;
-printf("%d:\n", N);
+        printf("%d:\n", N);
         for (int m = 1; m <= M; m++)
         {
 
@@ -180,7 +205,7 @@ printf("%d:\n", N);
             // printf("%e,", (time_alloc)); // Tempo de alocação de memória: %f segundos\n
             // printf("%e\n", (time_free)); // Tempo de liberação de memória: %f segundos
 
-                                                                        // valor de N
+            // valor de N
             printf("[%d]:\t%e\n", m, (((double)(end_calc - start_calc)) / CLOCKS_PER_SEC)); // Tempo de cálculo: %f segundos\n
             // printf("%e,", (time_alloc)); // Tempo de alocação de memória: %f segundos\n
             // printf("%e\n", (time_free)); // Tempo de liberação de memória: %f segundos
@@ -197,6 +222,7 @@ printf("%d:\n", N);
         // fprintf(f, "Memória usada: %ld KB\n", memory_used_kb);
     }
     fclose(f);
+    free(Ns);
     printf("Todos os resultados foram salvos no arquivo resultado_c.csv.\n");
     return 0;
 }
