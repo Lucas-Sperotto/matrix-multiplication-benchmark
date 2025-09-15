@@ -44,20 +44,31 @@ def logspace(b, npts, a=100.0):
     arr = [int(round(a * (r ** i))) for i in range(npts)]
     return arr
 
+def linear(b, npts, a=100.0):
+    """Gera npts pontos entre a e b em escala linear"""
+    if npts < 2:
+        return None
+    
+    step = (b - a) / (Npts - 1)
+    arr = [round(a + step * i) for i in range(Npts)]
+    return arr
+
 # Abrir o arquivo para salvar os resultados
 with open("resultado_python.csv", "w") as f:
 
 
-    if len(sys.argv) < 4:
-        print(f"Uso: python {sys.argv[0]} <B> <Npts> <M>")
-        print(f"Exemplo: python {sys.argv[0]} 4000 12 5")
+    if len(sys.argv) <= 4:
+        print(f"Uso: python {sys.argv[0]} <B> <Npts> <M> <Escala>")
+        print(f"Exemplo: python {sys.argv[0]} 4000 12 5 1")
         sys.exit(1)
 
     B = int(sys.argv[1])      # valor máximo
     Npts = int(sys.argv[2])   # quantidade de pontos
     M = int(sys.argv[3])      # número de repetições
+    escala = int(sys.argv[4])
 
-    Ns = logspace(B, Npts)
+    Ns = linear(B, Npts) if escala == 1 else logspace(B, Npts)
+
     if Ns is None:
         print("Erro ao gerar escala logarítmica.")
         sys.exit(1)
