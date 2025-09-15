@@ -69,6 +69,25 @@ std::vector<int> logspace(double b, int Npts)
     return arr;
 }
 
+std::vector<int> linear(double b, int Npts)
+{
+    double a = 100.0; // valor inicial fixo
+    std::vector<int> arr;
+
+    if (Npts < 2)
+        return arr; // retorna vetor vazio se Npts < 2
+
+    arr.reserve(Npts); // otimiza alocação
+
+    double step = (b - a) / (Npts - 1); // passo linear
+    for (int i = 0; i < Npts; i++)
+    {
+        arr.push_back(static_cast<int>(std::round((int)(a + step * i + 0.5)))); // arredonda para o inteiro mais próximo
+    }
+
+    return arr;
+}
+
 int main(int argc, char **argv)
 {
 
@@ -82,27 +101,35 @@ int main(int argc, char **argv)
 
     int M = 1;
 
-    if (argc < 4)
+    if (argc <= 4)
     {
-        printf("Uso: %s <B> <Npts> <M>\n", argv[0]);
-        printf("Exemplo: %s 4000 12 5\n", argv[0]);
+        printf("Uso: %s <B> <Npts> <M> <Escala>\n", argv[0]);
+        printf("Exemplo: %s 4000 12 5 1\n", argv[0]);
         return 1;
     }
 
-    int B = atoi(argv[1]);    // valor máximo
-    int Npts = atoi(argv[2]); // quantidade de pontos
-    M = atoi(argv[3]);        // número de repetições
+    int B = atoi(argv[1]);      // valor máximo
+    int Npts = atoi(argv[2]);   // quantidade de pontos
+    M = atoi(argv[3]);          // número de repetições
+    int escala = atoi(argv[4]); // número de repetições
 
-    std::vector<int> Ns = logspace(B, Npts);
+    std::vector<int> Ns;
+
+    if (escala == 1)
+        Ns = linear(B, Npts);
+    else
+        Ns = logspace(B, Npts);
 
     if (Ns.empty())
     {
-        std::cout << "Erro ao gerar escala logarítmica.\n";
+        std::cout << "Erro ao gerar escala.\n";
         return 1;
     }
 
-    cout << "B = " << B << endl;;
-    cout << "Numero de pontos = " << Npts << endl;;
+    cout << "B = " << B << endl;
+    ;
+    cout << "Numero de pontos = " << Npts << endl;
+    ;
     cout << "M = " << M << endl;
     // Configura notação científica e precisão
     file << std::scientific << std::setprecision(6);
