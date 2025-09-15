@@ -54,24 +54,41 @@ public class matriz_java {
         return arr;
     }
 
+    public static int[] linear(int b, int Npts) {
+        int a = 100; // valor inicial fixo
+        if (Npts < 2)
+            return new int[0]; // retorna array vazio se Npts < 2
+
+        int[] arr = new int[Npts];
+
+        double step = (b - a) / (Npts - 1);
+
+        for (int i = 0; i < Npts; i++) {
+            arr[i] = (int) (a + step * i + 0.5);
+        }
+
+        return arr;
+    }
+
     public static void main(String[] args) {
 
         int i, j;
         try {
             int M = 1; // valor padrão
-            
-            if (args.length < 3) {
-                System.out.println("Uso: java_matriz <B> <Npts> <M>");
-                System.out.println("Exemplo: java_matriz 4000 12 5");
+
+            if (args.length <= 3) {
+                System.out.println("Uso: java_matriz <B> <Npts> <M> <Escala>");
+                System.out.println("Exemplo: java_matriz 4000 12 5 1");
                 return;
             }
-            
+
             // Converte os argumentos de String para inteiro
             int B = Integer.parseInt(args[0]); // valor máximo
             int Npts = Integer.parseInt(args[1]); // quantidade de pontos
             M = Integer.parseInt(args[2]); // número de repetições
+            int escala = Integer.parseInt(args[3]); 
 
-            int[] Ns = logspace(B, Npts);
+            int[] Ns = (escala == 1) ? linear(B, Npts) : logspace(B, Npts);
 
             FileWriter writer = new FileWriter("resultado_java.csv");
 
