@@ -47,3 +47,8 @@ nbproject/
 *~
 *.swp
 *.swo
+
+# ---- Arquivos binários sem extensão (na raiz e em subpastas) ----
+# Qualquer arquivo que não tenha ponto no nome
+**/[!.]*        # ignora todos os arquivos sem ponto (sem extensão), inclusive em subpastas
+!**/            # mas mantém diretórios
