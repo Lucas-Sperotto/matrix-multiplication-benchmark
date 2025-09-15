@@ -75,9 +75,20 @@ read -p "Digite a quantidade de execuções para o calculo da media: " M
 
 
 
-# 1. Compilar e executar C
+# 1. Compilar e executar C Otimizado
 echo "Compilando matriz_c.c..."
 gcc src/matriz_c.c -o matriz_c -lm -O3
+if [ $? -eq 0 ]; then
+    echo "Executando C -O3..."
+    ./matriz_c "$B" "$Npts" "$M" "$ESCALA"
+    mv resultado_c_otimizado_-O3.csv "$OUT_DIR/"
+else
+    echo "Erro na compilação de matriz_c.c"
+fi
+
+# 1.1 Compilar e executar C
+echo "Compilando matriz_c.c..."
+gcc src/matriz_c.c -o matriz_c -lm
 if [ $? -eq 0 ]; then
     echo "Executando C..."
     ./matriz_c "$B" "$Npts" "$M" "$ESCALA"
@@ -86,9 +97,20 @@ else
     echo "Erro na compilação de matriz_c.c"
 fi
 
-# 2. Compilar e executar C++
+# 2. Compilar e executar C++ Otimizado
 echo "Compilando matriz_cpp.cpp..."
 g++ src/matriz_cpp.cpp -o matriz_cpp -O3
+if [ $? -eq 0 ]; then
+    echo "Executando C++ -O3..."
+    ./matriz_cpp "$B" "$Npts" "$M" "$ESCALA"
+    mv resultado_cpp.csv "$OUT_DIR/"
+else
+    echo "Erro na compilação de matriz_cpp.cpp"
+fi
+
+# 2.1 Compilar e executar C++ 
+echo "Compilando matriz_cpp.cpp..."
+g++ src/matriz_cpp.cpp -o matriz_cpp
 if [ $? -eq 0 ]; then
     echo "Executando C++..."
     ./matriz_cpp "$B" "$Npts" "$M" "$ESCALA"
