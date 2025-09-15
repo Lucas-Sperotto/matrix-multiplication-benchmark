@@ -68,7 +68,8 @@ echo "-----------------------------------"
 
 # Pergunta a quantidade de execuções para o calculo da media
 read -p "Digite o tamanho maximo de Matriz: " B
-read -p "Digite o numero de pontos na escala Log:" Npts
+read -p "Escolha o tipo de escala grafica: [0] = Logaritmica, [1] = Linear: " ESCALA
+read -p "Digite o numero de pontos na escala:" Npts
 read -p "Digite a quantidade de execuções para o calculo da media: " M
 
 
@@ -79,7 +80,7 @@ echo "Compilando matriz_c.c..."
 gcc src/matriz_c.c -o matriz_c -lm -O3
 if [ $? -eq 0 ]; then
     echo "Executando C..."
-    ./matriz_c "$B" "$Npts" "$M"
+    ./matriz_c "$B" "$Npts" "$M" "$ESCALA"
     mv resultado_c.csv "$OUT_DIR/"
 else
     echo "Erro na compilação de matriz_c.c"
@@ -90,7 +91,7 @@ echo "Compilando matriz_cpp.cpp..."
 g++ src/matriz_cpp.cpp -o matriz_cpp -O3
 if [ $? -eq 0 ]; then
     echo "Executando C++..."
-    ./matriz_cpp "$B" "$Npts" "$M"
+    ./matriz_cpp "$B" "$Npts" "$M" "$ESCALA"
     mv resultado_cpp.csv "$OUT_DIR/"
 else
     echo "Erro na compilação de matriz_cpp.cpp"
@@ -101,7 +102,7 @@ echo "Compilando matriz_java.java..."
 javac src/matriz_java.java
 if [ $? -eq 0 ]; then
     echo "Executando Java..."
-    java -cp src matriz_java "$B" "$Npts" "$M"
+    java -cp src matriz_java "$B" "$Npts" "$M" "$ESCALA"
     mv resultado_java.csv "$OUT_DIR/" 2>/dev/null || echo "Arquivo de saída Java não encontrado."
 else
     echo "Erro na compilação de matriz_java.java"
@@ -109,7 +110,7 @@ fi
 
 # 4. Executar Python
 echo "Executando Python..."
-python3 src/matriz_python.py "$B" "$Npts" "$M"
+python3 src/matriz_python.py "$B" "$Npts" "$M" "$ESCALA"
 mv resultado_python.csv "$OUT_DIR/"
 
 echo "-----------------------------------"
