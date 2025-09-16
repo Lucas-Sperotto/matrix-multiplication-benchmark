@@ -80,8 +80,8 @@ echo "Compilando matriz_c.c..."
 gcc src/matriz_c.c -o matriz_c -lm -O3
 if [ $? -eq 0 ]; then
     echo "Executando C -O3..."
-    ./matriz_c "$B" "$Npts" "$M" "$ESCALA"
-    mv resultado_c_otimizado_-O3.csv "$OUT_DIR/"
+    ./matriz_c "$B" "$Npts" "$M" "$ESCALA" "-O3"
+    mv resultado_c_ot.csv "$OUT_DIR/"
 else
     echo "Erro na compilação de matriz_c.c"
 fi
@@ -102,8 +102,8 @@ echo "Compilando matriz_cpp.cpp..."
 g++ src/matriz_cpp.cpp -o matriz_cpp -O3
 if [ $? -eq 0 ]; then
     echo "Executando C++ -O3..."
-    ./matriz_cpp "$B" "$Npts" "$M" "$ESCALA"
-    mv resultado_cpp.csv "$OUT_DIR/"
+    ./matriz_cpp "$B" "$Npts" "$M" "$ESCALA" "-O3"
+    mv resultado_cpp_ot.csv "$OUT_DIR/"
 else
     echo "Erro na compilação de matriz_cpp.cpp"
 fi

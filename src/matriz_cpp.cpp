@@ -91,7 +91,17 @@ std::vector<int> linear(double b, int Npts)
 int main(int argc, char **argv)
 {
 
-    ofstream file("resultado_cpp.csv");
+    std::ofstream file;
+    std::string filename;
+    
+      if (argc > 5) {
+        filename = "resultado_cpp_ot.csv";
+    } else {
+        filename = "resultado_cpp.csv";
+    }
+
+    file.open(filename);
+    
     if (!file.is_open())
     {
         cout << "Erro ao abrir o arquivo!" << endl;
@@ -101,7 +111,7 @@ int main(int argc, char **argv)
 
     int M = 1;
 
-    if (argc <= 4)
+    if (argc < 5)
     {
         printf("Uso: %s <B> <Npts> <M> <Escala>\n", argv[0]);
         printf("Exemplo: %s 4000 12 5 1\n", argv[0]);

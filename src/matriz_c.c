@@ -86,32 +86,45 @@ int *linear(double b, int Npts)
 
 int main(int argc, char **argv)
 {
-    FILE *f = fopen("resultado_c.csv", "w");
-    if (f == NULL)
+    FILE *f;
+    if (argc > 5)
     {
-        printf("Erro ao abrir o arquivo!\n");
-        return 1;
+        f = fopen("resultado_c_ot.csv", "w");
+        fprintf(f, "N,TCS,TAM,TLM\n"); //
+        if (f == NULL)
+        {
+            printf("Erro ao abrir o arquivo!\n");
+            return 1;
+        }
     }
-
-    fprintf(f, "N,TCS,TAM,TLM\n"); //
+    else
+    {
+        f = fopen("resultado_c.csv", "w");
+        fprintf(f, "N,TCS,TAM,TLM\n"); //
+        if (f == NULL)
+        {
+            printf("Erro ao abrir o arquivo!\n");
+            return 1;
+        }
+    }   
 
     int M = 1;
 
-    if (argc <= 4)
+    if (argc < 5)
     {
         printf("Uso: %s <B> <Npts> <M> <Escala>\n", argv[0]);
         printf("Exemplo: %s 4000 12 5 1\n", argv[0]);
         return 1;
     }
 
-    int B = atoi(argv[1]);    // valor máximo
-    int Npts = atoi(argv[2]); // quantidade de pontos
-    M = atoi(argv[3]);        // número de repetições
+    int B = atoi(argv[1]);      // valor máximo
+    int Npts = atoi(argv[2]);   // quantidade de pontos
+    M = atoi(argv[3]);          // número de repetições
     int escala = atoi(argv[4]); // escala do grafico
 
-    int *Ns = NULL; 
+    int *Ns = NULL;
 
-    if(escala == 1)
+    if (escala == 1)
         Ns = linear(B, Npts);
     else
         Ns = logspace(B, Npts);
