@@ -35,7 +35,7 @@ files = {
     "C++": out_dir / "resultado_cpp.csv",
     "C++_OT": out_dir / "resultado_cpp_ot.csv",
     "Java": out_dir / "resultado_java.csv",
-    "Python": out_dir / "resultado_python.csv",
+   # "Python": out_dir / "resultado_python.csv",
 }
 
 # ============================
