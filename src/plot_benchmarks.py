@@ -31,11 +31,11 @@ out_dir = Path(sys.argv[1])
 
 files = {
     "C": out_dir / "resultado_c.csv",
-    "C_OT": out_dir / "resultado_c_ot.csv",
+    "C_O3": out_dir / "resultado_c_O3.csv",
     "C++": out_dir / "resultado_cpp.csv",
-    "C++_OT": out_dir / "resultado_cpp_ot.csv",
+    "C++_O3": out_dir / "resultado_cpp_O3.csv",
     "Java": out_dir / "resultado_java.csv",
-   # "Python": out_dir / "resultado_python.csv",
+    "Python": out_dir / "resultado_python.csv",
 }
 
 # ============================

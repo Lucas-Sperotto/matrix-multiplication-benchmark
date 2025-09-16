@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 # ----------------------------
 # Verificação e instalação de requisitos
 # ----------------------------
@@ -81,7 +80,7 @@ gcc src/matriz_c.c -o matriz_c -lm -O3
 if [ $? -eq 0 ]; then
     echo "Executando C -O3..."
     ./matriz_c "$B" "$Npts" "$M" "$ESCALA" "-O3"
-    mv resultado_c_ot.csv "$OUT_DIR/"
+    mv resultado_c_O3.csv "$OUT_DIR/"
 else
     echo "Erro na compilação de matriz_c.c"
 fi
@@ -103,7 +102,7 @@ g++ src/matriz_cpp.cpp -o matriz_cpp -O3
 if [ $? -eq 0 ]; then
     echo "Executando C++ -O3..."
     ./matriz_cpp "$B" "$Npts" "$M" "$ESCALA" "-O3"
-    mv resultado_cpp_ot.csv "$OUT_DIR/"
+    mv resultado_cpp_O3.csv "$OUT_DIR/"
 else
     echo "Erro na compilação de matriz_cpp.cpp"
 fi
@@ -140,7 +139,7 @@ echo "Execução concluída! Resultados em: $OUT_DIR"
 
 # 5. Capturando informações de hardware
 echo "Capturando informações de hardware"
-./gen_sysinfo_md.sh
+./src/gen_sysinfo_md.sh
 mv system_info.md "$OUT_DIR/"
 
 # ----------------------------

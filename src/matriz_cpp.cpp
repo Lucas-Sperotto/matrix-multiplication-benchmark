@@ -95,7 +95,7 @@ int main(int argc, char **argv)
     std::string filename;
     
       if (argc > 5) {
-        filename = "resultado_cpp_ot.csv";
+        filename = "resultado_cpp_O3.csv";
     } else {
         filename = "resultado_cpp.csv";
     }

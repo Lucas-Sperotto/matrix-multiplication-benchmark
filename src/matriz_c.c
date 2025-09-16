@@ -89,7 +89,7 @@ int main(int argc, char **argv)
     FILE *f;
     if (argc > 5)
     {
-        f = fopen("resultado_c_ot.csv", "w");
+        f = fopen("resultado_c_O3.csv", "w");
         fprintf(f, "N,TCS,TAM,TLM\n"); //
         if (f == NULL)
         {
