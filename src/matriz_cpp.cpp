@@ -93,15 +93,18 @@ int main(int argc, char **argv)
 
     std::ofstream file;
     std::string filename;
-    
-      if (argc > 5) {
+
+    if (argc > 5)
+    {
         filename = "resultado_cpp_O3.csv";
-    } else {
+    }
+    else
+    {
         filename = "resultado_cpp.csv";
     }
 
     file.open(filename);
-    
+
     if (!file.is_open())
     {
         cout << "Erro ao abrir o arquivo!" << endl;
@@ -136,12 +139,12 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    cout << "B = " << B << endl;
-    ;
-    cout << "Numero de pontos = " << Npts << endl;
-    ;
-    cout << "M = " << M << endl;
-    // Configura notação científica e precisão
+    // cout << "B = " << B << endl;
+
+    // cout << "Numero de pontos = " << Npts << endl;
+
+    // cout << "M = " << M << endl;
+    //  Configura notação científica e precisão
     file << std::scientific << std::setprecision(6);
 
     // Varie N automaticamente de 10 a 10000
@@ -218,10 +221,10 @@ int main(int argc, char **argv)
             clock_t end_free = clock();
             time_free += double(end_free - start_free) / CLOCKS_PER_SEC;
 
-            cout << N << ",";
-            cout << time_calc << ",";  // Tempo de cálculo segundos
-            cout << time_alloc << ","; // Tempo de alocação de memória segundos
-            cout << time_free << endl; // Tempo de liberação de memória: %f segundos
+            // cout << N << ",";
+            // cout << time_calc << ",";  // Tempo de cálculo segundos
+            // cout << time_alloc << ","; // Tempo de alocação de memória segundos
+            // cout << time_free << endl; // Tempo de liberação de memória: %f segundos
         }
         // Salvando os resultados no arquivo
         file << N << ",";

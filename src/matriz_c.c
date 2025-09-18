@@ -106,7 +106,7 @@ int main(int argc, char **argv)
             printf("Erro ao abrir o arquivo!\n");
             return 1;
         }
-    }   
+    }
 
     int M = 1;
 
@@ -135,15 +135,15 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    printf("B = %d\n\n", B);
-    printf("Npts = %d\n\n", Npts);
-    printf("M = %d\n\n", M);
+    // printf("B = %d\n\n", B);
+    // printf("Npts = %d\n\n", Npts);
+    // printf("M = %d\n\n", M);
 
     for (int n = 0; n < Npts; n++)
     {
         int N = Ns[n];
         double time_free = 0.0, time_alloc = 0.0, time_calc = 0.0;
-        printf("%d:\n", N);
+        // printf("%d:\n", N);
         for (int m = 1; m <= M; m++)
         {
 
@@ -219,13 +219,11 @@ int main(int argc, char **argv)
             // printf("%e\n", (time_free)); // Tempo de liberação de memória: %f segundos
 
             // valor de N
-            printf("[%d]:\t%e\n", m, (((double)(end_calc - start_calc)) / CLOCKS_PER_SEC)); // Tempo de cálculo: %f segundos\n
+            // printf("[%d]:\t%e\n", m, (((double)(end_calc - start_calc)) / CLOCKS_PER_SEC)); // Tempo de cálculo: %f segundos\n
             // printf("%e,", (time_alloc)); // Tempo de alocação de memória: %f segundos\n
             // printf("%e\n", (time_free)); // Tempo de liberação de memória: %f segundos
 
             // fprintf(f, "Memória usada: %ld KB\n", memory_used_kb);
-
-            // printf("Resultados para N = %d salvos M = %d.\n", N, M);
         }
         // Salvando os resultados no arquivo
         fprintf(f, "%d,", N);                        // valor de N
@@ -233,6 +231,7 @@ int main(int argc, char **argv)
         fprintf(f, "%e,", (time_alloc / (double)M)); // Tempo de alocação de memória: %f segundos\n
         fprintf(f, "%e\n", (time_free / (double)M)); // Tempo de liberação de memória: %f segundos
         // fprintf(f, "Memória usada: %ld KB\n", memory_used_kb);
+        printf("Resultados para N = %d salvos.\n", N);
     }
     fclose(f);
     free(Ns);

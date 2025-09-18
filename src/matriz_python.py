@@ -79,9 +79,9 @@ with open("resultado_python.csv", "w") as f:
     if len(sys.argv) == 2:  # se passou 1 argumento além do nome do script
         M = int(sys.argv[1])  # converte string para inteiro
     
-    print("B:", B)
-    print("Npts:", Npts)
-    print("M:", M)
+    #print("B:", B)
+    #print("Npts:", Npts)
+    #print("M:", M)
 
     for N in Ns:  # Varie N automaticamente de 10 a 10000
 
@@ -113,9 +113,9 @@ with open("resultado_python.csv", "w") as f:
                         print(f"Erro na multiplicação das matrizes para N = {N}!")
             
             # Em Python, não precisamos medir o tempo de liberação de memória, pois o garbage collector cuida disso.
-            print(f"{N}")
-            print(f"{time_calc:.6e}")
-            print(f"{time_alloc:.6e}\n")
+            #print(f"{N}")
+            #print(f"{time_calc:.6e}")
+            #print(f"{time_alloc:.6e}\n")
 
         # Salvando os resultados no arquivo
         f.write(f"{N},")

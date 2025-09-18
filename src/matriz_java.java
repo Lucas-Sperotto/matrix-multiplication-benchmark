@@ -25,6 +25,7 @@
 
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.Locale;
 
 public class matriz_java {
 
@@ -71,6 +72,7 @@ public class matriz_java {
     }
 
     public static void main(String[] args) {
+        Locale.setDefault(Locale.US);
 
         int i, j;
         try {
@@ -86,7 +88,7 @@ public class matriz_java {
             int B = Integer.parseInt(args[0]); // valor máximo
             int Npts = Integer.parseInt(args[1]); // quantidade de pontos
             M = Integer.parseInt(args[2]); // número de repetições
-            int escala = Integer.parseInt(args[3]); 
+            int escala = Integer.parseInt(args[3]);
 
             int[] Ns = (escala == 1) ? linear(B, Npts) : logspace(B, Npts);
 
@@ -94,9 +96,9 @@ public class matriz_java {
 
             writer.write("N,TCS,TAM\n");
 
-            System.out.println(" B: " + B + "\n");
-            System.out.println(" Npts: " + Npts + "\n");
-            System.out.println(" M: " + M + "\n");
+            // System.out.println(" B: " + B + "\n");
+            // System.out.println(" Npts: " + Npts + "\n");
+            // System.out.println(" M: " + M + "\n");
 
             for (int n = 0; n < Npts; n++) {
 
@@ -141,9 +143,9 @@ public class matriz_java {
                                 System.out.println("Erro na multiplicação das matrizes para N = " + N + "!");
                         }
                     }
-                    System.out.println(N + ",");
-                    System.out.println(String.format("%.6e", timeCalc) + ",");
-                    System.out.println(String.format("%.6e", timeAlloc) + "\n");
+                    // System.out.println(N + ",");
+                    // System.out.println(String.format("%.6e", timeCalc) + ",");
+                    // System.out.println(String.format("%.6e", timeAlloc) + "\n");
                 }
                 // Salvando os resultados no arquivo
                 writer.write(N + ",");
