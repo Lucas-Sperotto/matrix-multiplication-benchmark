@@ -1,212 +1,271 @@
-# run_all.ps1
-# Replica o comportamento de run_all.sh no Windows/PowerShell
-# - Verifica/instala dependências (gcc, g++, Java (JRE/JDK), Python, psutil)
-# - Compila e executa C, C++, Java e Python
-# - Salva resultados em out/<RUN_NAME>
-# Obs.: Para instalação automática é necessário winget. Caso não haja, o script orienta manualmente.
+<# 
+  run_all.ps1  —  Windows/PowerShell
+  Espelha o fluxo do run_all.sh (Linux): dependências, C/C++ (-O3 e normal), Java, Python,
+  captura de system_info.md e geração de gráficos.
+#>
 
+Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-function Test-Command {
-    param([Parameter(Mandatory=$true)][string]$Name)
-    $old = $ErrorActionPreference
-    try {
-        $ErrorActionPreference = "SilentlyContinue"
-        $null = Get-Command $Name
-        return $true
-    } catch {
+# ----------------------------
+# Utilidades
+# ----------------------------
+function Have($cmd) {
+  $null -ne (Get-Command $cmd -ErrorAction SilentlyContinue)
+}
+
+function Need-Tool($display, $cmd, $wingetId) {
+  if (Have $cmd) {
+    Write-Host "✅ [$display] já está instalado ($cmd encontrado)."
+    return $true
+  } else {
+    Write-Host "❌ [$display] não encontrado."
+    if (Have "winget") {
+      $ans = Read-Host "Deseja instalar $display via winget agora? (s/N)"
+      if ($ans -match '^(s|S|y|Y)') {
+        try {
+          winget install -e --id $wingetId --accept-source-agreements --accept-package-agreements
+          if (Have $cmd) {
+            Write-Host "✅ $display instalado."
+            return $true
+          } else {
+            Write-Warning "⚠️  $display ainda não aparece no PATH nesta sessão. Abra um novo terminal ou adicione manualmente ao PATH."
+            return $false
+          }
+        } catch {
+          Write-Warning "⚠️  Falha ao instalar $display via winget: $($_.Exception.Message)"
+          return $false
+        }
+      } else {
+        Write-Warning "⚠️  Pulei a instalação de $display. Certifique-se de instalá-lo."
         return $false
-    } finally {
-        $ErrorActionPreference = $old
-    }
-}
-
-function Try-Install {
-    param(
-        [string]$DisplayName,
-        [scriptblock]$Test,
-        [string]$WingetId,
-        [string]$ManualHint
-    )
-    if (-not (& $Test)) {
-        Write-Host "[$DisplayName] não encontrado."
-        if (Test-Command -Name "winget") {
-            Write-Host "Tentando instalar $DisplayName via winget..."
-            try {
-                winget install -e --id $WingetId --accept-source-agreements --accept-package-agreements | Out-Null
-            } catch {
-                Write-Host "Falha ao instalar $DisplayName via winget. $ManualHint"
-            }
-        } else {
-            Write-Host "winget não está disponível. $ManualHint"
-        }
-        if (-not (& $Test)) {
-            Write-Host "⚠️ Ainda não encontrei $DisplayName no PATH. Talvez seja necessário reiniciar o terminal ou ajustar o PATH."
-        } else {
-            Write-Host "[$DisplayName] instalado/encontrado."
-        }
+      }
     } else {
-        Write-Host "[$DisplayName] já está instalado."
+      Write-Warning "⚠️  winget não disponível. Instale $display manualmente."
+      return $false
     }
+  }
 }
 
+function Ensure-PythonPackage($pkg) {
+  try {
+    python - <<PY
+import importlib, sys
+sys.exit(0 if importlib.util.find_spec("$pkg") else 1)
+PY
+    if ($LASTEXITCODE -eq 0) {
+      Write-Host "✅ Pacote Python '$pkg' já está instalado."
+      return
+    }
+  } catch {}
+
+  Write-Host "❌ Pacote Python '$pkg' não encontrado. Instalando com pip..."
+  try {
+    pip install $pkg
+    Write-Host "✅ '$pkg' instalado."
+  } catch {
+    Write-Warning "⚠️  Falha ao instalar '$pkg': $($_.Exception.Message)"
+  }
+}
+
+function New-Dir($path) {
+  if (-not (Test-Path $path)) { New-Item -ItemType Directory -Path $path | Out-Null }
+}
+
+# ----------------------------
+# Checagem de dependências
+# ----------------------------
 Write-Host "🔍 Verificando dependências..."
 
-# gcc
-Try-Install `
-  -DisplayName "gcc" `
-  -Test { Test-Command -Name "gcc" } `
-  -WingetId "MSYS2.MSYS2" `
-  -ManualHint "Instale o MinGW-w64/MSYS2 (ex.: https://www.msys2.org/), e garanta que 'gcc' e 'g++' estejam no PATH (pacotes mingw64)."
+# Observação: para gcc/g++, recomendo MSYS2 ou Mingw-w64.
+$okGcc = Need-Tool "GCC (C)" "gcc" "MSYS2.MSYS2"
+$okGpp = Need-Tool "G++ (C++)" "g++" "MSYS2.MSYS2"
 
-# g++
-if (-not (Test-Command -Name "g++")) {
-    Write-Host "[g++] não encontrado. Ao instalar MSYS2/MinGW, garanta também o g++ (mingw-w64)."
+# Java JRE/JDK — você pode usar Temurin:
+$okJava = Need-Tool "Java Runtime" "java" "EclipseAdoptium.Temurin.21.JRE"   # ajuste se quiser JRE 17
+$okJavac = Need-Tool "Java JDK (javac)" "javac" "EclipseAdoptium.Temurin.21.JDK"
+
+# Python + pip
+$okPy = Need-Tool "Python 3" "python" "Python.Python.3.12"
+$okPip = Have "pip"
+
+if (-not $okPip -and $okPy) {
+  try {
+    python -m ensurepip --upgrade
+    $okPip = Have "pip"
+  } catch {
+    Write-Warning "⚠️  Não consegui configurar pip automaticamente."
+  }
 }
 
-# Java Runtime (java)
-Try-Install `
-  -DisplayName "Java Runtime (java)" `
-  -Test { Test-Command -Name "java" } `
-  -WingetId "EclipseAdoptium.Temurin.17.JRE" `
-  -ManualHint "Instale um JRE (ex.: Temurin JRE 17) e garanta que 'java' esteja no PATH."
-
-# Java Development Kit (javac)
-Try-Install `
-  -DisplayName "Java Development Kit (javac)" `
-  -Test { Test-Command -Name "javac" } `
-  -WingetId "EclipseAdoptium.Temurin.17.JDK" `
-  -ManualHint "Instale um JDK (ex.: Temurin JDK 17) e garanta que 'javac' esteja no PATH."
-
-# Python
-Try-Install `
-  -DisplayName "Python" `
-  -Test { Test-Command -Name "python" -or Test-Command -Name "python3" } `
-  -WingetId "Python.Python.3.12" `
-  -ManualHint "Instale Python 3 (ex.: via Microsoft Store/winget) e garanta que 'python' esteja no PATH."
-
-# Alias python3 -> python (se existir apenas 'python')
-if (-not (Test-Command -Name "python3") -and (Test-Command -Name "python")) {
-    Set-Alias -Name python3 -Value python -Scope Script -ErrorAction SilentlyContinue
+if ($okPy -and $okPip) {
+  Ensure-PythonPackage "pandas"
+  Ensure-PythonPackage "matplotlib"
+  Ensure-PythonPackage "psutil"
+} else {
+  Write-Warning "⚠️  Python/pip indisponíveis — a etapa Python e os gráficos podem falhar."
 }
 
-Write-Host "Verificando psutil no Python..."
-$psutilCheck = & python3 - << 'PY'
-try:
-    import psutil  # noqa: F401
-    print("OK")
-except Exception:
-    print("MISSING")
-PY
-
-if ($psutilCheck.Trim() -ne "OK") {
-    Write-Host "📦 Instalando psutil (pode solicitar confirmação do pip)..."
-    try {
-        & python3 -m pip install --user psutil
-    } catch {
-        Write-Host "Falha ao instalar psutil via pip. Tente manualmente: python -m pip install --user psutil"
-    }
-}
-
-Write-Host "✅ Todas as dependências verificadas."
+Write-Host "✅ Verificação concluída."
 Write-Host "-----------------------------------"
 
 # ----------------------------
-# Execução dos benchmarks
+# Entradas do usuário
 # ----------------------------
-
-# Lista de N — igual ao .sh
-$Ns = @(10, 100, 500, 1000, 1500, 2000, 2500, 3000)
-
-# Pergunta o nome da execução
 $RUN_NAME = Read-Host "Digite o nome da execução"
-$OUT_DIR = Join-Path "out" $RUN_NAME
-New-Item -ItemType Directory -Path $OUT_DIR -Force | Out-Null
-
+$OUT_DIR  = Join-Path "out" $RUN_NAME
+New-Dir $OUT_DIR
 Write-Host "Resultados serão salvos em $OUT_DIR"
 Write-Host "-----------------------------------"
 
-# 1. Compilar e executar C
-Write-Host "Compilando matriz_c.c..."
-$compileC = $true
+# Mantendo o mesmo diálogo do run_all.sh (:contentReference[oaicite:2]{index=2})
+$B      = Read-Host "Digite o tamanho máximo de Matriz (B)"
+$ESCALA = Read-Host "Escolha o tipo de escala gráfica: [0] = Logarítmica, [1] = Linear"
+$Npts   = Read-Host "Digite o número de pontos na escala (Npts)"
+$M      = Read-Host "Digite a quantidade de execuções para o cálculo da média (M)"
+
+# ----------------------------
+# Compilar/Executar C Otimizado e Normal
+# ----------------------------
 try {
-    & gcc "src/matriz_c.c" -o "matriz_c.exe" -O3
+  Write-Host "Compilando src\matriz_c.c (com -O3)..."
+  gcc src\matriz_c.c -o matriz_c.exe -lm -O3
+  Write-Host "Executando C -O3..."
+  .\matriz_c.exe $B $Npts $M $ESCALA "-O3"
+  if (Test-Path "resultado_c_O3.csv") { Move-Item -Force "resultado_c_O3.csv" (Join-Path $OUT_DIR "resultado_c_O3.csv") }
 } catch {
-    $compileC = $false
-    Write-Host "Erro na compilação de matriz_c.c"
-}
-if ($compileC) {
-    Write-Host "Executando C..."
-    try {
-        & .\matriz_c.exe
-        if (Test-Path "resultado_c.csv") {
-            Move-Item -Force "resultado_c.csv" (Join-Path $OUT_DIR "resultado_c.csv")
-        } else {
-            Write-Host "Arquivo de saída C não encontrado."
-        }
-    } catch {
-        Write-Host "Falha ao executar matriz_c.exe: $($_.Exception.Message)"
-    }
+  Write-Warning "⚠️  Erro na compilação/execução otimizada de C: $($_.Exception.Message)"
 }
 
-# 2. Compilar e executar C++
-Write-Host "Compilando matriz_cpp.cpp..."
-$compileCPP = $true
 try {
-    & g++ "src/matriz_cpp.cpp" -o "matriz_cpp.exe" -O3
+  Write-Host "Compilando src\matriz_c.c (sem -O3)..."
+  gcc src\matriz_c.c -o matriz_c.exe -lm
+  Write-Host "Executando C..."
+  .\matriz_c.exe $B $Npts $M $ESCALA
+  if (Test-Path "resultado_c.csv") { Move-Item -Force "resultado_c.csv" (Join-Path $OUT_DIR "resultado_c.csv") }
 } catch {
-    $compileCPP = $false
-    Write-Host "Erro na compilação de matriz_cpp.cpp"
-}
-if ($compileCPP) {
-    Write-Host "Executando C++..."
-    try {
-        & .\matriz_cpp.exe
-        if (Test-Path "resultado_cpp.csv") {
-            Move-Item -Force "resultado_cpp.csv" (Join-Path $OUT_DIR "resultado_cpp.csv")
-        } else {
-            Write-Host "Arquivo de saída C++ não encontrado."
-        }
-    } catch {
-        Write-Host "Falha ao executar matriz_cpp.exe: $($_.Exception.Message)"
-    }
+  Write-Warning "⚠️  Erro na compilação/execução normal de C: $($_.Exception.Message)"
 }
 
-# 3. Compilar e executar Java
-Write-Host "Compilando MatrixMultiplication.java..."
-$compileJava = $true
+# ----------------------------
+# Compilar/Executar C++ Otimizado e Normal
+# ----------------------------
 try {
-    & javac "src/MatrixMultiplication.java"
+  Write-Host "Compilando src\matriz_cpp.cpp (com -O3)..."
+  g++ src\matriz_cpp.cpp -o matriz_cpp.exe -O3
+  Write-Host "Executando C++ -O3..."
+  .\matriz_cpp.exe $B $Npts $M $ESCALA "-O3"
+  if (Test-Path "resultado_cpp_O3.csv") { Move-Item -Force "resultado_cpp_O3.csv" (Join-Path $OUT_DIR "resultado_cpp_O3.csv") }
 } catch {
-    $compileJava = $false
-    Write-Host "Erro na compilação de MatrixMultiplication.java"
-}
-if ($compileJava) {
-    Write-Host "Executando Java..."
-    try {
-        & java -cp "src" MatrixMultiplication
-        if (Test-Path "resultado_java.csv") {
-            Move-Item -Force "resultado_java.csv" (Join-Path $OUT_DIR "resultado_java.csv")
-        } else {
-            Write-Host "Arquivo de saída Java não encontrado."
-        }
-    } catch {
-        Write-Host "Falha ao executar Java: $($_.Exception.Message)"
-    }
+  Write-Warning "⚠️  Erro na compilação/execução otimizada de C++: $($_.Exception.Message)"
 }
 
-# 4. Executar Python
-Write-Host "Executando Python..."
 try {
-    & python3 "src/matriz_python.py"
-    if (Test-Path "resultado_python.csv") {
-        Move-Item -Force "resultado_python.csv" (Join-Path $OUT_DIR "resultado_python.csv")
-    } else {
-        Write-Host "Arquivo de saída Python não encontrado."
-    }
+  Write-Host "Compilando src\matriz_cpp.cpp (sem -O3)..."
+  g++ src\matriz_cpp.cpp -o matriz_cpp.exe
+  Write-Host "Executando C++..."
+  .\matriz_cpp.exe $B $Npts $M $ESCALA
+  if (Test-Path "resultado_cpp.csv") { Move-Item -Force "resultado_cpp.csv" (Join-Path $OUT_DIR "resultado_cpp.csv") }
 } catch {
-    Write-Host "Falha ao executar Python: $($_.Exception.Message)"
+  Write-Warning "⚠️  Erro na compilação/execução normal de C++: $($_.Exception.Message)"
+}
+
+# ----------------------------
+# Compilar/Executar Java
+# ----------------------------
+try {
+  Write-Host "Compilando Java (src\matriz_java.java)..."
+  javac src\matriz_java.java
+  Write-Host "Executando Java..."
+  # se a classe não tem package, o -cp src funciona:
+  java -cp src matriz_java $B $Npts $M $ESCALA
+  if (Test-Path "resultado_java.csv") { Move-Item -Force "resultado_java.csv" (Join-Path $OUT_DIR "resultado_java.csv") }
+} catch {
+  Write-Warning "⚠️  Erro na compilação/execução Java: $($_.Exception.Message)"
+}
+
+# ----------------------------
+# Executar Python
+# ----------------------------
+try {
+  Write-Host "Executando Python..."
+  python src\matriz_python.py $B $Npts $M $ESCALA
+  if (Test-Path "resultado_python.csv") { Move-Item -Force "resultado_python.csv" (Join-Path $OUT_DIR "resultado_python.csv") }
+} catch {
+  Write-Warning "⚠️  Erro na execução Python: $($_.Exception.Message)"
 }
 
 Write-Host "-----------------------------------"
-Write-Host "Execução concluída! Resultados em: $OUT_DIR"
+Write-Host "Execuções concluídas. Salvando em: $OUT_DIR"
+
+# ----------------------------
+# Captura de informações do sistema (system_info.md)
+# Porta da lógica do gen_sysinfo_md.sh (:contentReference[oaicite:3]{index=3})
+# ----------------------------
+function Write-SystemInfoMarkdown {
+  param([string]$OutFile = "system_info.md")
+
+  $now = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+  $os  = (Get-CimInstance Win32_OperatingSystem)
+  $cs  = (Get-CimInstance Win32_ComputerSystem)
+  $cpu = (Get-CimInstance Win32_Processor | Select-Object -First 1)
+  $ramGB = [math]::Round($cs.TotalPhysicalMemory / 1GB, 2)
+
+  $wslStatus = ""
+  try {
+    $wslStatus = wsl.exe --status 2>$null
+  } catch {}
+
+  $lines = @(
+    "# Informações do Sistema"
+    ""
+    "_Gerado em: $now_"
+    ""
+    "## Windows"
+    "- **Edição/Versão**: $($os.Caption) $($os.Version)"
+    "- **Build**: $($os.BuildNumber)"
+    ""
+    "### CPU (host)"
+    "- **Modelo**: $($cpu.Name)"
+    "- **Núcleos (físicos)**: $($cpu.NumberOfCores)"
+    "- **Lógicos (threads)**: $($cpu.NumberOfLogicalProcessors)"
+    "- **Clock Máx (MHz)**: $($cpu.MaxClockSpeed)"
+    ""
+    "### Memória (host)"
+    "- **RAM física total**: $ramGB GB"
+  )
+
+  if ($wslStatus) {
+    $lines += @(
+      ""
+      "### Status do WSL"
+      '```'
+      ($wslStatus | Out-String).TrimEnd()
+      '```'
+    )
+  }
+
+  $lines | Set-Content -Encoding UTF8 $OutFile
+  Write-Host "Arquivo gerado: $OutFile"
+}
+
+try {
+  Write-Host "Capturando informações de sistema..."
+  $sysInfoPath = Join-Path $PWD "system_info.md"
+  Write-SystemInfoMarkdown -OutFile $sysInfoPath
+  Move-Item -Force $sysInfoPath (Join-Path $OUT_DIR "system_info.md")
+} catch {
+  Write-Warning "⚠️  Falha ao gerar system_info.md: $($_.Exception.Message)"
+}
+
+# ----------------------------
+# Geração de gráficos
+# ----------------------------
+try {
+  Write-Host "Gerando gráficos..."
+  python src\plot_benchmarks.py $OUT_DIR
+} catch {
+  Write-Warning "⚠️  Falha ao gerar gráficos: $($_.Exception.Message)"
+}
+
+Write-Host "✅ Finalizado. Resultados em: $OUT_DIR"
