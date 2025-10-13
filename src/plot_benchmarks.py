@@ -1,30 +1,16 @@
 #!/usr/bin/env python3
 import os
 import sys
-import math
-import pandas as pd
-import matplotlib.pyplot as plt
 from pathlib import Path
 from typing import Dict, List
-
-# ============================
-# Configuração da curva de referência (edite aqui)
-# f_ref(N) = SCALE * N**POWER
-# Também pode sobrescrever por variáveis de ambiente:
-#   REF_SCALE, REF_POWER
-# ============================
-#SCALE = float(os.environ.get("REF_SCALE", "1.0E-7"))
-#POWER = float(os.environ.get("REF_POWER", "2.0"))
-
-#def f_ref(n_values):
-#    """Função de referência editável (por padrão: SCALE * N**POWER)."""
-#    return [SCALE * (float(n) ** POWER) for n in n_values]
+import pandas as pd
+import matplotlib.pyplot as plt
 
 # ============================
 # Entrada
 # ============================
 if len(sys.argv) < 2:
-    print("Uso: plot_benchmarks.py <diretório_de_saida>")
+    print("Uso: plot_benchmarks.py <diretorio_de_saida>")
     sys.exit(1)
 
 out_dir = Path(sys.argv[1])
@@ -50,7 +36,7 @@ def read_csv_flex(path: Path) -> pd.DataFrame:
     return df
 
 def detect_N_column(df: pd.DataFrame) -> str:
-    prefs = ("n", "size", "dim", "order", "tamanho", "matrix_size")
+    prefs = ("n", "size", "dim", "order", "tamanho", "matrix_size", "N")
     for c in df.columns:
         if str(c).strip().lower() in prefs:
             return c
@@ -70,8 +56,13 @@ dfs: Dict[str, pd.DataFrame] = {}
 for lang, path in files.items():
     if path.exists():
         df = read_csv_flex(path)
-        # normaliza e força numérico em colunas de interesse
+        # normaliza nomes e força numérico
         df = ensure_numeric(df, df.columns.tolist())
+
+        # compatibilidade: se vier "TLM", mapeia para "TDM"
+        if "TDM" not in df.columns and "TLM" in df.columns:
+            df["TDM"] = df["TLM"]
+
         dfs[lang] = df
 
 if not dfs:
@@ -89,49 +80,27 @@ TITLES = {
 }
 
 # ============================
-# Função de plot genérica por métrica
+# Plot genérico por métrica (todas as linguagens)
 # ============================
 def plot_metric(metric: str):
-    """Plota um gráfico da métrica especificada para todas as linguagens que tiverem a coluna.
-       Para TDM, linguagens sem a coluna são ignoradas."""
+    """Plota a métrica especificada para todas as linguagens que tiverem a coluna."""
     any_series = False
     plt.figure()
 
-    # Para construir a curva de referência precisamos de um eixo N razoável.
-    # Vamos acumular todos os N que aparecem nas linguagens com a métrica.
-    all_N_values = set()
-
     for lang, df in dfs.items():
         ncol = ncols[lang]
-        # precisa existir a métrica no CSV dessa linguagem
         if metric not in df.columns:
-            # TDM: ignorar linguagens sem esta coluna
             continue
-
-        # Série dessa linguagem
-        # ordena por N e remove NaN
-        sub = df[[ncol, metric]].dropna()
+        sub = df[[ncol, metric]].dropna().sort_values(by=ncol)
         if sub.empty:
             continue
-        sub = sub.sort_values(by=ncol)
-        # plota
         plt.plot(sub[ncol], sub[metric], marker="o", label=lang)
         any_series = True
-        all_N_values.update(sub[ncol].tolist())
 
     if not any_series:
-        # nada para plotar para essa métrica
         plt.close()
         print(f"Aviso: nenhuma linguagem disponível para a métrica {metric}.")
         return
-
-    # Curva de referência (pontilhada) usando todos os N únicos encontrados
-    #N_sorted = sorted(all_N_values)
-    #yref = f_ref(N_sorted)
-
-    # Apenas para informar no rótulo a forma da função
-    #ref_label = f"ref: {SCALE}·N^{POWER}"
-    #plt.plot(N_sorted, yref, linestyle="--", label=ref_label)
 
     plt.xlabel("N (matriz com NxN elementos)")
     plt.ylabel(f"{metric} (s)")
@@ -143,9 +112,54 @@ def plot_metric(metric: str):
     print(f"✅ {metric}: salvo em {out_img}")
 
 # ============================
-# Gera os três gráficos
+# Plot específico: apenas C vs C++ (preferindo _O3)
+# ============================
+def plot_metric_subset(metric: str):
+    """
+    Plota somente C e C++ para a métrica dada.
+    Preferência por versões _O3; se não houver, usa as versões normais.
+    """
+    prefer_c = "C_O3" if "C_O3" in dfs else "C"
+    prefer_cpp = "C++_O3" if "C++_O3" in dfs else "C++"
+
+    series = []
+    for lang in (prefer_c, prefer_cpp):
+        if lang in dfs and metric in dfs[lang].columns:
+            ncol = ncols[lang]
+            sub = dfs[lang][[ncol, metric]].dropna().sort_values(by=ncol)
+            if not sub.empty:
+                series.append((lang, sub))
+
+    if len(series) == 0:
+        print(f"Aviso: nenhuma série C/C++ disponível para {metric}.")
+        return
+    if len(series) == 1:
+        print(f"Aviso: apenas uma série C/C++ encontrada para {metric}: {series[0][0]}.")
+
+    plt.figure()
+    # re-obter ncol dentro do loop, pois C e C++ podem ter nomes de coluna N diferentes
+    for lang, sub in series:
+        ncol_local = detect_N_column(sub) if "N" not in sub.columns else "N"
+        # se detect_N_column pegar algo inesperado, usa a 1a coluna como N
+        ncol_local = ncol_local if ncol_local in sub.columns else sub.columns[0]
+        plt.plot(sub[ncol_local], sub[metric], marker="o", label=lang)
+
+    plt.xlabel("N (matriz com NxN elementos)")
+    plt.ylabel(f"{metric} (s)")
+    plt.title(f"C vs C++ - {TITLES.get(metric, metric)}")
+    plt.legend()
+    out_img = out_dir / f"grafico_{metric}_C_vs_CPP.png"
+    plt.savefig(out_img, dpi=160, bbox_inches="tight")
+    plt.close()
+    print(f"✅ {metric} (C vs C++): salvo em {out_img}")
+
+# ============================
+# Execução
 # ============================
 for m in METRICS:
     plot_metric(m)
+
+for m in METRICS:
+    plot_metric_subset(m)
 
 print(f"Concluído. Gráficos em: {out_dir}")
