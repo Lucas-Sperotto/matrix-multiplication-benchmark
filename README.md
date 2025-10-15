@@ -1,95 +1,63 @@
 # Matrix Multiplication Benchmark
 
-Este repositório contém códigos para realizar um **benchmark de multiplicação de matrizes** em várias linguagens de programação: **C, C++, Python, Java, Rust, e Elixir**. O objetivo é comparar o desempenho de cada linguagem ao executar uma operação intensiva de cálculo — a multiplicação de matrizes — em diferentes tamanhos.
+Este repositório contém códigos para realizar um **benchmark de multiplicação de matrizes** em várias linguagens de programação (**C, C++, Python, Java** – com expansão planejada para Rust e Elixir).  
+O objetivo é comparar o desempenho de cada linguagem em uma operação intensiva de cálculo: a multiplicação de matrizes quadradas de diferentes tamanhos.
 
-## Objetivo
+---
 
-O objetivo deste projeto é avaliar o tempo de execução e o consumo de memória das linguagens de programação durante a multiplicação de duas matrizes quadradas. O código foi implementado de maneira semelhante em cada linguagem para garantir a comparabilidade dos resultados.
+## 🎯 Objetivo
 
-## Linguagens Suportadas
+- Avaliar o **tempo de execução** e o **uso de memória** na multiplicação de matrizes.
+- Comparar implementações equivalentes entre diferentes linguagens.
+- Construir uma base colaborativa de resultados, permitindo que qualquer pessoa rode os testes em sua máquina e contribua com seus dados.
 
-- C
-- C++
-- Python
-- Java
-- Rust
-- Elixir
+---
 
-## Como Executar
+## 🚀 Como começar
 
-### Pré-requisitos
-
-Para executar os testes, você precisará ter as seguintes ferramentas instaladas:
-
-- **C**: `gcc`
-- **C++**: `g++`
-- **Python**: `python3`
-- **Java**: `JDK`
-- **Rust**: `rustc`
-- **Elixir**: `elixir`
-
-No Ubuntu, você pode instalar as dependências com os seguintes comandos:
+Clone o repositório:
 
 ```bash
-sudo apt update
-sudo apt install build-essential python3 default-jdk elixir
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-```
+git clone https://github.com/<usuario>/<repo>.git
+cd <repo>
+````
 
-### Compilando e Executando os Códigos
+Execute os benchmarks:
 
-1. **C**:
-   ```bash
-   gcc matriz_c.c -o matriz_c
-   ./matriz_c
-   
-2. **C++**:
-   ```bash
-   g++ matriz_cpp.cpp -o matriz_cpp
-   ./matriz_cpp
+- **Linux/WSL**:
 
-3. **Python**:
-   ```bash
-   python3 matriz_python.py
+  ```bash
+  chmod +x run_all.sh
+  ./run_all.sh
+  ```
 
-4. **Java**:
-   ```bash
-   javac MatrixMultiplication.java
-   java MatrixMultiplication
+- **Windows (PowerShell)**:
 
-5. **Rust**:
-   ```bash
-   rustc matriz_rust.rs
-   ./matriz_rust
+  ```powershell
+  .\run_all.ps1
+  ```
 
-6. **Elixir**:
-   ```bash
-   elixir matriz_multiplication.exs
-
-## Estrutura do Código
-
-Cada arquivo implementa a multiplicação de duas matrizes **N × N**. A função de multiplicação segue a estrutura de três loops `for`, padrão para algoritmos de multiplicação de matrizes, garantindo consistência na comparação entre linguagens.
-
-## Parâmetros do Teste
-
-O valor de **N** (o tamanho da matriz) pode ser ajustado dentro de cada código.  
-Em testes iniciais, foram utilizados **N = 10**, **N = 100**, **N = 1000**, **N = 2000**, **N = 3000**, **N = 4000**, **N = 5000**, **N = 6000**, **N = 7000**, **N = 8000**, **N = 9000** e **N = 10000**, com medições de tempo e uso de memória.
-
-## Medição de Desempenho
-
-### Tempo de Execução
-
-O tempo de execução é medido diretamente nos códigos com funções de medição específicas para cada linguagem.
-
-### Uso de Memória
-
-Para monitorar o uso de memória em tempo real, recomendamos o uso dos seguintes comandos:
+Os resultados serão salvos em:
 
 ```bash
-/usr/bin/time -v ./matriz_c
+out/<NOME_DA_EXECUCAO>/
 ```
-    
-Ou monitore os processos usando o `htop` ou `top` para acompanhamento em tempo real.
+
+com arquivos `resultado_c.csv`, `resultado_cpp.csv`, `resultado_java.csv`, `resultado_python.csv`.
+
+---
+
+## 📊 Gráficos automáticos
+
+Ao final da execução no Linux/WSL, o script `run_all.sh` chama automaticamente o `plot_benchmarks.py`, que gera gráficos comparativos para:
+
+- **TCS**: Tempo de Cálculo da Multiplicação
+- **TAM**: Tempo de Alocação de Memória
+- **TDM**: Tempo de Desalocação de Memória (quando disponível na linguagem)
+
+Cada gráfico inclui também uma **curva de referência** baseada em $N^3$, representando a complexidade teórica.
+
+---
 
 ## Resultados Esperados
 
@@ -98,14 +66,28 @@ Ou monitore os processos usando o `htop` ou `top` para acompanhamento em tempo r
 - Python, por ser interpretado, tende a ser mais lento.
 - Elixir e Java podem variar em desempenho dependendo da implementação e do uso de paralelismo.
 
-## Contribuição
+---
 
-Sinta-se à vontade para contribuir com melhorias ou incluir outras linguagens para comparação. Basta abrir uma issue ou enviar um pull request.
+## 📚 Documentação complementar
 
-## Colaboração
+- [EXECUTION.md](EXECUTION.md) → Guia completo de execução (Linux/WSL e Windows).
+- [CONTRIBUTING.md](CONTRIBUTING.md) → Como rodar localmente e contribuir com seus resultados.
+- [OPERATIONS.md](OPERATIONS.md) → Análise teórica do número de operações na multiplicação de matrizes.
 
-Este projeto foi desenvolvido em colaboração entre [Lucas Kriesel Sperotto](https://github.com/Lucas-Sperotto) e [Marcos Adriano](https://github.com/MarcosAS3). A execução dos testes de desempenho e a coleta de dados foram realizadas por ambos, garantindo que o processo fosse colaborativo e justo.
+---
 
-## Licença
+## 👥 Colaboração
+
+- Projeto iniciado por [**Lucas Kriesel Sperotto**](https://github.com/Lucas-Sperotto).
+- Expansão com a participação de [**Marcos Adriano Silva David**](https://github.com/MarcosAS3).
+- Aberto para contribuições de estudantes, pesquisadores e entusiastas.
+
+Sinta-se à vontade para contribuir com melhorias ou incluir outras linguagens para comparação. Basta abrir uma issue ou enviar um pull request. Veja [CONTRIBUTING.md](CONTRIBUTING.md) para saber como participar.
+
+---
+
+## 📄 Licença
 
 Este projeto está licenciado sob a licença MIT - veja o arquivo [LICENSE](LICENSE) para mais detalhes.
+
+---

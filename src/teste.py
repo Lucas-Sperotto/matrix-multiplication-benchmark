@@ -4,6 +4,7 @@
 #            de tamanho N x N, variando automaticamente o valor de N 
 #            e medindo o tempo de alocação de memória e do cálculo.
 #            O código salva os resultados em um arquivo de saída.
+#            UTILIZANDO NP
 #
 # Linguagem: Python
 #
@@ -25,7 +26,7 @@
 import time
 import psutil
 import sys
-#import numpy as np
+import numpy as np
 
 def multiply(mat1, mat2, N):
     res = [[0] * N for _ in range(N)]
@@ -102,7 +103,7 @@ with open("resultado_python.csv", "w") as f:
 
             # Medir o tempo de cálculo
             start_calc = time.time()
-            res = multiply(mat1, mat2, N) # res = np.dot(mat1, mat2)
+            res = np.dot(mat1, mat2)
             end_calc = time.time()
             time_calc += end_calc - start_calc
             
