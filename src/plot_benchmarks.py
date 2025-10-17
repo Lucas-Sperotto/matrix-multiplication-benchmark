@@ -83,7 +83,10 @@ TITLES = {
 # Plot genérico por métrica (todas as linguagens)
 # ============================
 def plot_metric(metric: str):
-    """Plota a métrica especificada para todas as linguagens que tiverem a coluna."""
+    """
+    Plota a métrica especificada para todas as linguagens que tiverem a coluna.
+    (Mantido do original; apenas acrescentei salvamento com nome alternativo explícito)
+    """
     any_series = False
     plt.figure()
 
@@ -106,10 +109,13 @@ def plot_metric(metric: str):
     plt.ylabel(f"{metric} (s)")
     plt.title(f"Comparação por linguagem - {TITLES.get(metric, metric)}")
     plt.legend()
-    out_img = out_dir / f"grafico_{metric}.png"
-    plt.savefig(out_img, dpi=160, bbox_inches="tight")
+    out_img_default = out_dir / f"grafico_{metric}.png"
+    plt.savefig(out_img_default, dpi=160, bbox_inches="tight")
+    # ===== NOVO: também salvo com um nome mais explícito para a demanda "Todas as Linguagens"
+    out_img_alias = out_dir / f"grafico_{metric}_todas_linguagens.png"
+    plt.savefig(out_img_alias, dpi=160, bbox_inches="tight")
     plt.close()
-    print(f"✅ {metric}: salvo em {out_img}")
+    print(f"✅ {metric}: salvo em {out_img_default} e {out_img_alias}")
 
 # ============================
 # Plot específico: apenas C vs C++ (preferindo _O3)
@@ -118,6 +124,7 @@ def plot_metric_subset(metric: str):
     """
     Plota somente C e C++ para a métrica dada.
     Preferência por versões _O3; se não houver, usa as versões normais.
+    (Mantido do original)
     """
     prefer_c = "C_O3" if "C_O3" in dfs else "C"
     prefer_cpp = "C++_O3" if "C++_O3" in dfs else "C++"
@@ -154,12 +161,98 @@ def plot_metric_subset(metric: str):
     print(f"✅ {metric} (C vs C++): salvo em {out_img}")
 
 # ============================
+# ===== NOVO: C e C++ com e sem O3 =====
+# ============================
+def plot_metric_c_cpp_all_variants(metric: str):
+    """
+    NOVO:
+    Plota C e C++ com e sem O3 (até 4 curvas): C, C_O3, C++, C++_O3.
+    Só plota as séries/arquivos que existirem para a métrica.
+    """
+    variants = ["C", "C_O3", "C++", "C++_O3"]
+    series = []
+
+    for lang in variants:
+        if lang in dfs and metric in dfs[lang].columns:
+            ncol = ncols[lang]
+            sub = dfs[lang][[ncol, metric]].dropna().sort_values(by=ncol)
+            if not sub.empty:
+                series.append((lang, sub))
+
+    if not series:
+        print(f"Aviso: nenhuma série C/C++ (com/sem O3) disponível para {metric}.")
+        return
+
+    plt.figure()
+    for lang, sub in series:
+        ncol_local = detect_N_column(sub) if "N" not in sub.columns else "N"
+        ncol_local = ncol_local if ncol_local in sub.columns else sub.columns[0]
+        plt.plot(sub[ncol_local], sub[metric], marker="o", label=lang)
+
+    plt.xlabel("N (matriz com NxN elementos)")
+    plt.ylabel(f"{metric} (s)")
+    plt.title(f"C e C++ (com e sem -O3) - {TITLES.get(metric, metric)}")
+    plt.legend()
+    out_img = out_dir / f"grafico_{metric}_C_CPP_com_e_sem_O3.png"
+    plt.savefig(out_img, dpi=160, bbox_inches="tight")
+    plt.close()
+    print(f"✅ {metric} (C/C++ com e sem O3): salvo em {out_img}")
+
+# ============================
+# ===== NOVO: Todas as linguagens menos Python =====
+# ============================
+def plot_metric_all_minus_python(metric: str):
+    """
+    NOVO:
+    Plota todas as linguagens disponíveis EXCETO Python para a métrica.
+    Mantém a mesma lógica de leitura e ordenação do plot genérico.
+    """
+    any_series = False
+    plt.figure()
+
+    for lang, df in dfs.items():
+        if lang.lower() == "python":
+            continue  # exclui Python
+        ncol = ncols[lang]
+        if metric not in df.columns:
+            continue
+        sub = df[[ncol, metric]].dropna().sort_values(by=ncol)
+        if sub.empty:
+            continue
+        plt.plot(sub[ncol], sub[metric], marker="o", label=lang)
+        any_series = True
+
+    if not any_series:
+        plt.close()
+        print(f"Aviso: nenhuma linguagem (sem Python) disponível para a métrica {metric}.")
+        return
+
+    plt.xlabel("N (matriz com NxN elementos)")
+    plt.ylabel(f"{metric} (s)")
+    plt.title(f"Todas as linguagens (exceto Python) - {TITLES.get(metric, metric)}")
+    plt.legend()
+    out_img = out_dir / f"grafico_{metric}_sem_python.png"
+    plt.savefig(out_img, dpi=160, bbox_inches="tight")
+    plt.close()
+    print(f"✅ {metric} (sem Python): salvo em {out_img}")
+
+# ============================
 # Execução
 # ============================
 for m in METRICS:
-    plot_metric(m)
+    # 1) Todas as linguagens (mantido + alias de nome)
+     plot_metric(m)
 
 for m in METRICS:
+    # 2) C vs C++ preferindo -O3 (mantido)
     plot_metric_subset(m)
+
+for m in METRICS:
+    # 3) NOVO: C e C++ com e sem -O3 (até 4 séries)
+    plot_metric_c_cpp_all_variants(m)
+
+for m in METRICS:
+    # 4) NOVO: Todas as linguagens menos Python
+    plot_metric_all_minus_python(m)
 
 print(f"Concluído. Gráficos em: {out_dir}")
