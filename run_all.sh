@@ -146,6 +146,16 @@ JAVA_MAIN_CLASS="MatrizJava"     # ajuste se necessário
 JAVA_CP="$BIN_DIR"               # ajuste se necessário
 PY_FILE="$SRC_DIR/matriz_python.py"
 
+
+# Gera system_info.md e system_info.json dentro da pasta da execução
+if [[ -x "./gen_sysinfo_md.sh" ]]; then
+  ./gen_sysinfo_md.sh "$OUT_DIR" || echo "⚠️ Não foi possível gerar system_info.* em $OUT_DIR"
+else
+  echo "ℹ️ gen_sysinfo_md.sh não está executável; rode: chmod +x gen_sysinfo_md.sh"
+fi
+
+
+
 # ----------------------------
 # [NEW] Chamada unificada por linguagem
 # ----------------------------
@@ -463,122 +473,132 @@ write_results_readme() {
   echo "📝 README gerado/atualizado em: $OUT_DIR/README.md"
 }
 
-
 # ============================
-# [NEW] Manifest JSON (OUT_DIR/run_manifest.json)
-# Depende de: OUT_DIR, B, Npts, N_SIZES[@], M, ESCALA,
-#             LANGS[@], CSV_MAP[], csv_is_complete(), csv_list_missing_ns()
+# [NEW] Manifesto em JSON (OUT_DIR/run_manifest.json)
+# Requer: OUT_DIR, B, Npts, N_SIZES[@], M, ESCALA, LANGS[@], CSV_MAP[], csv_is_complete(), csv_list_missing_ns()
 # ============================
-
-collect_plots_array() {
-  mapfile -t PLOT_FILES < <(find "$OUT_DIR" -maxdepth 1 -type f -name "*.png" -printf "%f\n" | sort)
-}
 
 json_escape() {
-  # uso: json_escape "texto"
-  local s="$1"
-  s="${s//\\/\\\\}"
-  s="${s//\"/\\\"}"
-  s="${s//
-/\\n}"
-  s="${s//
-/}"
-  echo "$s"
+  # escape simples para aspas e backslashes
+  local s=${1//\\/\\\\}
+  s=${s//\"/\\\"}
+  printf '%s' "$s"
 }
 
-detect_system_info_paths() {
-  # Prioriza arquivos dentro do OUT_DIR
-  SYSINFO_MD=""
-  SYSINFO_JSON=""
-
-  if [[ -f "$OUT_DIR/system_info.md" ]]; then
-    SYSINFO_MD="./system_info.md"
-  elif [[ -f "system_info.md" ]]; then
-    SYSINFO_MD="../system_info.md"
-  fi
-  if [[ -f "$OUT_DIR/system_info.json" ]]; then
-    SYSINFO_JSON="./system_info.json"
-  elif [[ -f "system_info.json" ]]; then
-    SYSINFO_JSON="../system_info.json"
-  fi
-}
-
-write_run_manifest_json() {
-  local now iso host commit
-  now="$(date +"%d/%m/%Y %H:%M:%S")"
-  iso="$(date -Iseconds)"
-  host="$(detect_hostname)"
-  commit="$(detect_git_commit)"
-
-  detect_system_info_paths
-  collect_plots_array
-
-  # monta array JSON de N
-  local ns_json="["
-  for i in "${!N_SIZES[@]}"; do
-    ns_json+="${N_SIZES[$i]}"
-    [[ $i -lt $((${#N_SIZES[@]}-1)) ]] && ns_json+=","
-  done
-  ns_json+="]"
-
-  # monta objeto languages
-  local langs_json="{"
-  for idx in "${!LANGS[@]}"; do
-    local L="${LANGS[$idx]}"
+build_lang_status_json() {
+  # Gera um array JSON com objetos { "lang": "...", "csv": "...", "complete": true|false, "missing": [ ... ] }
+  local first=1
+  printf '['
+  for L in "${LANGS[@]}"; do
     local csv="$OUT_DIR/${CSV_MAP[$L]}"
-    local status="not_started"
-    local missing="[]"
+    local complete="false"
+    local missing_arr="[]"
+
     if [[ -f "$csv" ]]; then
       if csv_is_complete "$csv"; then
-        status="complete"
+        complete="true"
       else
-        status="incomplete"
         local miss; miss=$(csv_list_missing_ns "$csv")
         if [[ -n "$miss" ]]; then
-          # transforma "100 200 300" em [100,200,300]
-          local arr="["; local first=1
-          for v in $miss; do
-            if (( first )); then arr+="$v"; first=0; else arr+=",$v"; fi
+          # transforma "10 20 30" em [10,20,30]
+          local list=""
+          for n in $miss; do
+            if [[ -z "$list" ]]; then list="$n"; else list="$list,$n"; fi
           done
-          arr+="]"
-          missing="$arr"
+          missing_arr="[$list]"
         fi
       fi
     fi
-    langs_json+="\"$L\":{\"csv\":\"$(json_escape "${CSV_MAP[$L]}")\",\"status\":\"$status\",\"missing\":$missing}"
-    [[ $idx -lt $((${#LANGS[@]}-1)) ]] && langs_json+=","
-  done
-  langs_json+="}"
 
-  # monta array plots
-  local plots_json="[]"
-  if (( ${#PLOT_FILES[@]} > 0 )); then
-    plots_json="["
-    for i in "${!PLOT_FILES[@]}"; do
-      plots_json+="\"$(json_escape "${PLOT_FILES[$i]}")\""
-      [[ $i -lt $((${#PLOT_FILES[@]}-1)) ]] && plots_json+=","
-    done
-    plots_json+="]"
+    if (( first )); then first=0; else printf ','; fi
+    printf '{'
+    printf '"lang":"%s",'   "$(json_escape "$L")"
+    printf '"csv":"%s",'    "$(json_escape "${CSV_MAP[$L]}")"
+    printf '"complete":%s,' "$complete"
+    printf '"missing":%s'   "$missing_arr"
+    printf '}'
+  done
+  printf ']'
+}
+
+collect_plot_files_json() {
+  # Retorna array JSON com nomes de PNG em OUT_DIR
+  mapfile -t _PLOTS_LOCAL < <(find "$OUT_DIR" -maxdepth 1 -type f -name "*.png" -printf "%f\n" | sort)
+  if (( ${#_PLOTS_LOCAL[@]} == 0 )); then
+    printf '[]'
+    return
+  fi
+  local first=1
+  printf '['
+  for p in "${_PLOTS_LOCAL[@]}"; do
+    if (( first )); then first=0; else printf ','; fi
+    printf '"%s"' "$(json_escape "$p")"
+  done
+  printf ']'
+}
+
+write_run_manifest() {
+  local now iso host commit sys_link
+  now="$(date +"%d/%m/%Y %H:%M:%S")"
+  iso="$(date -Iseconds)"
+  host="$(hostname 2>/dev/null || echo "N/D")"
+  if command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    commit="$(git rev-parse --short HEAD 2>/dev/null || echo "N/D")"
+  else
+    commit="N/D"
   fi
 
-  # JSON final
+  # system_info.md preferencialmente em OUT_DIR
+  if [[ -f "$OUT_DIR/system_info.md" ]]; then
+    sys_link="system_info.md"
+  elif [[ -f "system_info.md" ]]; then
+    sys_link="../system_info.md"
+  else
+    sys_link=""
+  fi
+
+  # lista de N em JSON
+  local ns_json="[]"
+  if (( ${#N_SIZES[@]} > 0 )); then
+    local first=1
+    ns_json='['
+    for n in "${N_SIZES[@]}"; do
+      if (( first )); then first=0; else ns_json+=", "; fi
+      ns_json+="$n"
+    done
+    ns_json+=']'
+  fi
+
+  # status por linguagem
+  local langs_json
+  langs_json="$(build_lang_status_json)"
+
+  # gráficos
+  local plots_json
+  plots_json="$(collect_plot_files_json)"
+
   {
-    echo "{"
-    echo "  \"exec_name\": \"$(json_escape "$(basename "$OUT_DIR")")\","
-    echo "  \"datetime\": {\"human\": \"$(json_escape "$now")\", \"iso\": \"$(json_escape "$iso")\"},"
-    echo "  \"host\": \"$(json_escape "$host")\","
-    echo "  \"git_commit\": \"$(json_escape "$commit")\","
-    echo "  \"params\": {"
-    echo "    \"Nmax\": $B, \"K\": $Npts, \"N_list\": $ns_json, \"M\": $M, \"escala\": \"$ESCALA\""
-    echo "  },"
-    echo "  \"languages\": $langs_json,"
-    echo "  \"plots\": $plots_json,"
-    echo "  \"system_info_md\": \"$(json_escape "$SYSINFO_MD")\","
-    echo "  \"system_info_json\": \"$(json_escape "$SYSINFO_JSON")\""
-    echo "}"
+    printf '{'
+    printf '"exec_name":"%s",'  "$(json_escape "$(basename "$OUT_DIR")")"
+    printf '"out_dir":"%s",'    "$(json_escape "$OUT_DIR")"
+    printf '"datetime":"%s",'   "$(json_escape "$now")"
+    printf '"datetime_iso":"%s",' "$(json_escape "$iso")"
+    printf '"host":"%s",'       "$(json_escape "$host")"
+    printf '"git_commit":"%s",' "$(json_escape "$commit")"
+    printf '"system_info":"%s",' "$(json_escape "$sys_link")"
+    printf '"params":{'
+      printf '"Nmax":%s,'   "$B"
+      printf '"K":%s,'      "$Npts"
+      printf '"M":%s,'      "$M"
+      printf '"escala":"%s",' "$ESCALA"
+      printf '"N_sizes":%s' "$ns_json"
+    printf '},'
+    printf '"languages":%s,' "$langs_json"
+    printf '"plots":%s' "$plots_json"
+    printf '}'
   } > "$OUT_DIR/run_manifest.json"
 
-  echo "📄 Manifest gerado/atualizado em: $OUT_DIR/run_manifest.json"
+  echo "🧾 Manifesto gerado/atualizado: $OUT_DIR/run_manifest.json"
 }
 
 
@@ -620,7 +640,7 @@ if (( has_any_csv == 1 )); then
       done
       generate_plots
       write_results_readme
-      write_run_manifest_json
+      write_run_manifest
       echo "✔️  Retomada concluída."
       exit 0
       ;;
@@ -647,4 +667,4 @@ fi
 # ----------------------------
 run_all_languages
 write_results_readme
-write_run_manifest_json
+write_run_manifest
