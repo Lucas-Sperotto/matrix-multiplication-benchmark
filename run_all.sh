@@ -3,7 +3,6 @@
 # ----------------------------
 # Verificação e instalação de requisitos
 # ----------------------------
-
 check_install() {
     PKG=$1
     CMD=$2
@@ -15,33 +14,36 @@ check_install() {
     fi
 }
 
-#
 # ----------------------------
 # [NEW] Parse de flags simples
 # ----------------------------
 print_usage() {
     cat <<EOF
 Uso: $0 [opções]
-  --nmax <INT>    Tamanho máximo da matriz (Nmax)
-  --k <INT>       Quantidade de pontos (K)
-  --help          Mostra esta ajuda
+  --nmax <INT>        Tamanho máximo da matriz (Nmax)
+  --k <INT>           Quantidade de pontos (K)
+  --exec-name <NOME>  Nome da execução (pasta em out/<NOME>)
+  --resume <modo>     auto | continue | restart | cancel
+  --help              Mostra esta ajuda
 
 Se --nmax e --k não forem informados, o script pergunta interativamente.
+Se --exec-name for informado, os resultados vão para out/<NOME>; caso exista, ativa lógica de retomada.
 EOF
 }
 
 NMAX_FLAG=""
 K_FLAG=""
+EXEC_NAME_FLAG=""
+RESUME_ACTION=""   # auto|continue|restart|cancel|"" (interativo)
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --nmax)
-      NMAX_FLAG="$2"; shift 2;;
-    --k)
-      K_FLAG="$2"; shift 2;;
-    --help|-h)
-      print_usage; exit 0;;
-    *)
-      echo "⚠️  Opção desconhecida: $1"; print_usage; exit 1;;
+    --nmax)       NMAX_FLAG="$2"; shift 2;;
+    --k)          K_FLAG="$2"; shift 2;;
+    --exec-name)  EXEC_NAME_FLAG="$2"; shift 2;;
+    --resume)     RESUME_ACTION="$2"; shift 2;;
+    --help|-h)    print_usage; exit 0;;
+    *)            echo "⚠️  Opção desconhecida: $1"; print_usage; exit 1;;
   esac
 done
 
@@ -72,18 +74,20 @@ compute_n_sizes() {
     arr+=( $(( i * step )) )
   done
 
+  # força último = nmax
   local last_idx=$(( ${#arr[@]} - 1 ))
   arr[$last_idx]=$nmax
 
+  # remove duplicados e ordena
   mapfile -t arr < <(printf "%s\n" "${arr[@]}" | sort -n | uniq)
 
+  # exporta para variável global
   N_SIZES=("${arr[@]}")
 }
 
 # ----------------------------
 # Entrada de parâmetros
 # ----------------------------
-
 if [[ -n "$NMAX_FLAG" ]]; then
   B="$NMAX_FLAG"
   echo "📥 Nmax (via --nmax): $B"
@@ -111,10 +115,14 @@ echo "Sequência de N calculada (sem zero): ${N_SIZES[*]}"
 echo "-----------------------------------"
 
 # ----------------------------
-# Criação do diretório de saída
+# [NEW] Definição do diretório de saída (execução)
 # ----------------------------
-TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-OUT_DIR="out/exec_${TIMESTAMP}"
+if [[ -n "$EXEC_NAME_FLAG" ]]; then
+  OUT_DIR="out/$EXEC_NAME_FLAG"
+else
+  TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+  OUT_DIR="out/exec_${TIMESTAMP}"
+fi
 mkdir -p "$OUT_DIR"
 echo "Resultados serão salvos em $OUT_DIR"
 echo "-----------------------------------"
@@ -124,31 +132,22 @@ printf "%s\n" "${N_SIZES[@]}" > "$OUT_DIR/N_values.txt"
 echo "Lista de N salva em: $OUT_DIR/N_values.txt"
 
 # ============================
-# [NEW] Execução por linguagem usando N_SIZES[@]
+# [NEW] Localização dos binários/entradas por linguagem
 # ============================
-
-# Pastas padrões (ajuste se necessário)
 BIN_DIR="./bin"
 SRC_DIR="./"
-
 mkdir -p "$BIN_DIR"
 
-# ----------------------------
-# [NEW] Localização dos executáveis/entradas por linguagem
-#    Ajuste os caminhos/nomes conforme seu projeto.
-# ----------------------------
 C_BIN="$BIN_DIR/matriz_c"
 C_O3_BIN="$BIN_DIR/matriz_c_O3"
 CPP_BIN="$BIN_DIR/matriz_cpp"
 CPP_O3_BIN="$BIN_DIR/matriz_cpp_O3"
-JAVA_MAIN_CLASS="MatrizJava"            # ajuste: nome da classe com 'main'
-JAVA_CP="$BIN_DIR"                       # ajuste: classpath onde .class foi gerado
-PY_FILE="$SRC_DIR/matriz_python.py"      # ajuste: caminho do script Python
+JAVA_MAIN_CLASS="MatrizJava"     # ajuste se necessário
+JAVA_CP="$BIN_DIR"               # ajuste se necessário
+PY_FILE="$SRC_DIR/matriz_python.py"
 
 # ----------------------------
-# [NEW] Função para invocar cada linguagem de modo unificado
-#    Se a sua assinatura de argumentos for diferente,
-#    ajuste apenas aqui por linguagem.
+# [NEW] Chamada unificada por linguagem
 # ----------------------------
 invoke_prog() {
   local lang="$1"   # C | C_O3 | CPP | CPP_O3 | JAVA | PYTHON
@@ -162,73 +161,59 @@ invoke_prog() {
       if [[ -x "$C_BIN" ]]; then
         "$C_BIN" "$N" "$Mreps" "$Escala" "$Out"
       else
-        echo "⚠️  Binário não encontrado/executável: $C_BIN (pulando C)"
-        return 2
+        echo "⚠️  Binário não encontrado/executável: $C_BIN (pulando C)"; return 2
       fi
       ;;
     C_O3)
       if [[ -x "$C_O3_BIN" ]]; then
         "$C_O3_BIN" "$N" "$Mreps" "$Escala" "$Out"
       else
-        echo "⚠️  Binário não encontrado/executável: $C_O3_BIN (pulando C_O3)"
-        return 2
+        echo "⚠️  Binário não encontrado/executável: $C_O3_BIN (pulando C_O3)"; return 2
       fi
       ;;
     CPP)
       if [[ -x "$CPP_BIN" ]]; then
         "$CPP_BIN" "$N" "$Mreps" "$Escala" "$Out"
       else
-        echo "⚠️  Binário não encontrado/executável: $CPP_BIN (pulando CPP)"
-        return 2
+        echo "⚠️  Binário não encontrado/executável: $CPP_BIN (pulando CPP)"; return 2
       fi
       ;;
     CPP_O3)
       if [[ -x "$CPP_O3_BIN" ]]; then
         "$CPP_O3_BIN" "$N" "$Mreps" "$Escala" "$Out"
       else
-        echo "⚠️  Binário não encontrado/executável: $CPP_O3_BIN (pulando CPP_O3)"
-        return 2
+        echo "⚠️  Binário não encontrado/executável: $CPP_O3_BIN (pulando CPP_O3)"; return 2
       fi
       ;;
     JAVA)
-      # Opção A: se você tiver JAR: java -jar "$BIN_DIR/matriz_java.jar" ...
-      # Opção B: se você compila .class no BIN_DIR, rode com -cp:
       if command -v java >/dev/null 2>&1; then
         if [[ -d "$JAVA_CP" ]]; then
           java -cp "$JAVA_CP" "$JAVA_MAIN_CLASS" "$N" "$Mreps" "$Escala" "$Out"
         else
-          echo "⚠️  Classpath Java não encontrado: $JAVA_CP (pulando JAVA)"
-          return 2
+          echo "⚠️  Classpath Java não encontrado: $JAVA_CP (pulando JAVA)"; return 2
         fi
       else
-        echo "⚠️  Java não instalado (pulando JAVA)"
-        return 2
+        echo "⚠️  Java não instalado (pulando JAVA)"; return 2
       fi
       ;;
     PYTHON)
       if command -v python3 >/dev/null 2>&1 && [[ -f "$PY_FILE" ]]; then
-        # Ajuste os parâmetros conforme a CLI do seu script Python:
         python3 "$PY_FILE" "$N" "$Mreps" "$Escala" "$Out"
-        # Exemplo alternativo (se o seu Python usar flags):
-        # python3 "$PY_FILE" --n "$N" --m "$Mreps" --escala "$Escala" --out "$Out"
       else
-        echo "⚠️  Python3 ou arquivo não encontrado: $PY_FILE (pulando PYTHON)"
-        return 2
+        echo "⚠️  Python3 ou arquivo não encontrado: $PY_FILE (pulando PYTHON)"; return 2
       fi
       ;;
     *)
-      echo "❌ Linguagem desconhecida em invoke_prog: $lang"
-      return 1
-      ;;
+      echo "❌ Linguagem desconhecida em invoke_prog: $lang"; return 1;;
   esac
 }
 
 # ----------------------------
-# [NEW] Função que executa uma linguagem iterando sobre N_SIZES
+# [NEW] Execução de uma linguagem sobre N_SIZES
 # ----------------------------
 run_lang_over_Ns() {
-  local lang="$1"      # C | C_O3 | CPP | CPP_O3 | JAVA | PYTHON
-  local csv_expected="$2"  # nome do CSV esperado dentro do OUT_DIR (para futura retomada)
+  local lang="$1"          # C | C_O3 | CPP | CPP_O3 | JAVA | PYTHON
+  local csv_expected="$2"  # nome do CSV esperado em $OUT_DIR
   local had_error=0
 
   echo ""
@@ -242,8 +227,6 @@ run_lang_over_Ns() {
     fi
   done
 
-  # Apenas informa; não forçamos existência do CSV aqui,
-  # pois cada binário pode já escrever/append no arquivo por conta própria.
   if [[ -n "$csv_expected" && -f "$OUT_DIR/$csv_expected" ]]; then
     echo "✅ Arquivo gerado/atualizado: $OUT_DIR/$csv_expected"
   else
@@ -255,51 +238,26 @@ run_lang_over_Ns() {
 }
 
 # ----------------------------
-# [NEW] Execução sequencial nas linguagens
-#     (ajuste a ordem como preferir)
+# [NEW] Geração de gráficos
 # ----------------------------
-
-# C
-run_lang_over_Ns "C" "resultado_c.csv"
-
-# C (O3)
-run_lang_over_Ns "C_O3" "resultado_c_O3.csv"
-
-# C++
-run_lang_over_Ns "CPP" "resultado_cpp.csv"
-
-# C++ (O3)
-run_lang_over_Ns "CPP_O3" "resultado_cpp_O3.csv"
-
-# Java
-run_lang_over_Ns "JAVA" "resultado_java.csv"
-
-# Python
-run_lang_over_Ns "PYTHON" "resultado_python.csv"
-
-# ----------------------------
-# [NEW] Geração de gráficos (opcional)
-# ----------------------------
-if command -v python3 >/dev/null 2>&1; then
-  if [[ -f "plot_benchmarks.py" ]]; then
-    echo ""
-    echo "📊 Gerando gráficos em: $OUT_DIR"
-    python3 plot_benchmarks.py "$OUT_DIR" || echo "⚠️  Falha ao gerar gráficos."
+generate_plots() {
+  if command -v python3 >/dev/null 2>&1; then
+    if [[ -f "plot_benchmarks.py" ]]; then
+      echo ""
+      echo "📊 Gerando gráficos em: $OUT_DIR"
+      python3 plot_benchmarks.py "$OUT_DIR" || echo "⚠️  Falha ao gerar gráficos."
+    else
+      echo "ℹ️  Arquivo plot_benchmarks.py não encontrado (pulando gráficos)."
+    fi
   else
-    echo "ℹ️  Arquivo plot_benchmarks.py não encontrado (pulando gráficos)."
+    echo "ℹ️  Python3 não encontrado (pulando gráficos)."
   fi
-else
-  echo "ℹ️  Python3 não encontrado (pulando gráficos)."
-fi
+}
 
 # ============================
-# [NEW] RESUME: detecção de conclusão por linguagem e retomada
+# [NEW] RESUME: detecção e retomada por linguagem
 # ============================
-
-# Ordem canônica das linguagens
 LANGS=(C C_O3 CPP CPP_O3 JAVA PYTHON)
-
-# Mapa de CSV esperado por linguagem
 declare -A CSV_MAP=(
   ["C"]="resultado_c.csv"
   ["C_O3"]="resultado_c_O3.csv"
@@ -309,48 +267,30 @@ declare -A CSV_MAP=(
   ["PYTHON"]="resultado_python.csv"
 )
 
-# ----------------------------
-# [NEW] util: retorna 0 se CSV contém exatamente todas as N_SIZES (linhas == 1 + len(N_SIZES))
-# ----------------------------
+# CSV completo = (linhas == 1 + |N_SIZES|)
 csv_is_complete() {
   local csv="$1"
-  local expected_lines=$(( ${#N_SIZES[@]} + 1 ))  # +1 cabeçalho
+  local expected_lines=$(( ${#N_SIZES[@]} + 1 ))
   [[ -f "$csv" ]] || return 1
   local actual_lines
   actual_lines=$(wc -l < "$csv")
   [[ "$actual_lines" -eq "$expected_lines" ]]
 }
 
-# ----------------------------
-# [NEW] util: lista Ns faltantes com base na 1ª coluna do CSV (ignora cabeçalho)
-#    saída: imprime Ns faltantes (separados por espaço) no stdout
-# ----------------------------
+# Lista Ns faltantes comparando a 1ª coluna do CSV com N_SIZES
 csv_list_missing_ns() {
   local csv="$1"
-
-  # Ns do CSV (coluna 1, ignorando cabeçalho), normalizados e únicos
   mapfile -t ns_in_csv < <(awk -F',' 'NR>1 {print $1}' "$csv" | sed 's/[^0-9]//g' | awk 'NF' | sort -n | uniq)
-
-  # Comparar com N_SIZES e imprimir os que faltam
-  # Transformar arrays em sets via sort e comm
-  # temp files
   local tmp_all tmp_csv
-  tmp_all=$(mktemp)
-  tmp_csv=$(mktemp)
+  tmp_all=$(mktemp); tmp_csv=$(mktemp)
   printf "%s\n" "${N_SIZES[@]}" | sort -n | uniq > "$tmp_all"
   printf "%s\n" "${ns_in_csv[@]}" | sort -n | uniq > "$tmp_csv"
-
-  # Ns faltantes = ALL \ CSV
   local missing_list
   missing_list=$(comm -23 "$tmp_all" "$tmp_csv" | xargs)
-
   rm -f "$tmp_all" "$tmp_csv"
   echo "$missing_list"
 }
 
-# ----------------------------
-# [NEW] util: imprime status de cada linguagem (✅ completa, ⏳ incompleta+faltantes, ❌ sem CSV)
-# ----------------------------
 print_resume_status() {
   echo ""
   echo "📂 Execução: $OUT_DIR"
@@ -362,12 +302,10 @@ print_resume_status() {
       if csv_is_complete "$csv"; then
         echo "✅ $L — completo  (${CSV_MAP[$L]})"
       else
-        local miss
-        miss=$(csv_list_missing_ns "$csv")
+        local miss; miss=$(csv_list_missing_ns "$csv")
         if [[ -n "$miss" ]]; then
           echo "⏳ $L — incompleto (${CSV_MAP[$L]}), faltam N: $miss"
         else
-          # tem CSV mas vazio/só cabeçalho
           echo "⏳ $L — incompleto (${CSV_MAP[$L]}), faltam todos os N"
         fi
       fi
@@ -378,10 +316,6 @@ print_resume_status() {
   echo "-----------------------------------"
 }
 
-# ----------------------------
-# [NEW] Pergunta ação ao usuário (se não houver flags de resume)
-#    Saída em variável global RESUME_ACTION = continue|restart|cancel
-# ----------------------------
 ask_resume_action() {
   local choice
   while true; do
@@ -396,19 +330,13 @@ ask_resume_action() {
   done
 }
 
-# ----------------------------
-# [NEW] Executa apenas os N faltantes de uma linguagem
-# ----------------------------
 run_lang_missing_ns() {
   local lang="$1"
   local csv="$2"
-
-  # calcula Ns faltantes baseado no CSV atual
   local miss
   if [[ -f "$csv" ]]; then
     miss=$(csv_list_missing_ns "$csv")
   else
-    # se não existe, todos faltam
     miss="${N_SIZES[*]}"
   fi
 
@@ -431,20 +359,21 @@ run_lang_missing_ns() {
 }
 
 # ----------------------------
-# [NEW] Fluxo de retomada:
-#   - Se OUT_DIR existe e contém algo, imprime status e decide ação
-#   - continue: roda faltantes da linguagem atual e segue as próximas
-#   - restart : apaga CSVs e roda tudo
-#   - cancel  : sai
+# [NEW] Função para rodar TODAS as linguagens (pipeline completo)
 # ----------------------------
+run_all_languages() {
+  run_lang_over_Ns "C"       "resultado_c.csv"
+  run_lang_over_Ns "C_O3"    "resultado_c_O3.csv"
+  run_lang_over_Ns "CPP"     "resultado_cpp.csv"
+  run_lang_over_Ns "CPP_O3"  "resultado_cpp_O3.csv"
+  run_lang_over_Ns "JAVA"    "resultado_java.csv"
+  run_lang_over_Ns "PYTHON"  "resultado_python.csv"
+  generate_plots
+}
 
-# Se a pasta já existia (ex.: definida por --exec-name)
-# ou se você quer sempre checar, mantenha a lógica abaixo.
-# Se OUT_DIR foi recém-criada e está vazia, esta parte só informa status e segue normal.
-
-RESUME_ACTION=""  # pode vir de flags futuramente (ex.: --resume=continue)
-
-# Detecta se a pasta já tinha algum CSV
+# ----------------------------
+# [NEW] Fluxo principal de retomada (antes da execução completa)
+# ----------------------------
 has_any_csv=0
 for L in "${LANGS[@]}"; do
   if [[ -f "$OUT_DIR/${CSV_MAP[$L]}" ]]; then
@@ -454,38 +383,40 @@ done
 
 if (( has_any_csv == 1 )); then
   print_resume_status
-  # Perguntar ação apenas se não houver flag pré-definida
-  if [[ -z "$RESUME_ACTION" ]]; then
+
+  if [[ -z "$RESUME_ACTION" || "$RESUME_ACTION" == "auto" ]]; then
     ask_resume_action
   fi
 
   case "$RESUME_ACTION" in
     continue)
-      echo "➡️  Ação: continuar a execução (somente faltantes de cada linguagem e as próximas)."
-      # percorrer na ordem e executar o que falta em cada uma
+      echo "➡️  Ação: continuar (executar faltantes por linguagem e seguir)."
       for L in "${LANGS[@]}"; do
         run_lang_missing_ns "$L" "$OUT_DIR/${CSV_MAP[$L]}"
       done
+      generate_plots
+      echo "✔️  Retomada concluída."
+      exit 0
       ;;
     restart)
       echo "🧹 Ação: reiniciar — apagando CSVs e reexecutando todas as linguagens."
       for L in "${LANGS[@]}"; do
         rm -f "$OUT_DIR/${CSV_MAP[$L]}"
       done
-      # após limpar, roda todas as Ns para cada linguagem
-      # (se você já colou o bloco 'run_lang_over_Ns', pode chamá-lo aqui diretamente)
+      # cai para execução completa abaixo
       ;;
     cancel)
       echo "🛑 Ação: cancelar. Nada será executado."
       exit 0
       ;;
     *)
-      echo "⚠️  Ação desconhecida: $RESUME_ACTION"; exit 1;;
+      echo "⚠️  Ação desconhecida em --resume: '$RESUME_ACTION'"; exit 1;;
   esac
-
-  echo "-----------------------------------"
-  echo "✔️  Retomada concluída para as linguagens acima (conforme ação)."
-  echo "-----------------------------------"
 else
   echo "ℹ️  Nenhum CSV encontrado em $OUT_DIR — iniciando execução completa."
 fi
+
+# ----------------------------
+# Execução COMPLETA (sem retomada)
+# ----------------------------
+run_all_languages
