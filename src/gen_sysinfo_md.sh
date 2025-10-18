@@ -116,3 +116,4 @@ json_escape() {
 
 echo "📝 Gerado: $MD"
 echo "🧾 Gerado: $JSON"
+
