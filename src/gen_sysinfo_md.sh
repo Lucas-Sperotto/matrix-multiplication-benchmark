@@ -113,3 +113,79 @@ fi
 } > "$OUT_FILE"
 
 echo "Arquivo gerado: $OUT_FILE"
+
+# ============================
+# [NEW] Exportar system_info.json (além do .md)
+# ============================
+
+_json_escape() {
+  local s="$1"
+  s="${s//\\/\\\\}"
+  s="${s//\"/\\\"}"
+  s="${s//
+/\\n}"
+  s="${s//
+/}"
+  echo "$s"
+}
+
+_write_system_info_json() {
+  # Detecta diretório onde está o MD (usa o mesmo)
+  local out_dir="."
+  if [[ -n "$SYSTEM_INFO_MD_PATH" ]]; then
+    out_dir="$(dirname "$SYSTEM_INFO_MD_PATH")"
+  elif [[ -f "./system_info.md" ]]; then
+    out_dir="."
+  fi
+  local out_json="${out_dir}/system_info.json"
+
+  # Coletas portáveis
+  local os kernel arch
+  os="$(uname -s 2>/dev/null || echo N/D)"
+  kernel="$(uname -r 2>/dev/null || echo N/D)"
+  arch="$(uname -m 2>/dev/null || echo N/D)"
+
+  local cpu_model cores threads
+  cpu_model="$(lscpu 2>/dev/null | awk -F: '/Model name/ {sub(/^ +/,"",$2); print $2}' | head -n1)"
+  [[ -z "$cpu_model" ]] && cpu_model="$(grep -m1 'model name' /proc/cpuinfo 2>/dev/null | cut -d: -f2- | sed 's/^ //')"
+  cores="$(lscpu 2>/dev/null | awk -F: '/^CPU\(s\)/ {gsub(/ /,"",$2); print $2}' | head -n1)"
+  threads="$(nproc 2>/dev/null || echo N/D)"
+
+  local mem_total_mb
+  mem_total_mb="$(free -m 2>/dev/null | awk '/Mem:/ {print $2}')"
+  [[ -z "$mem_total_mb" ]] && mem_total_mb="N/D"
+
+  local gpus
+  gpus="$(lspci 2>/dev/null | grep -E 'VGA|3D' | sed 's/^ *//')"
+  [[ -z "$gpus" ]] && gpus="N/D"
+
+  local now iso
+  now="$(date +"%d/%m/%Y %H:%M:%S")"
+  iso="$(date -Iseconds)"
+
+  {
+    echo "{"
+    echo "  \"datetime\": {\"human\": \"$( _json_escape "$now" )\", \"iso\": \"$( _json_escape "$iso" )\"},"
+    echo "  \"os\": \"$( _json_escape "$os" )\","
+    echo "  \"kernel\": \"$( _json_escape "$kernel" )\","
+    echo "  \"arch\": \"$( _json_escape "$arch" )\","
+    echo "  \"cpu\": {"
+    echo "    \"model\": \"$( _json_escape "$cpu_model" )\","
+    echo "    \"cores_reported\": \"$( _json_escape "$cores" )\","
+    echo "    \"threads_nproc\": \"$( _json_escape "$threads" )\""
+    echo "  },"
+    echo "  \"memory_mb_total\": \"$( _json_escape "$mem_total_mb" )\","
+    echo "  \"gpu\": \"$( _json_escape "$gpus" )\""
+    echo "}"
+  } > "$out_json"
+
+  echo "🧾 system_info.json gerado em: $out_json"
+}
+
+# Tente inferir caminho do MD se o script já o escreveu
+# Se seu script define explicitamente, set SYSTEM_INFO_MD_PATH antes de chamar esta função.
+if [[ -z "$SYSTEM_INFO_MD_PATH" && -f "./system_info.md" ]]; then
+  SYSTEM_INFO_MD_PATH="./system_info.md"
+fi
+
+_write_system_info_json
