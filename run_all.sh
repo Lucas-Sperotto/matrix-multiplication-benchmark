@@ -358,6 +358,112 @@ run_lang_missing_ns() {
   return $had_error
 }
 
+# ============================
+# [NEW] README da execução (OUT_DIR/README.md)
+# Requer: OUT_DIR, B (Nmax), Npts (K), N_SIZES[@], M, ESCALA,
+#         LANGS[@], CSV_MAP[], csv_is_complete(), csv_list_missing_ns()
+# ============================
+
+detect_git_commit() {
+  if command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    git rev-parse --short HEAD 2>/dev/null || echo "N/D"
+  else
+    echo "N/D"
+  fi
+}
+
+detect_hostname() {
+  hostname 2>/dev/null || echo "N/D"
+}
+
+find_system_info_md() {
+  # prioriza dentro do OUT_DIR; senão tenta raiz do repo
+  if [[ -f "$OUT_DIR/system_info.md" ]]; then
+    echo "./system_info.md"
+  elif [[ -f "system_info.md" ]]; then
+    echo "../system_info.md"
+  else
+    echo ""
+  fi
+}
+
+collect_plot_files() {
+  # lista PNGs diretos do OUT_DIR (sem recursão) e retorna em PLots[@]
+  mapfile -t PLOTS < <(find "$OUT_DIR" -maxdepth 1 -type f -name "*.png" -printf "%f\n" | sort)
+}
+
+print_lang_status_line() {
+  local L="$1"
+  local csv="$OUT_DIR/${CSV_MAP[$L]}"
+
+  if [[ -f "$csv" ]]; then
+    if csv_is_complete "$csv"; then
+      echo "- **$L**: ✅ completo \`(${CSV_MAP[$L]})\`"
+    else
+      local miss; miss=$(csv_list_missing_ns "$csv")
+      if [[ -n "$miss" ]]; then
+        echo "- **$L**: ⏳ incompleto \`(${CSV_MAP[$L]})\` — faltam **N =** \`$miss\`"
+      else
+        echo "- **$L**: ⏳ incompleto \`(${CSV_MAP[$L]})\` (sem dados)"
+      fi
+    fi
+  else
+    echo "- **$L**: ❌ não iniciado (ausente: \`${CSV_MAP[$L]}\`)"
+  fi
+}
+
+write_results_readme() {
+  local now iso
+  now="$(date +"%d/%m/%Y %H:%M:%S")"
+  iso="$(date -Iseconds)"
+  local host commit
+  host="$(detect_hostname)"
+  commit="$(detect_git_commit)"
+  local sys_link
+  sys_link="$(find_system_info_md)"
+
+  collect_plot_files
+
+  {
+    echo "# Resultados — $(basename "$OUT_DIR")"
+    echo
+    echo "**Data:** $now  \`$iso\`  "
+    echo "**Host:** $host  "
+    echo "**Commit:** \`$commit\`  "
+    if [[ -n "$sys_link" ]]; then
+      echo "**Sistema:** [system_info.md]($sys_link)"
+    else
+      echo "**Sistema:** (arquivo \`system_info.md\` não encontrado)"
+    fi
+    echo
+    echo "## Parâmetros"
+    echo "- **Nmax:** $B"
+    echo "- **K (qtde de pontos):** $Npts"
+    echo "- **Lista de N:** \`${N_SIZES[*]}\`"
+    echo "- **M (repetições):** $M"
+    echo "- **Escala:** $([[ "$ESCALA" == "0" ]] && echo "Logarítmica" || echo "Linear") (\`$ESCALA\`)"
+    echo
+    echo "## Status por linguagem"
+    for L in "${LANGS[@]}"; do
+      print_lang_status_line "$L"
+    done
+    echo
+    echo "## Gráficos"
+    if (( ${#PLOTS[@]} > 0 )); then
+      for p in "${PLOTS[@]}"; do
+        echo "- [$p](./$p)"
+      done
+    else
+      echo "_Nenhum gráfico (.png) encontrado em \`$(basename "$OUT_DIR")\`._"
+    fi
+    echo
+    echo "> **Observação:** este README é gerado automaticamente pelo \`run_all.sh\` ao final de cada execução ou retomada."
+  } > "$OUT_DIR/README.md"
+
+  echo "📝 README gerado/atualizado em: $OUT_DIR/README.md"
+}
+
+
 # ----------------------------
 # [NEW] Função para rodar TODAS as linguagens (pipeline completo)
 # ----------------------------
@@ -395,6 +501,7 @@ if (( has_any_csv == 1 )); then
         run_lang_missing_ns "$L" "$OUT_DIR/${CSV_MAP[$L]}"
       done
       generate_plots
+      write_results_readme
       echo "✔️  Retomada concluída."
       exit 0
       ;;
@@ -420,3 +527,4 @@ fi
 # Execução COMPLETA (sem retomada)
 # ----------------------------
 run_all_languages
+write_results_readme
