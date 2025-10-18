@@ -292,3 +292,200 @@ else
   echo "ℹ️  Python3 não encontrado (pulando gráficos)."
 fi
 
+# ============================
+# [NEW] RESUME: detecção de conclusão por linguagem e retomada
+# ============================
+
+# Ordem canônica das linguagens
+LANGS=(C C_O3 CPP CPP_O3 JAVA PYTHON)
+
+# Mapa de CSV esperado por linguagem
+declare -A CSV_MAP=(
+  ["C"]="resultado_c.csv"
+  ["C_O3"]="resultado_c_O3.csv"
+  ["CPP"]="resultado_cpp.csv"
+  ["CPP_O3"]="resultado_cpp_O3.csv"
+  ["JAVA"]="resultado_java.csv"
+  ["PYTHON"]="resultado_python.csv"
+)
+
+# ----------------------------
+# [NEW] util: retorna 0 se CSV contém exatamente todas as N_SIZES (linhas == 1 + len(N_SIZES))
+# ----------------------------
+csv_is_complete() {
+  local csv="$1"
+  local expected_lines=$(( ${#N_SIZES[@]} + 1 ))  # +1 cabeçalho
+  [[ -f "$csv" ]] || return 1
+  local actual_lines
+  actual_lines=$(wc -l < "$csv")
+  [[ "$actual_lines" -eq "$expected_lines" ]]
+}
+
+# ----------------------------
+# [NEW] util: lista Ns faltantes com base na 1ª coluna do CSV (ignora cabeçalho)
+#    saída: imprime Ns faltantes (separados por espaço) no stdout
+# ----------------------------
+csv_list_missing_ns() {
+  local csv="$1"
+
+  # Ns do CSV (coluna 1, ignorando cabeçalho), normalizados e únicos
+  mapfile -t ns_in_csv < <(awk -F',' 'NR>1 {print $1}' "$csv" | sed 's/[^0-9]//g' | awk 'NF' | sort -n | uniq)
+
+  # Comparar com N_SIZES e imprimir os que faltam
+  # Transformar arrays em sets via sort e comm
+  # temp files
+  local tmp_all tmp_csv
+  tmp_all=$(mktemp)
+  tmp_csv=$(mktemp)
+  printf "%s\n" "${N_SIZES[@]}" | sort -n | uniq > "$tmp_all"
+  printf "%s\n" "${ns_in_csv[@]}" | sort -n | uniq > "$tmp_csv"
+
+  # Ns faltantes = ALL \ CSV
+  local missing_list
+  missing_list=$(comm -23 "$tmp_all" "$tmp_csv" | xargs)
+
+  rm -f "$tmp_all" "$tmp_csv"
+  echo "$missing_list"
+}
+
+# ----------------------------
+# [NEW] util: imprime status de cada linguagem (✅ completa, ⏳ incompleta+faltantes, ❌ sem CSV)
+# ----------------------------
+print_resume_status() {
+  echo ""
+  echo "📂 Execução: $OUT_DIR"
+  echo "🧮 Esperado por linguagem: ${#N_SIZES[@]} pontos + cabeçalho (= $(( ${#N_SIZES[@]} + 1 )) linhas)"
+  echo "-----------------------------------"
+  for L in "${LANGS[@]}"; do
+    local csv="$OUT_DIR/${CSV_MAP[$L]}"
+    if [[ -f "$csv" ]]; then
+      if csv_is_complete "$csv"; then
+        echo "✅ $L — completo  (${CSV_MAP[$L]})"
+      else
+        local miss
+        miss=$(csv_list_missing_ns "$csv")
+        if [[ -n "$miss" ]]; then
+          echo "⏳ $L — incompleto (${CSV_MAP[$L]}), faltam N: $miss"
+        else
+          # tem CSV mas vazio/só cabeçalho
+          echo "⏳ $L — incompleto (${CSV_MAP[$L]}), faltam todos os N"
+        fi
+      fi
+    else
+      echo "❌ $L — não iniciado (ausente: ${CSV_MAP[$L]})"
+    fi
+  done
+  echo "-----------------------------------"
+}
+
+# ----------------------------
+# [NEW] Pergunta ação ao usuário (se não houver flags de resume)
+#    Saída em variável global RESUME_ACTION = continue|restart|cancel
+# ----------------------------
+ask_resume_action() {
+  local choice
+  while true; do
+    echo -n "Deseja [C]ontinuar, [R]einiciar ou [X] Cancelar? "
+    read -r choice
+    case "${choice^^}" in
+      C) RESUME_ACTION="continue"; break;;
+      R) RESUME_ACTION="restart";  break;;
+      X) RESUME_ACTION="cancel";   break;;
+      *) echo "Opção inválida. Use C, R ou X.";;
+    esac
+  done
+}
+
+# ----------------------------
+# [NEW] Executa apenas os N faltantes de uma linguagem
+# ----------------------------
+run_lang_missing_ns() {
+  local lang="$1"
+  local csv="$2"
+
+  # calcula Ns faltantes baseado no CSV atual
+  local miss
+  if [[ -f "$csv" ]]; then
+    miss=$(csv_list_missing_ns "$csv")
+  else
+    # se não existe, todos faltam
+    miss="${N_SIZES[*]}"
+  fi
+
+  if [[ -z "$miss" ]]; then
+    echo "✅ $lang já está completo (nada a fazer)."
+    return 0
+  fi
+
+  echo "▶️  Retomando $lang — executando somente faltantes: $miss"
+  local had_error=0
+  for N in $miss; do
+    echo "   • N=$N  (M=$M, ESCALA=$ESCALA)"
+    if ! invoke_prog "$lang" "$N" "$M" "$ESCALA" "$OUT_DIR"; then
+      echo "   ⚠️  Falha ao executar $lang para N=$N"
+      had_error=1
+      break
+    fi
+  done
+  return $had_error
+}
+
+# ----------------------------
+# [NEW] Fluxo de retomada:
+#   - Se OUT_DIR existe e contém algo, imprime status e decide ação
+#   - continue: roda faltantes da linguagem atual e segue as próximas
+#   - restart : apaga CSVs e roda tudo
+#   - cancel  : sai
+# ----------------------------
+
+# Se a pasta já existia (ex.: definida por --exec-name)
+# ou se você quer sempre checar, mantenha a lógica abaixo.
+# Se OUT_DIR foi recém-criada e está vazia, esta parte só informa status e segue normal.
+
+RESUME_ACTION=""  # pode vir de flags futuramente (ex.: --resume=continue)
+
+# Detecta se a pasta já tinha algum CSV
+has_any_csv=0
+for L in "${LANGS[@]}"; do
+  if [[ -f "$OUT_DIR/${CSV_MAP[$L]}" ]]; then
+    has_any_csv=1; break
+  fi
+done
+
+if (( has_any_csv == 1 )); then
+  print_resume_status
+  # Perguntar ação apenas se não houver flag pré-definida
+  if [[ -z "$RESUME_ACTION" ]]; then
+    ask_resume_action
+  fi
+
+  case "$RESUME_ACTION" in
+    continue)
+      echo "➡️  Ação: continuar a execução (somente faltantes de cada linguagem e as próximas)."
+      # percorrer na ordem e executar o que falta em cada uma
+      for L in "${LANGS[@]}"; do
+        run_lang_missing_ns "$L" "$OUT_DIR/${CSV_MAP[$L]}"
+      done
+      ;;
+    restart)
+      echo "🧹 Ação: reiniciar — apagando CSVs e reexecutando todas as linguagens."
+      for L in "${LANGS[@]}"; do
+        rm -f "$OUT_DIR/${CSV_MAP[$L]}"
+      done
+      # após limpar, roda todas as Ns para cada linguagem
+      # (se você já colou o bloco 'run_lang_over_Ns', pode chamá-lo aqui diretamente)
+      ;;
+    cancel)
+      echo "🛑 Ação: cancelar. Nada será executado."
+      exit 0
+      ;;
+    *)
+      echo "⚠️  Ação desconhecida: $RESUME_ACTION"; exit 1;;
+  esac
+
+  echo "-----------------------------------"
+  echo "✔️  Retomada concluída para as linguagens acima (conforme ação)."
+  echo "-----------------------------------"
+else
+  echo "ℹ️  Nenhum CSV encontrado em $OUT_DIR — iniciando execução completa."
+fi
