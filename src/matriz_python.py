@@ -56,6 +56,7 @@ def linear(b, npts, a=100.0):
 # Abrir o arquivo para salvar os resultados
 with open("resultado_python.csv", "w") as f:
 
+    f.write(f"N,TCS,TAM\n")
 
     if len(sys.argv) <= 4:
         print(f"Uso: python {sys.argv[0]} <B> <Npts> <M> <Escala>")
@@ -73,9 +74,6 @@ with open("resultado_python.csv", "w") as f:
         print("Erro ao gerar escala logarítmica.")
         sys.exit(1)
         
-    f.write(f"N,TCS,TAM\n")
-    
-
     if len(sys.argv) == 2:  # se passou 1 argumento além do nome do script
         M = int(sys.argv[1])  # converte string para inteiro
     

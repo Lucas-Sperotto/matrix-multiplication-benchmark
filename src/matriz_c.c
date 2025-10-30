@@ -35,7 +35,7 @@ void multiply(int **mat1, int **mat2, int **res, int N)
     for (int i = 0; i < N; i++)
     {
         for (int j = 0; j < N; j++)
-        {
+        {3
             res[i][j] = 0;
             for (int k = 0; k < N; k++)
             {
@@ -88,25 +88,16 @@ int main(int argc, char **argv)
 {
     FILE *f;
     if (argc > 5)
-    {
         f = fopen("resultado_c_O3.csv", "w");
-        fprintf(f, "N,TCS,TAM,TLM\n"); //
-        if (f == NULL)
-        {
-            printf("Erro ao abrir o arquivo!\n");
-            return 1;
-        }
-    }
     else
-    {
         f = fopen("resultado_c.csv", "w");
-        fprintf(f, "N,TCS,TAM,TLM\n"); //
-        if (f == NULL)
-        {
-            printf("Erro ao abrir o arquivo!\n");
-            return 1;
-        }
+
+    if (f == NULL)
+    {
+        printf("Erro ao abrir o arquivo!\n");
+        return -1;
     }
+    fprintf(f, "N,TCS,TAM,TLM\n"); //
 
     int M = 1;
 
@@ -114,7 +105,7 @@ int main(int argc, char **argv)
     {
         printf("Uso: %s <B> <Npts> <M> <Escala>\n", argv[0]);
         printf("Exemplo: %s 4000 12 5 1\n", argv[0]);
-        return 1;
+        return -1;
     }
 
     int B = atoi(argv[1]);      // valor máximo
@@ -160,8 +151,7 @@ int main(int argc, char **argv)
                 res[i] = (int *)malloc(N * sizeof(int));
             }
 
-            clock_t end_alloc = clock();
-            time_alloc += ((double)(end_alloc - start_alloc)) / CLOCKS_PER_SEC;
+            
 
             // Inicializando as matrizes
             for (int i = 0; i < N; i++)
@@ -177,6 +167,9 @@ int main(int argc, char **argv)
                     }
                 }
             }
+
+            clock_t end_alloc = clock();
+            time_alloc += ((double)(end_alloc - start_alloc)) / CLOCKS_PER_SEC;
 
             // Medindo o tempo de cálculo
             clock_t start_calc = clock();
