@@ -1,6 +1,7 @@
 # Análise de Operações na Multiplicação de Matrizes
 
-Este documento detalha o número de operações necessárias para a multiplicação de duas matrizes $`N \times N`$ utilizando um algoritmo cúbico de três laços.
+Este documento detalha o número de operações necessárias para a multiplicação de duas matrizes $`N \times N`$ utilizando um algoritmo cúbico de três laços `for`).  
+Ele serve de **fundamentação teórica** para interpretar os resultados experimentais deste projeto.
 
 ## Estimativa do Número Total de Operações
 
@@ -17,13 +18,13 @@ A multiplicação de matrizes tem complexidade cúbica, $`O(N^3)`$. O número to
    $`
    N^2 \times (2N - 1)
   `$
-   
+
 4. **Fórmula final**:
    $`
    \text{Operações totais} = N^2 \times (2N - 1)
    `$
 
-### Exemplo para $`N = 1000`$:
+### Exemplo para $`N = 1000`$
 
 $`
 \text{Operações totais} = 1000^2 \times (2 \times 1000 - 1) = 1.000.000 \times 1999 = 1.999.000.000 \, \text{operações}
@@ -36,14 +37,14 @@ $`
 
 ### Análise Detalhada: Leituras, Escritas, Somas e Multiplicações
 
-#### Operações básicas:
+#### Operações básicas
 
 1. **Leitura**: Leitura dos elementos das duas matrizes.
 2. **Escrita**: Escrita do resultado na matriz de saída.
 3. **Soma**: Somar os produtos parciais ao elemento da matriz de saída.
 4. **Multiplicação**: Multiplicação de elementos correspondentes das duas matrizes.
 
-#### Número total de operações:
+#### Número total de operações
 
 1. **Leituras**:
    - Para calcular cada elemento da matriz resultado, precisamos ler $`N`$ elementos de cada matriz. Isso resulta em $`2N^3`$ leituras no total.
@@ -57,7 +58,7 @@ $`
 4. **Somas**:
    - Para cada célula, realizamos $`N-1`$ somas. O total de somas é $`N^3 - N^2`$.
 
-### Resumo:
+### Resumo
 
 | Operação       | Fórmula                | Aproximação para grandes \(N\) |
 |----------------|------------------------|--------------------------------|
@@ -66,9 +67,9 @@ $`
 | Multiplicações | $`N^3`$                | $`N^3`$                       |
 | Somas          | $`N^3 - N^2`$          | $`N^3`$                       |
 
-### Exemplo para $`N = 1000`$:
+### Exemplo calculo do numero de operações para $`N = 1000`$
 
-1. **Leituras**: 
+1. **Leituras**:
    $`
    2 \times 1000^3 = 2 \times 1.000.000.000 = 2.000.000.000 \, \text{leituras}
    `$
@@ -87,3 +88,12 @@ $`
    $`
    1000^3 - 1000^2 = 1.000.000.000 - 1.000.000 = 999.000.000 \, \text{somas}
    `$
+
+---
+
+## Relação com os benchmarks
+
+Nos gráficos gerados pelo script `plot_benchmarks.py`, a curva de referência $`(N^3)`$ aparece como linha pontilhada, representando essa complexidade teórica.  
+Os resultados experimentais devem se aproximar (em escala) desse crescimento.
+
+---
