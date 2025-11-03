@@ -1,0 +1,34 @@
+* [33mc0e9c08[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m Update resultado_rust.dat
+* [33m9c8e812[m matriz_julia.jl
+* [33m9340fde[m Update resultado_rust.dat
+* [33m8a168f2[m inserido arquivos com resultado.
+* [33m0568dfd[m rxcluido arquivo resultado_java.dat
+* [33m298fb41[m Alterado variável N o para n de forma a seguir o padrão de nomenclatura do Rust.
+* [33m2f79e3e[m Alterado Variável N para n de forma a seguir a convenção da linguagem Rust.
+* [33m93f1aad[m Update matriz_cpp.cpp
+* [33mfeb280d[m alterado matriz dois para identidade e inserido verificação para a multiplicação.
+* [33me6326fc[m atualizado inicialização das matrizes e inserido verificação para a multiplicação.
+* [33mf537cdb[m atualizaçao arquivo JAVA.
+*   [33m2681ce7[m Merge branch 'main' of https://github.com/Lucas-Sperotto/matrix-multiplication-benchmark
+[32m|[m[33m\[m  
+[32m|[m * [33m125f83e[m Update operacoes_multiplicacao_matrizes.md
+[32m|[m * [33m39d3804[m Update operacoes_multiplicacao_matrizes.md
+[32m|[m * [33mfbdf001[m Update operacoes_multiplicacao_matrizes.md
+[32m|[m * [33m451266a[m md
+* [33m|[m [33md79dc34[m Atualizado arquivo C e C++ para medida de uso de memória.
+[33m|[m[33m/[m  
+* [33m30c10c6[m Atualizado arquivo python
+* [33mef942cc[m Update README.md
+* [33ma9ea8f5[m Atualização do Codigo em C. Alteração para que o arquivo resuldado_c.dat seja atualizado a cada mudança no tamanho da matriz N. Alteração para que a Matriz N sera incrementada de forma diferente após o tamanho 1000, somando 1000 a Matriz, realizando assim 12 matrizes diferentes: 10x10, 100x100, 1000x1000, 2000x2000, ..., 9000x9000, 10000x10000.
+*   [33m234727e[m Merge branch 'main' of https://github.com/Lucas-Sperotto/matrix-multiplication-benchmark
+[34m|[m[35m\[m  
+[34m|[m * [33mde1887e[m Create operacoes_multiplicacao_matrizes.md
+* [35m|[m [33m9ed1ae6[m nada
+[35m|[m[35m/[m  
+* [33m21d29cd[m Atualizado cabeçalho e licença.
+* [33m88ae645[m Update README.md
+* [33mc5049e3[m Create matriz_multiplication.exs
+* [33m2b83c20[m Create matriz_rust.rs
+* [33m1eba956[m Create MatrixMultiplication.java
+* [33mec944a5[m Create matriz_python.py
+* [33md68bdb5[m Create matriz_cpp.cpp
