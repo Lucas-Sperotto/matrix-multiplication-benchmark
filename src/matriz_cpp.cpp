@@ -95,20 +95,16 @@ int main(int argc, char **argv)
     std::string filename;
 
     if (argc > 5)
-    {
         filename = "resultado_cpp_O3.csv";
-    }
     else
-    {
         filename = "resultado_cpp.csv";
-    }
 
     file.open(filename);
 
     if (!file.is_open())
     {
         cout << "Erro ao abrir o arquivo!" << endl;
-        return 1;
+        return -1;
     }
     file << "N,TCS,TAM,TLM" << endl;
 
@@ -118,7 +114,7 @@ int main(int argc, char **argv)
     {
         printf("Uso: %s <B> <Npts> <M> <Escala>\n", argv[0]);
         printf("Exemplo: %s 4000 12 5 1\n", argv[0]);
-        return 1;
+        return -1;
     }
 
     int B = atoi(argv[1]);      // valor máximo
@@ -168,8 +164,7 @@ int main(int argc, char **argv)
                 mat2[i] = new int[N];
                 res[i] = new int[N];
             }
-            clock_t end_alloc = clock();
-            time_alloc += double(end_alloc - start_alloc) / CLOCKS_PER_SEC;
+          
 
             // Inicializando as matrizes
             for (int i = 0; i < N; i++)
@@ -185,6 +180,8 @@ int main(int argc, char **argv)
                     }
                 }
             }
+              clock_t end_alloc = clock();
+            time_alloc += double(end_alloc - start_alloc) / CLOCKS_PER_SEC;
 
             // Tempo do cálculo
             clock_t start_calc = clock();

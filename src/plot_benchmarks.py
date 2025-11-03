@@ -1,258 +1,264 @@
 #!/usr/bin/env python3
-import os
+# -*- coding: utf-8 -*-
+
+"""
+plot_benchmarks.py <out_dir> [--logx] [--logy] [--exclude C,C_O3,...]
+
+- Lê os CSVs padronizados em <out_dir>:
+  C            -> resultado_c.csv
+  C_O3         -> resultado_c_O3.csv
+  C++          -> resultado_cpp.csv
+  C++_O3       -> resultado_cpp_O3.csv
+  Java         -> resultado_java.csv
+  Python       -> resultado_python.csv
+
+- Normaliza colunas:
+  * N (auto-detecção, case-insensitive)
+  * TCS (tempo de cálculo)
+  * TAM (tempo de alocação)
+  * TDM (tempo de desalocação) — se inexistente, cria com 0.0
+  * Conserta "TLM" -> "TDM" se vier assim
+
+- Gera gráficos padrão:
+  1) c_cpp_o3.png                  (C e C++ com/sem O3)
+  2) todas.png                     (todas as linguagens)
+  3) sem_python.png                (todas menos Python)
+
+- Escreve <out_dir>/plots_generated.txt listando os PNGs criados.
+"""
+
 import sys
+import argparse
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Tuple
+
 import pandas as pd
 import matplotlib.pyplot as plt
 
 # ============================
-# Entrada
+# Mapeamento de arquivos por linguagem
 # ============================
-if len(sys.argv) < 2:
-    print("Uso: plot_benchmarks.py <diretorio_de_saida>")
-    sys.exit(1)
-
-out_dir = Path(sys.argv[1])
-
-files = {
-    "C": out_dir / "resultado_c.csv",
-    "C_O3": out_dir / "resultado_c_O3.csv",
-    "C++": out_dir / "resultado_cpp.csv",
-    "C++_O3": out_dir / "resultado_cpp_O3.csv",
-    "Java": out_dir / "resultado_java.csv",
-    "Python": out_dir / "resultado_python.csv",
+LANG_FILE = {
+    "C": "resultado_c.csv",
+    "C_O3": "resultado_c_O3.csv",
+    "C++": "resultado_cpp.csv",
+    "C++_O3": "resultado_cpp_O3.csv",
+    "Java": "resultado_java.csv",
+    "Python": "resultado_python.csv",
 }
+
+# Ordem “canônica” para exibição
+LANG_ORDER = ["C", "C_O3", "C++", "C++_O3", "Java", "Python"]
+
+# ============================
+# Args / CLI
+# ============================
+def parse_args():
+    p = argparse.ArgumentParser(description="Gera gráficos de benchmarks a partir dos CSVs de uma execução.")
+    p.add_argument("out_dir", help="Diretório com os CSVs de resultados")
+    p.add_argument("--logx", action="store_true", help="Usar escala logarítmica no eixo X")
+    p.add_argument("--logy", action="store_true", help="Usar escala logarítmica no eixo Y")
+    p.add_argument("--exclude", default="", help="Lista de linguagens a excluir (ex.: C,C_O3,Python)")
+    return p.parse_args()
 
 # ============================
 # Utilitários de leitura
 # ============================
+def detect_N_column(df: pd.DataFrame) -> str:
+    """
+    Detecta o nome da coluna N (case-insensitive) entre candidatos comuns.
+    """
+    if df is None or df.empty:
+        raise ValueError("DataFrame vazio para detecção da coluna N.")
+    # preferências em lower-case
+    prefs = ["n", "size", "tamanho", "dim", "dimensao"]
+    cols_l = {c.lower(): c for c in df.columns}
+    for k in prefs:
+        if k in cols_l:
+            return cols_l[k]
+    # fallback: tenta a primeira coluna
+    return df.columns[0]
+
+def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Normaliza colunas: garante N, TCS, TAM, TDM.
+    Corrige 'TLM' -> 'TDM' se necessário.
+    Cria TDM=0.0 quando ausente.
+    """
+    cols = {c.lower(): c for c in df.columns}
+
+    # Corrige TLM -> TDM
+    if "tlm" in cols and "tdm" not in cols:
+        df.rename(columns={cols["tlm"]: "TDM"}, inplace=True)
+        cols = {c.lower(): c for c in df.columns}
+
+    # Garante TDM
+    if "tdm" not in cols:
+        df["TDM"] = 0.0
+        cols = {c.lower(): c for c in df.columns}
+
+    required_any = []
+    # Detecta N
+    ncol = detect_N_column(df)
+    required_any.append(ncol)
+    # TCS
+    if "tcs" in cols:
+        required_any.append(cols["tcs"])
+    else:
+        raise ValueError("Coluna TCS não encontrada no CSV.")
+    # TAM (opcional para plot de TCS, mas mantemos se houver)
+    if "tam" in cols:
+        required_any.append(cols["tam"])
+    # TDM garantido
+    required_any.append("TDM")
+
+    # Reordena pelo N detectado se estiver fora de ordem
+    try:
+        df = df.sort_values(by=ncol)
+    except Exception:
+        pass
+
+    # Elimina linhas com NaN em colunas essenciais
+    df = df.dropna(subset=[ncol, cols.get("tcs", "TCS")], how="any")
+    return df
+
 def read_csv_flex(path: Path) -> pd.DataFrame:
+    """
+    Lê CSV aceitando separador vírgula e ponto e vírgula.
+    Normaliza colunas para uso nos gráficos.
+    """
+    if not path.exists():
+        raise FileNotFoundError(f"Arquivo não encontrado: {path}")
+
+    # tenta leitura padrão
     try:
         df = pd.read_csv(path)
     except Exception:
-        df = pd.read_csv(path, sep=";")
-    df.columns = [str(c).strip() for c in df.columns]
-    return df
+        # tenta com sep=';'
+        df = pd.read_csv(path, sep=';')
 
-def detect_N_column(df: pd.DataFrame) -> str:
-    prefs = ("n", "size", "dim", "order", "tamanho", "matrix_size", "N")
-    for c in df.columns:
-        if str(c).strip().lower() in prefs:
-            return c
-    return df.columns[0]
-
-def ensure_numeric(df: pd.DataFrame, cols: List[str]) -> pd.DataFrame:
-    df = df.copy()
-    for c in cols:
-        if c in df.columns:
-            df[c] = pd.to_numeric(df[c], errors="coerce")
+    df = normalize_columns(df)
     return df
 
 # ============================
-# Carrega dados disponíveis
+# Gráficos
 # ============================
-dfs: Dict[str, pd.DataFrame] = {}
-for lang, path in files.items():
-    if path.exists():
-        df = read_csv_flex(path)
-        # normaliza nomes e força numérico
-        df = ensure_numeric(df, df.columns.tolist())
+def configure_axes(ax, logx: bool, logy: bool, xlabel="N", ylabel="TCS (s)"):
+    ax.grid(True, alpha=0.3)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    if logx:
+        ax.set_xscale("log")
+    if logy:
+        ax.set_yscale("log")
 
-        # compatibilidade: se vier "TLM", mapeia para "TDM"
-        if "TDM" not in df.columns and "TLM" in df.columns:
-            df["TDM"] = df["TLM"]
+def plot_group(
+    out_dir: Path,
+    datasets: Dict[str, pd.DataFrame],
+    selection: List[str],
+    title: str,
+    outfile: str,
+    logx: bool,
+    logy: bool,
+):
+    # Filtra apenas linguagens presentes e com dados
+    sel = [l for l in selection if l in datasets and not datasets[l].empty]
+    if not sel:
+        # nada para plotar; evita gerar PNG vazio
+        return None
 
-        dfs[lang] = df
+    fig, ax = plt.subplots(figsize=(8, 5))
+    for lang in sel:
+        df = datasets[lang]
+        ncol = detect_N_column(df)
+        # TCS é a métrica central dos gráficos padrão
+        tcs_col = next((c for c in df.columns if c.lower() == "tcs"), "TCS")
+        ax.plot(df[ncol], df[tcs_col], marker="o", label=lang)
 
-if not dfs:
-    print("Nenhum CSV encontrado no diretório informado.")
-    sys.exit(1)
-
-ncols = {lang: detect_N_column(df) for lang, df in dfs.items()}
-
-# Métricas fixas
-METRICS = ["TCS", "TAM", "TDM"]  # cálculo, alocação, desalocação
-TITLES = {
-    "TCS": "Tempo de Cálculo da Multiplicação",
-    "TAM": "Tempo de Alocação de Memória",
-    "TDM": "Tempo de Desalocação de Memória",
-}
+    ax.set_title(title)
+    configure_axes(ax, logx, logy, xlabel="N", ylabel="Tempo de cálculo (TCS)")
+    ax.legend()
+    out_path = out_dir / outfile
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+    return out_path.name
 
 # ============================
-# Plot genérico por métrica (todas as linguagens)
+# Main
 # ============================
-def plot_metric(metric: str):
-    """
-    Plota a métrica especificada para todas as linguagens que tiverem a coluna.
-    (Mantido do original; apenas acrescentei salvamento com nome alternativo explícito)
-    """
-    any_series = False
-    plt.figure()
+def main():
+    args = parse_args()
+    out_dir = Path(args.out_dir).resolve()
+    if not out_dir.exists():
+        print(f"❌ Diretório não encontrado: {out_dir}")
+        sys.exit(1)
 
-    for lang, df in dfs.items():
-        ncol = ncols[lang]
-        if metric not in df.columns:
+    exclude = set([s.strip() for s in args.exclude.split(",") if s.strip()])
+    # Carrega datasets
+    datasets: Dict[str, pd.DataFrame] = {}
+    for lang in LANG_ORDER:
+        if lang in exclude:
             continue
-        sub = df[[ncol, metric]].dropna().sort_values(by=ncol)
-        if sub.empty:
+        path = out_dir / LANG_FILE[lang]
+        try:
+            df = read_csv_flex(path)
+            # sanity: precisa ter ao menos 2 linhas úteis
+            if len(df.index) >= 1:
+                datasets[lang] = df
+            else:
+                print(f"ℹ️ Sem dados úteis para {lang}: {path.name}")
+        except FileNotFoundError:
+            # ok, pode não existir se a linguagem não foi rodada
             continue
-        plt.plot(sub[ncol], sub[metric], marker="o", label=lang)
-        any_series = True
+        except Exception as e:
+            print(f"⚠️ Falha ao ler/normalizar {path.name}: {e}")
 
-    if not any_series:
-        plt.close()
-        print(f"Aviso: nenhuma linguagem disponível para a métrica {metric}.")
-        return
+    generated: List[str] = []
 
-    plt.xlabel("N (matriz com NxN elementos)")
-    plt.ylabel(f"{metric} (s)")
-    plt.title(f"Comparação por linguagem - {TITLES.get(metric, metric)}")
-    plt.legend()
-    out_img_default = out_dir / f"grafico_{metric}.png"
-    plt.savefig(out_img_default, dpi=160, bbox_inches="tight")
-    # ===== NOVO: também salvo com um nome mais explícito para a demanda "Todas as Linguagens"
-    out_img_alias = out_dir / f"grafico_{metric}_todas_linguagens.png"
-    plt.savefig(out_img_alias, dpi=160, bbox_inches="tight")
-    plt.close()
-    print(f"✅ {metric}: salvo em {out_img_default} e {out_img_alias}")
+    # 1) C e C++ com/sem O3
+    sel_c_cpp = [l for l in ["C", "C_O3", "C++", "C++_O3"] if l in datasets]
+    png = plot_group(
+        out_dir, datasets, sel_c_cpp,
+        title="C e C++ com e sem O3 (TCS × N)",
+        outfile="c_cpp_o3.png",
+        logx=args.logx, logy=args.logy
+    )
+    if png: generated.append(png)
 
-# ============================
-# Plot específico: apenas C vs C++ (preferindo _O3)
-# ============================
-def plot_metric_subset(metric: str):
-    """
-    Plota somente C e C++ para a métrica dada.
-    Preferência por versões _O3; se não houver, usa as versões normais.
-    (Mantido do original)
-    """
-    prefer_c = "C_O3" if "C_O3" in dfs else "C"
-    prefer_cpp = "C++_O3" if "C++_O3" in dfs else "C++"
+    # 2) Todas as linguagens
+    sel_all = [l for l in LANG_ORDER if l in datasets]
+    png = plot_group(
+        out_dir, datasets, sel_all,
+        title="Todas as linguagens (TCS × N)",
+        outfile="todas.png",
+        logx=args.logx, logy=args.logy
+    )
+    if png: generated.append(png)
 
-    series = []
-    for lang in (prefer_c, prefer_cpp):
-        if lang in dfs and metric in dfs[lang].columns:
-            ncol = ncols[lang]
-            sub = dfs[lang][[ncol, metric]].dropna().sort_values(by=ncol)
-            if not sub.empty:
-                series.append((lang, sub))
+    # 3) Todas as linguagens menos Python
+    sel_no_py = [l for l in LANG_ORDER if l in datasets and l != "Python"]
+    if sel_no_py:
+        png = plot_group(
+            out_dir, datasets, sel_no_py,
+            title="Todas as linguagens (sem Python) — TCS × N",
+            outfile="sem_python.png",
+            logx=args.logx, logy=args.logy
+        )
+        if png: generated.append(png)
 
-    if len(series) == 0:
-        print(f"Aviso: nenhuma série C/C++ disponível para {metric}.")
-        return
-    if len(series) == 1:
-        print(f"Aviso: apenas uma série C/C++ encontrada para {metric}: {series[0][0]}.")
+    # Índice simples dos PNGs (o run_all.sh já usa isso p/ README/manifest)
+    try:
+        idx = out_dir / "plots_generated.txt"
+        with idx.open("w", encoding="utf-8") as f:
+            for name in generated:
+                f.write(f"{name}\n")
+        if generated:
+            print(f"📊 Gerados: {', '.join(generated)}")
+        else:
+            print("ℹ️ Nenhum gráfico foi gerado (datasets ausentes ou vazios).")
+    except Exception as e:
+        print(f"⚠️ Não foi possível escrever plots_generated.txt: {e}")
 
-    plt.figure()
-    # re-obter ncol dentro do loop, pois C e C++ podem ter nomes de coluna N diferentes
-    for lang, sub in series:
-        ncol_local = detect_N_column(sub) if "N" not in sub.columns else "N"
-        # se detect_N_column pegar algo inesperado, usa a 1a coluna como N
-        ncol_local = ncol_local if ncol_local in sub.columns else sub.columns[0]
-        plt.plot(sub[ncol_local], sub[metric], marker="o", label=lang)
-
-    plt.xlabel("N (matriz com NxN elementos)")
-    plt.ylabel(f"{metric} (s)")
-    plt.title(f"C vs C++ - {TITLES.get(metric, metric)}")
-    plt.legend()
-    out_img = out_dir / f"grafico_{metric}_C_vs_CPP.png"
-    plt.savefig(out_img, dpi=160, bbox_inches="tight")
-    plt.close()
-    print(f"✅ {metric} (C vs C++): salvo em {out_img}")
-
-# ============================
-# ===== NOVO: C e C++ com e sem O3 =====
-# ============================
-def plot_metric_c_cpp_all_variants(metric: str):
-    """
-    NOVO:
-    Plota C e C++ com e sem O3 (até 4 curvas): C, C_O3, C++, C++_O3.
-    Só plota as séries/arquivos que existirem para a métrica.
-    """
-    variants = ["C", "C_O3", "C++", "C++_O3"]
-    series = []
-
-    for lang in variants:
-        if lang in dfs and metric in dfs[lang].columns:
-            ncol = ncols[lang]
-            sub = dfs[lang][[ncol, metric]].dropna().sort_values(by=ncol)
-            if not sub.empty:
-                series.append((lang, sub))
-
-    if not series:
-        print(f"Aviso: nenhuma série C/C++ (com/sem O3) disponível para {metric}.")
-        return
-
-    plt.figure()
-    for lang, sub in series:
-        ncol_local = detect_N_column(sub) if "N" not in sub.columns else "N"
-        ncol_local = ncol_local if ncol_local in sub.columns else sub.columns[0]
-        plt.plot(sub[ncol_local], sub[metric], marker="o", label=lang)
-
-    plt.xlabel("N (matriz com NxN elementos)")
-    plt.ylabel(f"{metric} (s)")
-    plt.title(f"C e C++ (com e sem -O3) - {TITLES.get(metric, metric)}")
-    plt.legend()
-    out_img = out_dir / f"grafico_{metric}_C_CPP_com_e_sem_O3.png"
-    plt.savefig(out_img, dpi=160, bbox_inches="tight")
-    plt.close()
-    print(f"✅ {metric} (C/C++ com e sem O3): salvo em {out_img}")
-
-# ============================
-# ===== NOVO: Todas as linguagens menos Python =====
-# ============================
-def plot_metric_all_minus_python(metric: str):
-    """
-    NOVO:
-    Plota todas as linguagens disponíveis EXCETO Python para a métrica.
-    Mantém a mesma lógica de leitura e ordenação do plot genérico.
-    """
-    any_series = False
-    plt.figure()
-
-    for lang, df in dfs.items():
-        if lang.lower() == "python":
-            continue  # exclui Python
-        ncol = ncols[lang]
-        if metric not in df.columns:
-            continue
-        sub = df[[ncol, metric]].dropna().sort_values(by=ncol)
-        if sub.empty:
-            continue
-        plt.plot(sub[ncol], sub[metric], marker="o", label=lang)
-        any_series = True
-
-    if not any_series:
-        plt.close()
-        print(f"Aviso: nenhuma linguagem (sem Python) disponível para a métrica {metric}.")
-        return
-
-    plt.xlabel("N (matriz com NxN elementos)")
-    plt.ylabel(f"{metric} (s)")
-    plt.title(f"Todas as linguagens (exceto Python) - {TITLES.get(metric, metric)}")
-    plt.legend()
-    out_img = out_dir / f"grafico_{metric}_sem_python.png"
-    plt.savefig(out_img, dpi=160, bbox_inches="tight")
-    plt.close()
-    print(f"✅ {metric} (sem Python): salvo em {out_img}")
-
-# ============================
-# Execução
-# ============================
-for m in METRICS:
-    # 1) Todas as linguagens (mantido + alias de nome)
-     plot_metric(m)
-
-for m in METRICS:
-    # 2) C vs C++ preferindo -O3 (mantido)
-    plot_metric_subset(m)
-
-for m in METRICS:
-    # 3) NOVO: C e C++ com e sem -O3 (até 4 séries)
-    plot_metric_c_cpp_all_variants(m)
-
-for m in METRICS:
-    # 4) NOVO: Todas as linguagens menos Python
-    plot_metric_all_minus_python(m)
-
-print(f"Concluído. Gráficos em: {out_dir}")
+if __name__ == "__main__":
+    main()
