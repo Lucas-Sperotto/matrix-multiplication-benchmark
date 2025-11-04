@@ -109,8 +109,8 @@ def plot_metric(metric: str):
     plt.ylabel(f"Tempo (s)")
     plt.title(f"Comparação por linguagem - {TITLES.get(metric, metric)}")
     plt.legend()
-    out_img_default = out_dir / f"grafico_{metric}.png"
-    plt.savefig(out_img_default, dpi=160, bbox_inches="tight")
+    #out_img_default = out_dir / f"grafico_{metric}.png"
+    #plt.savefig(out_img_default, dpi=160, bbox_inches="tight")
     # ===== NOVO: também salvo com um nome mais explícito para a demanda "Todas as Linguagens"
     out_img_alias = out_dir / f"grafico_{metric}_todas_linguagens.png"
     plt.savefig(out_img_alias, dpi=160, bbox_inches="tight")
