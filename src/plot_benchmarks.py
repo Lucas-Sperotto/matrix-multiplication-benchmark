@@ -115,7 +115,7 @@ def plot_metric(metric: str):
     out_img_alias = out_dir / f"grafico_{metric}_todas_linguagens.png"
     plt.savefig(out_img_alias, dpi=160, bbox_inches="tight")
     plt.close()
-    print(f"✅ {metric}: salvo em {out_img_default} e {out_img_alias}")
+    print(f"✅ {metric}: salvo em {out_img_alias}")
 
 # ============================
 # Plot específico: apenas C vs C++ (preferindo _O3)
