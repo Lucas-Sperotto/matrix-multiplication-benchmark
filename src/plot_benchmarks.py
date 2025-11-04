@@ -106,7 +106,7 @@ def plot_metric(metric: str):
         return
 
     plt.xlabel("N (matriz com NxN elementos)")
-    plt.ylabel(f"{metric} (s)")
+    plt.ylabel(f"Tempo (s)")
     plt.title(f"Comparação por linguagem - {TITLES.get(metric, metric)}")
     plt.legend()
     out_img_default = out_dir / f"grafico_{metric}.png"
@@ -152,7 +152,7 @@ def plot_metric_subset(metric: str):
         plt.plot(sub[ncol_local], sub[metric], marker="o", label=lang)
 
     plt.xlabel("N (matriz com NxN elementos)")
-    plt.ylabel(f"{metric} (s)")
+    plt.ylabel(f"Tempo (s)")
     plt.title(f"C vs C++ - {TITLES.get(metric, metric)}")
     plt.legend()
     out_img = out_dir / f"grafico_{metric}_C_vs_CPP.png"
@@ -190,7 +190,7 @@ def plot_metric_c_cpp_all_variants(metric: str):
         plt.plot(sub[ncol_local], sub[metric], marker="o", label=lang)
 
     plt.xlabel("N (matriz com NxN elementos)")
-    plt.ylabel(f"{metric} (s)")
+    plt.ylabel(f"Tempo (s)")
     plt.title(f"C e C++ (com e sem -O3) - {TITLES.get(metric, metric)}")
     plt.legend()
     out_img = out_dir / f"grafico_{metric}_C_CPP_com_e_sem_O3.png"
@@ -228,7 +228,7 @@ def plot_metric_all_minus_python(metric: str):
         return
 
     plt.xlabel("N (matriz com NxN elementos)")
-    plt.ylabel(f"{metric} (s)")
+    plt.ylabel(f"Tempo (s)")
     plt.title(f"Todas as linguagens (exceto Python) - {TITLES.get(metric, metric)}")
     plt.legend()
     out_img = out_dir / f"grafico_{metric}_sem_python.png"
