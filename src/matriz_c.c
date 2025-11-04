@@ -160,9 +160,6 @@ int main(int argc, char **argv)
                 res[i] = (int *)malloc(N * sizeof(int));
             }
 
-            clock_t end_alloc = clock();
-            time_alloc += ((double)(end_alloc - start_alloc)) / CLOCKS_PER_SEC;
-
             // Inicializando as matrizes
             for (int i = 0; i < N; i++)
             {
@@ -177,6 +174,9 @@ int main(int argc, char **argv)
                     }
                 }
             }
+
+            clock_t end_alloc = clock();
+            time_alloc += ((double)(end_alloc - start_alloc)) / CLOCKS_PER_SEC;
 
             // Medindo o tempo de cálculo
             clock_t start_calc = clock();
