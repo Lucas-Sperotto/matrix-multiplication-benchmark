@@ -95,16 +95,20 @@ int main(int argc, char **argv)
     std::string filename;
 
     if (argc > 5)
+    {
         filename = "resultado_cpp_O3.csv";
+    }
     else
+    {
         filename = "resultado_cpp.csv";
+    }
 
     file.open(filename);
 
     if (!file.is_open())
     {
         cout << "Erro ao abrir o arquivo!" << endl;
-        return -1;
+        return 1;
     }
     file << "N,TCS,TAM,TLM" << endl;
 
@@ -114,7 +118,7 @@ int main(int argc, char **argv)
     {
         printf("Uso: %s <B> <Npts> <M> <Escala>\n", argv[0]);
         printf("Exemplo: %s 4000 12 5 1\n", argv[0]);
-        return -1;
+        return 1;
     }
 
     int B = atoi(argv[1]);      // valor máximo
