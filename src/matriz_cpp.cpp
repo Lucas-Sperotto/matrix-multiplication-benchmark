@@ -164,7 +164,6 @@ int main(int argc, char **argv)
                 mat2[i] = new int[N];
                 res[i] = new int[N];
             }
-          
 
             // Inicializando as matrizes
             for (int i = 0; i < N; i++)
@@ -180,9 +179,10 @@ int main(int argc, char **argv)
                     }
                 }
             }
-              clock_t end_alloc = clock();
-            time_alloc += double(end_alloc - start_alloc) / CLOCKS_PER_SEC;
 
+            clock_t end_alloc = clock();
+            time_alloc += double(end_alloc - start_alloc) / CLOCKS_PER_SEC;
+            
             // Tempo do cálculo
             clock_t start_calc = clock();
             multiply(mat1, mat2, res, N);

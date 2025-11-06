@@ -151,8 +151,6 @@ int main(int argc, char **argv)
                 res[i] = (int *)malloc(N * sizeof(int));
             }
 
-            
-
             // Inicializando as matrizes
             for (int i = 0; i < N; i++)
             {
