@@ -90,4 +90,6 @@ Sinta-se à vontade para contribuir com melhorias ou incluir outras linguagens p
 
 Este projeto está licenciado sob a licença MIT - veja o arquivo [LICENSE](LICENSE) para mais detalhes.
 
+Entre em contato conosco e colabore.
+
 ---
