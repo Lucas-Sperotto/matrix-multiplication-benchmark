@@ -1,166 +1,143 @@
-
-/**********************************************************************
- * Projeto: Benchmark de Multiplicação de Matrizes
- * Descrição: Este código realiza a multiplicação de duas matrizes 
- *            de tamanho N x N, variando automaticamente o valor de N 
- *            e medindo o tempo de alocação de memória e do cálculo.
- *            O código salva os resultados em um arquivo de saída.
- *
- * Linguagem: Java
- *
- * Autores: Lucas Kriesel Sperotto, Marcos Adriano SIlva David
- * Data: 05/09/2024
- *
- * Parâmetros:
- *  - N: tamanho da matriz (varia de 10 até 10.000)
- *
- * Saída: Arquivo de resultados contendo:
- *  - Tempo de alocação de memória
- *  - Tempo de cálculo (multiplicação das matrizes)
- *
- * Uso:
- *  - Compile e execute o código, e o arquivo de saída será gerado 
- *    contendo os resultados para diferentes valores de N.
- **********************************************************************/
-
-import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Locale;
 
 public class matriz_java {
+    private static int parseInt(String text, String name, int minValue, int maxValue) {
+        try {
+            int value = Integer.parseInt(text);
+            if (value < minValue || value > maxValue) {
+                throw new NumberFormatException();
+            }
+            return value;
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException("Parametro invalido para " + name + ": " + text);
+        }
+    }
 
-    public static void multiply(int[][] mat1, int[][] mat2, int[][] res, int N) {
-        for (int i = 0; i < N; i++) {
-            for (int j = 0; j < N; j++) {
-                res[i][j] = 0;
-                for (int k = 0; k < N; k++) {
-                    res[i][j] += mat1[i][k] * mat2[k][j];
+    private static int[] makePoints(int b, int npts, int escala) {
+        int a = 100;
+        int[] points = new int[npts];
+
+        if (escala == 1) {
+            double step = (double) (b - a) / (double) (npts - 1);
+            for (int i = 0; i < npts; i++) {
+                points[i] = (int) Math.round(a + step * i);
+            }
+        } else {
+            double ratio = Math.pow((double) b / (double) a, 1.0 / (double) (npts - 1));
+            for (int i = 0; i < npts; i++) {
+                points[i] = (int) Math.round(a * Math.pow(ratio, i));
+            }
+        }
+
+        return points;
+    }
+
+    private static void multiply(int[][] mat1, int[][] mat2, int[][] res, int n) {
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                int sum = 0;
+                for (int k = 0; k < n; k++) {
+                    sum += mat1[i][k] * mat2[k][j];
                 }
+                res[i][j] = sum;
             }
         }
     }
 
-    public static int[] logspace(int b, int Npts) {
-        int a = 100; // valor inicial fixo
-        if (Npts < 2)
-            return new int[0]; // retorna array vazio se Npts < 2
+    private static boolean verifySample(int[][] res, int n) {
+        int[] idxs = {0, n / 2, n - 1};
 
-        int[] arr = new int[Npts];
-
-        double r = Math.pow((double) b / a, 1.0 / (Npts - 1)); // razão geométrica
-        for (int i = 0; i < Npts; i++) {
-            arr[i] = (int) Math.round(a * Math.pow(r, i)); // arredonda para inteiro
+        for (int i : idxs) {
+            for (int j : idxs) {
+                if (res[i][j] != i + j) {
+                    System.err.printf(Locale.US, "Erro na multiplicacao para N=%d em [%d,%d]%n", n, i, j);
+                    return false;
+                }
+            }
         }
 
-        return arr;
+        return true;
     }
 
-    public static int[] linear(int b, int Npts) {
-        int a = 100; // valor inicial fixo
-        if (Npts < 2)
-            return new int[0]; // retorna array vazio se Npts < 2
+    private static double[] runOnce(int n) {
+        long start = System.nanoTime();
+        int[][] mat1 = new int[n][n];
+        int[][] mat2 = new int[n][n];
+        int[][] res = new int[n][n];
 
-        int[] arr = new int[Npts];
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                mat1[i][j] = i + j;
+                mat2[i][j] = (i == j) ? 1 : 0;
+            }
+        }
+        long end = System.nanoTime();
+        double timeAlloc = (end - start) / 1e9;
 
-        double step = (b - a) / (Npts - 1);
+        start = System.nanoTime();
+        multiply(mat1, mat2, res, n);
+        end = System.nanoTime();
+        double timeCalc = (end - start) / 1e9;
 
-        for (int i = 0; i < Npts; i++) {
-            arr[i] = (int) (a + step * i + 0.5);
+        if (!verifySample(res, n)) {
+            throw new IllegalStateException("Falha na verificacao do resultado.");
         }
 
-        return arr;
+        return new double[] {timeCalc, timeAlloc, 0.0};
     }
 
     public static void main(String[] args) {
         Locale.setDefault(Locale.US);
 
-        int i, j;
+        if (args.length != 5) {
+            System.err.println("Uso: java matriz_java <B> <Npts> <M> <Escala> <out_csv>");
+            System.err.println("Exemplo: java matriz_java 4000 12 5 1 out/execucao/resultado_java.csv");
+            System.exit(1);
+        }
+
         try {
-            int M = 1; // valor padrão
-
-            if (args.length <= 3) {
-                System.out.println("Uso: java_matriz <B> <Npts> <M> <Escala>");
-                System.out.println("Exemplo: java_matriz 4000 12 5 1");
-                return;
+            int b = parseInt(args[0], "B", 100, 100000);
+            int npts = parseInt(args[1], "Npts", 2, 10000);
+            int mCount = parseInt(args[2], "M", 1, 100000);
+            int escala = parseInt(args[3], "Escala", 0, 1);
+            Path outCsv = Path.of(args[4]);
+            Path parent = outCsv.getParent();
+            if (parent != null) {
+                Files.createDirectories(parent);
             }
 
-            // Converte os argumentos de String para inteiro
-            int B = Integer.parseInt(args[0]); // valor máximo
-            int Npts = Integer.parseInt(args[1]); // quantidade de pontos
-            M = Integer.parseInt(args[2]); // número de repetições
-            int escala = Integer.parseInt(args[3]);
+            try (PrintWriter writer = new PrintWriter(Files.newBufferedWriter(outCsv))) {
+                writer.println("N,TCS,TAM,TDM");
 
-            int[] Ns = (escala == 1) ? linear(B, Npts) : logspace(B, Npts);
+                for (int n : makePoints(b, npts, escala)) {
+                    double timeCalc = 0.0;
+                    double timeAlloc = 0.0;
+                    double timeFree = 0.0;
 
-            FileWriter writer = new FileWriter("resultado_java.csv");
-
-            writer.write("N,TCS,TAM\n");
-
-            // System.out.println(" B: " + B + "\n");
-            // System.out.println(" Npts: " + Npts + "\n");
-            // System.out.println(" M: " + M + "\n");
-
-            for (int n = 0; n < Npts; n++) {
-
-                int N = Ns[n];
-                double timeAlloc = 0.0, timeCalc = 0.0;
-
-                for (int m = 1; m <= M; m++) {
-
-                    // Tempo de alocação de memória
-                    long startAlloc = System.nanoTime();
-                    int[][] mat1 = new int[N][N];
-                    int[][] mat2 = new int[N][N];
-                    int[][] res = new int[N][N];
-
-                    // Inicializando as matrizes
-                    for (i = 0; i < N; i++) {
-                        for (j = 0; j < N; j++) {
-                            mat1[i][j] = i + j;
-                            if (i == j)
-                                mat2[i][j] = 1;
-                            else {
-                                mat2[i][j] = 0;
-                            }
-                        }
+                    for (int m = 0; m < mCount; m++) {
+                        double[] times = runOnce(n);
+                        timeCalc += times[0];
+                        timeAlloc += times[1];
+                        timeFree += times[2];
                     }
-                    long endAlloc = System.nanoTime();
-                    timeAlloc += (endAlloc - startAlloc) / 1e9;
 
-                    // Tempo do cálculo
-                    long startCalc = System.nanoTime();
-                    multiply(mat1, mat2, res, N);
-                    long endCalc = System.nanoTime();
-                    timeCalc += (endCalc - startCalc) / 1e9;
-
-                    // Java faz a coleta de lixo automaticamente, então não medimos o tempo de
-                    // liberação manual.
-
-                    // Verificação do resultado
-                    for (i = 0; i < N; i++) {
-                        for (j = 0; j < N; j++) {
-                            if (res[i][j] != i + j)
-                                System.out.println("Erro na multiplicação das matrizes para N = " + N + "!");
-                        }
-                    }
-                    // System.out.println(N + ",");
-                    // System.out.println(String.format("%.6e", timeCalc) + ",");
-                    // System.out.println(String.format("%.6e", timeAlloc) + "\n");
+                    writer.printf(Locale.US, "%d,%.6e,%.6e,%.6e%n",
+                            n,
+                            timeCalc / mCount,
+                            timeAlloc / mCount,
+                            timeFree / mCount);
+                    System.out.println("Resultados para N = " + n + " salvos.");
                 }
-                // Salvando os resultados no arquivo
-                writer.write(N + ",");
-                writer.write(String.format("%.6e", (timeCalc / M)) + ",");
-                writer.write(String.format("%.6e", (timeAlloc / M)) + "\n");
-
-                System.out.println("Resultados para N = " + N + " salvos.");
-
             }
 
-            writer.close();
-            System.out.println("Todos os resultados foram salvos no arquivo resultado_java.csv.");
-        } catch (IOException e) {
-            System.out.println("Ocorreu um erro ao salvar os resultados.");
-            e.printStackTrace();
+            System.out.println("Todos os resultados foram salvos em " + outCsv + ".");
+        } catch (IOException | RuntimeException ex) {
+            System.err.println(ex.getMessage());
+            System.exit(1);
         }
     }
 }

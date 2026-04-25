@@ -1,244 +1,207 @@
-/**********************************************************************
- * Projeto: Benchmark de Multiplicação de Matrizes
- * Descrição: Este código realiza a multiplicação de duas matrizes
- *            de tamanho N x N, variando automaticamente o valor de N
- *            e medindo o tempo de alocação de memória, cálculo,
- *            e liberação de memória.
- *            O código salva os resultados em um arquivo de saída.
- *
- * Linguagem: C++
- *
- * Autores: Lucas Kriesel Sperotto, Marcos Adriano Silva David
- * Data: 05/09/2024
- *
- * Parâmetros:
- *  - N: tamanho da matriz (varia de 10 até 10.000)
- *
- * Saída: Arquivo de resultados contendo:
- *  - Tempo de alocação de memória
- *  - Tempo de cálculo (multiplicação das matrizes)
- *  - Tempo de liberação de memória
- *
- * Uso:
- *  - Compile e execute o código, e o arquivo de saída será gerado
- *    contendo os resultados para diferentes valores de N.
- **********************************************************************/
-
-#include <iostream>
-#include <fstream>
-#include <ctime>
-#include <iomanip> // para std::scientific e std::setprecision
+#include <chrono>
 #include <cmath>
+#include <cstdlib>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <limits>
+#include <stdexcept>
+#include <string>
 #include <vector>
-// #include <sys/resource.h>
 
-using namespace std;
+using Clock = std::chrono::steady_clock;
 
-void multiply(int **mat1, int **mat2, int **res, int N)
+static double elapsed_seconds(Clock::time_point start, Clock::time_point end)
 {
-    for (int i = 0; i < N; i++)
+    return std::chrono::duration<double>(end - start).count();
+}
+
+static int parse_int(const char *text, const std::string &name, int min_value, int max_value)
+{
+    std::string value_text(text);
+    size_t consumed = 0;
+    long value = 0;
+
+    try
     {
-        for (int j = 0; j < N; j++)
+        value = std::stol(value_text, &consumed, 10);
+    }
+    catch (const std::exception &)
+    {
+        throw std::invalid_argument("Parametro invalido para " + name + ": " + value_text);
+    }
+
+    if (consumed != value_text.size() || value < min_value || value > max_value)
+    {
+        throw std::invalid_argument("Parametro invalido para " + name + ": " + value_text);
+    }
+
+    return static_cast<int>(value);
+}
+
+static std::vector<int> make_points(int b, int npts, int escala)
+{
+    const double a = 100.0;
+    std::vector<int> points;
+    points.reserve(static_cast<size_t>(npts));
+
+    if (escala == 1)
+    {
+        const double step = (static_cast<double>(b) - a) / static_cast<double>(npts - 1);
+        for (int i = 0; i < npts; i++)
         {
-            res[i][j] = 0;
-            for (int k = 0; k < N; k++)
+            points.push_back(static_cast<int>(std::round(a + step * i)));
+        }
+    }
+    else
+    {
+        const double ratio = std::pow(static_cast<double>(b) / a, 1.0 / static_cast<double>(npts - 1));
+        for (int i = 0; i < npts; i++)
+        {
+            points.push_back(static_cast<int>(std::round(a * std::pow(ratio, i))));
+        }
+    }
+
+    return points;
+}
+
+static void multiply(const std::vector<int> &mat1, const std::vector<int> &mat2, std::vector<int> &res, int n)
+{
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < n; j++)
+        {
+            int sum = 0;
+            for (int k = 0; k < n; k++)
             {
-                res[i][j] += mat1[i][k] * mat2[k][j];
+                sum += mat1[static_cast<size_t>(i) * n + k] * mat2[static_cast<size_t>(k) * n + j];
             }
+            res[static_cast<size_t>(i) * n + j] = sum;
         }
     }
 }
 
-std::vector<int> logspace(double b, int Npts)
+static bool verify_sample(const std::vector<int> &res, int n)
 {
-    double a = 100.0; // valor inicial fixo
-    std::vector<int> arr;
+    const int idxs[3] = {0, n / 2, n - 1};
 
-    if (Npts < 2)
-        return arr; // retorna vetor vazio se Npts < 2
-
-    arr.reserve(Npts); // otimiza alocação
-
-    double r = std::pow(b / a, 1.0 / (Npts - 1)); // razão geométrica
-
-    for (int i = 0; i < Npts; i++)
+    for (int i : idxs)
     {
-        arr.push_back(static_cast<int>(std::round(a * std::pow(r, i))));
+        for (int j : idxs)
+        {
+            if (res[static_cast<size_t>(i) * n + j] != i + j)
+            {
+                std::cerr << "Erro na multiplicacao para N=" << n << " em [" << i << "," << j << "]\n";
+                return false;
+            }
+        }
     }
 
-    return arr;
+    return true;
 }
 
-std::vector<int> linear(double b, int Npts)
+static bool run_once(int n, double &time_alloc, double &time_calc, double &time_free)
 {
-    double a = 100.0; // valor inicial fixo
-    std::vector<int> arr;
-
-    if (Npts < 2)
-        return arr; // retorna vetor vazio se Npts < 2
-
-    arr.reserve(Npts); // otimiza alocação
-
-    double step = (b - a) / (Npts - 1); // passo linear
-    for (int i = 0; i < Npts; i++)
+    const size_t n_size = static_cast<size_t>(n);
+    if (n_size > std::numeric_limits<size_t>::max() / n_size)
     {
-        arr.push_back(static_cast<int>(std::round((int)(a + step * i + 0.5)))); // arredonda para o inteiro mais próximo
+        std::cerr << "N muito grande: " << n << "\n";
+        return false;
+    }
+    const size_t n2 = n_size * n_size;
+
+    auto start = Clock::now();
+    std::vector<int> mat1(n2);
+    std::vector<int> mat2(n2);
+    std::vector<int> res(n2);
+
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < n; j++)
+        {
+            mat1[static_cast<size_t>(i) * n + j] = i + j;
+            mat2[static_cast<size_t>(i) * n + j] = (i == j) ? 1 : 0;
+        }
+    }
+    auto end = Clock::now();
+    time_alloc += elapsed_seconds(start, end);
+
+    start = Clock::now();
+    multiply(mat1, mat2, res, n);
+    end = Clock::now();
+    time_calc += elapsed_seconds(start, end);
+
+    if (!verify_sample(res, n))
+    {
+        return false;
     }
 
-    return arr;
+    start = Clock::now();
+    std::vector<int>().swap(mat1);
+    std::vector<int>().swap(mat2);
+    std::vector<int>().swap(res);
+    end = Clock::now();
+    time_free += elapsed_seconds(start, end);
+
+    return true;
 }
 
 int main(int argc, char **argv)
 {
-
-    std::ofstream file;
-    std::string filename;
-
-    if (argc > 5)
+    if (argc != 6)
     {
-        filename = "resultado_cpp_O3.csv";
-    }
-    else
-    {
-        filename = "resultado_cpp.csv";
-    }
-
-    file.open(filename);
-
-    if (!file.is_open())
-    {
-        cout << "Erro ao abrir o arquivo!" << endl;
-        return 1;
-    }
-    file << "N,TCS,TAM,TLM" << endl;
-
-    int M = 1;
-
-    if (argc < 5)
-    {
-        printf("Uso: %s <B> <Npts> <M> <Escala>\n", argv[0]);
-        printf("Exemplo: %s 4000 12 5 1\n", argv[0]);
+        std::cerr << "Uso: " << argv[0] << " <B> <Npts> <M> <Escala> <out_csv>\n";
+        std::cerr << "Exemplo: " << argv[0] << " 4000 12 5 1 out/execucao/resultado_cpp.csv\n";
         return 1;
     }
 
-    int B = atoi(argv[1]);      // valor máximo
-    int Npts = atoi(argv[2]);   // quantidade de pontos
-    M = atoi(argv[3]);          // número de repetições
-    int escala = atoi(argv[4]); // número de repetições
-
-    std::vector<int> Ns;
-
-    if (escala == 1)
-        Ns = linear(B, Npts);
-    else
-        Ns = logspace(B, Npts);
-
-    if (Ns.empty())
+    try
     {
-        std::cout << "Erro ao gerar escala.\n";
-        return 1;
-    }
+        const int b = parse_int(argv[1], "B", 100, 100000);
+        const int npts = parse_int(argv[2], "Npts", 2, 10000);
+        const int m_count = parse_int(argv[3], "M", 1, 100000);
+        const int escala = parse_int(argv[4], "Escala", 0, 1);
+        const std::string out_csv = argv[5];
 
-    // cout << "B = " << B << endl;
-
-    // cout << "Numero de pontos = " << Npts << endl;
-
-    // cout << "M = " << M << endl;
-    //  Configura notação científica e precisão
-    file << std::scientific << std::setprecision(6);
-
-    // Varie N automaticamente de 10 a 10000
-    for (int n = 0; n < Npts; n++)
-    {
-        int N = Ns[n];
-        double time_free = 0.0, time_alloc = 0.0, time_calc = 0.0;
-
-        for (int m = 1; m <= M; m++)
+        std::ofstream file(out_csv);
+        if (!file.is_open())
         {
-
-            // Tempo de alocação de memória
-            clock_t start_alloc = clock();
-            int **mat1 = new int *[N];
-            int **mat2 = new int *[N];
-            int **res = new int *[N];
-
-            for (int i = 0; i < N; i++)
-            {
-                mat1[i] = new int[N];
-                mat2[i] = new int[N];
-                res[i] = new int[N];
-            }
-
-            // Inicializando as matrizes
-            for (int i = 0; i < N; i++)
-            {
-                for (int j = 0; j < N; j++)
-                {
-                    mat1[i][j] = i + j;
-                    if (i == j)
-                        mat2[i][j] = 1;
-                    else
-                    {
-                        mat2[i][j] = 0;
-                    }
-                }
-            }
-
-            clock_t end_alloc = clock();
-            time_alloc += double(end_alloc - start_alloc) / CLOCKS_PER_SEC;
-            
-            // Tempo do cálculo
-            clock_t start_calc = clock();
-            multiply(mat1, mat2, res, N);
-            clock_t end_calc = clock();
-            time_calc += double(end_calc - start_calc) / CLOCKS_PER_SEC;
-
-            // Medição do uso de memória
-            // struct rusage usage;
-            // getrusage(RUSAGE_SELF, &usage);
-            // long memory_used_kb = usage.ru_maxrss;  // Memória usada em KB
-
-            // Verificação do resultado
-            for (int i = 0; i < N; i++)
-            {
-                for (int j = 0; j < N; j++)
-                {
-                    if (res[i][j] != i + j)
-                        cout << "Erro na multiplicação das matrizes para N = " << N << "!\n";
-                }
-            }
-
-            // Tempo de liberação de memória
-            clock_t start_free = clock();
-            for (int i = 0; i < N; i++)
-            {
-                delete[] mat1[i];
-                delete[] mat2[i];
-                delete[] res[i];
-            }
-            delete[] mat1;
-            delete[] mat2;
-            delete[] res;
-            clock_t end_free = clock();
-            time_free += double(end_free - start_free) / CLOCKS_PER_SEC;
-
-            // cout << N << ",";
-            // cout << time_calc << ",";  // Tempo de cálculo segundos
-            // cout << time_alloc << ","; // Tempo de alocação de memória segundos
-            // cout << time_free << endl; // Tempo de liberação de memória: %f segundos
+            std::cerr << "Erro ao abrir arquivo de saida: " << out_csv << "\n";
+            return 1;
         }
-        // Salvando os resultados no arquivo
-        file << N << ",";
-        file << (time_calc / (double)M) << ",";  // Tempo de cálculo segundos
-        file << (time_alloc / (double)M) << ","; // Tempo de alocação de memória segundos
-        file << (time_free / (double)M) << endl; // Tempo de liberação de memória: %f segundos
-        // file << "Memória usada: " << memory_used_kb << "KB" << endl << endl;
 
-        cout << "Resultados para N = " << N << " salvos." << endl;
+        file << "N,TCS,TAM,TDM\n";
+        file << std::scientific << std::setprecision(6);
+
+        for (int n : make_points(b, npts, escala))
+        {
+            double time_alloc = 0.0;
+            double time_calc = 0.0;
+            double time_free = 0.0;
+
+            for (int m = 0; m < m_count; m++)
+            {
+                if (!run_once(n, time_alloc, time_calc, time_free))
+                {
+                    return 1;
+                }
+            }
+
+            file << n << ","
+                 << (time_calc / static_cast<double>(m_count)) << ","
+                 << (time_alloc / static_cast<double>(m_count)) << ","
+                 << (time_free / static_cast<double>(m_count)) << "\n";
+
+            std::cout << "Resultados para N = " << n << " salvos.\n";
+        }
+
+        std::cout << "Todos os resultados foram salvos em " << out_csv << ".\n";
     }
-
-    file.close();
-    cout << "Todos os resultados foram salvos no arquivo resultado_cpp.csv." << endl;
+    catch (const std::exception &ex)
+    {
+        std::cerr << ex.what() << "\n";
+        return 1;
+    }
 
     return 0;
 }

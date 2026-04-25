@@ -1,21 +1,40 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
+import csv
 import os
 import sys
 from pathlib import Path
-from typing import Dict, List
-import pandas as pd
-import matplotlib.pyplot as plt
 
-# ============================
-# Entrada
-# ============================
-if len(sys.argv) < 2:
-    print("Uso: plot_benchmarks.py <diretorio_de_saida>")
-    sys.exit(1)
+
+def die(message: str) -> None:
+    print(f"Erro: {message}", file=sys.stderr)
+    raise SystemExit(1)
+
+
+if len(sys.argv) != 2:
+    die("uso: plot_benchmarks.py <diretorio_de_saida>")
 
 out_dir = Path(sys.argv[1])
+out_dir.mkdir(parents=True, exist_ok=True)
+mpl_config_dir = out_dir / ".matplotlib"
+mpl_config_dir.mkdir(parents=True, exist_ok=True)
+os.environ.setdefault("MPLCONFIGDIR", str(mpl_config_dir))
 
-files = {
+try:
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+except Exception as exc:  # pragma: no cover - depends on local environment
+    die(
+        "matplotlib nao esta instalado ou esta quebrado. "
+        "Instale as dependencias com: python3 -m pip install -r requirements.txt "
+        f"({exc})"
+    )
+
+
+FILES = {
     "C": out_dir / "resultado_c.csv",
     "C_O3": out_dir / "resultado_c_O3.csv",
     "C++": out_dir / "resultado_cpp.csv",
@@ -24,235 +43,127 @@ files = {
     "Python": out_dir / "resultado_python.csv",
 }
 
-# ============================
-# Utilitários de leitura
-# ============================
-def read_csv_flex(path: Path) -> pd.DataFrame:
-    try:
-        df = pd.read_csv(path)
-    except Exception:
-        df = pd.read_csv(path, sep=";")
-    df.columns = [str(c).strip() for c in df.columns]
-    return df
-
-def detect_N_column(df: pd.DataFrame) -> str:
-    prefs = ("n", "size", "dim", "order", "tamanho", "matrix_size", "N")
-    for c in df.columns:
-        if str(c).strip().lower() in prefs:
-            return c
-    return df.columns[0]
-
-def ensure_numeric(df: pd.DataFrame, cols: List[str]) -> pd.DataFrame:
-    df = df.copy()
-    for c in cols:
-        if c in df.columns:
-            df[c] = pd.to_numeric(df[c], errors="coerce")
-    return df
-
-# ============================
-# Carrega dados disponíveis
-# ============================
-dfs: Dict[str, pd.DataFrame] = {}
-for lang, path in files.items():
-    if path.exists():
-        df = read_csv_flex(path)
-        # normaliza nomes e força numérico
-        df = ensure_numeric(df, df.columns.tolist())
-
-        # compatibilidade: se vier "TLM", mapeia para "TDM"
-        if "TDM" not in df.columns and "TLM" in df.columns:
-            df["TDM"] = df["TLM"]
-
-        dfs[lang] = df
-
-if not dfs:
-    print("Nenhum CSV encontrado no diretório informado.")
-    sys.exit(1)
-
-ncols = {lang: detect_N_column(df) for lang, df in dfs.items()}
-
-# Métricas fixas
-METRICS = ["TCS", "TAM", "TDM"]  # cálculo, alocação, desalocação
+METRICS = ["TCS", "TAM", "TDM"]
 TITLES = {
-    "TCS": "Tempo de Cálculo da Multiplicação",
-    "TAM": "Tempo de Alocação de Memória",
-    "TDM": "Tempo de Desalocação de Memória",
+    "TCS": "Tempo de Calculo da Multiplicacao",
+    "TAM": "Tempo de Alocacao de Memoria",
+    "TDM": "Tempo de Desalocacao de Memoria",
 }
 
-# ============================
-# Plot genérico por métrica (todas as linguagens)
-# ============================
-def plot_metric(metric: str):
-    """
-    Plota a métrica especificada para todas as linguagens que tiverem a coluna.
-    (Mantido do original; apenas acrescentei salvamento com nome alternativo explícito)
-    """
-    any_series = False
-    plt.figure()
 
-    for lang, df in dfs.items():
-        ncol = ncols[lang]
-        if metric not in df.columns:
-            continue
-        sub = df[[ncol, metric]].dropna().sort_values(by=ncol)
-        if sub.empty:
-            continue
-        plt.plot(sub[ncol], sub[metric], marker="o", label=lang)
-        any_series = True
+def read_csv(path: Path) -> list[dict[str, float]]:
+    text = path.read_text(encoding="utf-8-sig")
+    sample = text[:1024]
+    try:
+        dialect = csv.Sniffer().sniff(sample, delimiters=",;")
+    except csv.Error:
+        dialect = csv.excel
 
-    if not any_series:
-        plt.close()
-        print(f"Aviso: nenhuma linguagem disponível para a métrica {metric}.")
-        return
+    rows: list[dict[str, float]] = []
+    reader = csv.DictReader(text.splitlines(), dialect=dialect)
+    if reader.fieldnames is None:
+        return rows
 
-    plt.xlabel("N (matriz com NxN elementos)")
-    plt.ylabel(f"Tempo (s)")
-    plt.title(f"Comparação por linguagem - {TITLES.get(metric, metric)}")
-    plt.legend()
-    #out_img_default = out_dir / f"grafico_{metric}.png"
-    #plt.savefig(out_img_default, dpi=160, bbox_inches="tight")
-    # ===== NOVO: também salvo com um nome mais explícito para a demanda "Todas as Linguagens"
-    out_img_alias = out_dir / f"grafico_{metric}_todas_linguagens.png"
-    plt.savefig(out_img_alias, dpi=160, bbox_inches="tight")
-    plt.close()
-    print(f"✅ {metric}: salvo em {out_img_alias}")
+    fieldnames = [name.strip() for name in reader.fieldnames]
+    missing = [col for col in ("N", "TCS", "TAM", "TDM") if col not in fieldnames]
+    if missing:
+        print(f"Aviso: {path} ignorado; colunas ausentes: {', '.join(missing)}")
+        return rows
 
-# ============================
-# Plot específico: apenas C vs C++ (preferindo _O3)
-# ============================
-def plot_metric_subset(metric: str):
-    """
-    Plota somente C e C++ para a métrica dada.
-    Preferência por versões _O3; se não houver, usa as versões normais.
-    (Mantido do original)
-    """
-    prefer_c = "C_O3" if "C_O3" in dfs else "C"
-    prefer_cpp = "C++_O3" if "C++_O3" in dfs else "C++"
+    for line_number, row in enumerate(reader, start=2):
+        try:
+            rows.append(
+                {
+                    "N": float(str(row["N"]).strip()),
+                    "TCS": float(str(row["TCS"]).strip()),
+                    "TAM": float(str(row["TAM"]).strip()),
+                    "TDM": float(str(row["TDM"]).strip()),
+                }
+            )
+        except (TypeError, ValueError):
+            print(f"Aviso: linha invalida ignorada em {path}:{line_number}")
 
-    series = []
-    for lang in (prefer_c, prefer_cpp):
-        if lang in dfs and metric in dfs[lang].columns:
-            ncol = ncols[lang]
-            sub = dfs[lang][[ncol, metric]].dropna().sort_values(by=ncol)
-            if not sub.empty:
-                series.append((lang, sub))
+    return sorted(rows, key=lambda item: item["N"])
 
-    if len(series) == 0:
-        print(f"Aviso: nenhuma série C/C++ disponível para {metric}.")
-        return
-    if len(series) == 1:
-        print(f"Aviso: apenas uma série C/C++ encontrada para {metric}: {series[0][0]}.")
 
-    plt.figure()
-    # re-obter ncol dentro do loop, pois C e C++ podem ter nomes de coluna N diferentes
-    for lang, sub in series:
-        ncol_local = detect_N_column(sub) if "N" not in sub.columns else "N"
-        # se detect_N_column pegar algo inesperado, usa a 1a coluna como N
-        ncol_local = ncol_local if ncol_local in sub.columns else sub.columns[0]
-        plt.plot(sub[ncol_local], sub[metric], marker="o", label=lang)
+def load_data() -> dict[str, list[dict[str, float]]]:
+    data: dict[str, list[dict[str, float]]] = {}
+    for label, path in FILES.items():
+        if path.exists():
+            rows = read_csv(path)
+            if rows:
+                data[label] = rows
 
-    plt.xlabel("N (matriz com NxN elementos)")
-    plt.ylabel(f"Tempo (s)")
-    plt.title(f"C vs C++ - {TITLES.get(metric, metric)}")
-    plt.legend()
-    out_img = out_dir / f"grafico_{metric}_C_vs_CPP.png"
-    plt.savefig(out_img, dpi=160, bbox_inches="tight")
-    plt.close()
-    print(f"✅ {metric} (C vs C++): salvo em {out_img}")
+    if not data:
+        die(f"nenhum CSV valido encontrado em {out_dir}")
+    return data
 
-# ============================
-# ===== NOVO: C e C++ com e sem O3 =====
-# ============================
-def plot_metric_c_cpp_all_variants(metric: str):
-    """
-    NOVO:
-    Plota C e C++ com e sem O3 (até 4 curvas): C, C_O3, C++, C++_O3.
-    Só plota as séries/arquivos que existirem para a métrica.
-    """
-    variants = ["C", "C_O3", "C++", "C++_O3"]
-    series = []
 
-    for lang in variants:
-        if lang in dfs and metric in dfs[lang].columns:
-            ncol = ncols[lang]
-            sub = dfs[lang][[ncol, metric]].dropna().sort_values(by=ncol)
-            if not sub.empty:
-                series.append((lang, sub))
-
+def plot_series(metric: str, series: list[tuple[str, list[dict[str, float]]]], output_name: str, title: str) -> None:
     if not series:
-        print(f"Aviso: nenhuma série C/C++ (com/sem O3) disponível para {metric}.")
+        print(f"Aviso: nenhuma serie disponivel para {metric}.")
         return
 
     plt.figure()
-    for lang, sub in series:
-        ncol_local = detect_N_column(sub) if "N" not in sub.columns else "N"
-        ncol_local = ncol_local if ncol_local in sub.columns else sub.columns[0]
-        plt.plot(sub[ncol_local], sub[metric], marker="o", label=lang)
+    for label, rows in series:
+        xs = [row["N"] for row in rows]
+        ys = [row[metric] for row in rows]
+        plt.plot(xs, ys, marker="o", label=label)
 
     plt.xlabel("N (matriz com NxN elementos)")
-    plt.ylabel(f"Tempo (s)")
-    plt.title(f"C e C++ (com e sem -O3) - {TITLES.get(metric, metric)}")
+    plt.ylabel("Tempo (s)")
+    plt.title(title)
+    plt.grid(True, alpha=0.3)
     plt.legend()
-    out_img = out_dir / f"grafico_{metric}_C_CPP_com_e_sem_O3.png"
-    plt.savefig(out_img, dpi=160, bbox_inches="tight")
+    output_path = out_dir / output_name
+    plt.savefig(output_path, dpi=160, bbox_inches="tight")
     plt.close()
-    print(f"✅ {metric} (C/C++ com e sem O3): salvo em {out_img}")
+    print(f"{metric}: salvo em {output_path}")
 
-# ============================
-# ===== NOVO: Todas as linguagens menos Python =====
-# ============================
-def plot_metric_all_minus_python(metric: str):
-    """
-    NOVO:
-    Plota todas as linguagens disponíveis EXCETO Python para a métrica.
-    Mantém a mesma lógica de leitura e ordenação do plot genérico.
-    """
-    any_series = False
-    plt.figure()
 
-    for lang, df in dfs.items():
-        if lang.lower() == "python":
-            continue  # exclui Python
-        ncol = ncols[lang]
-        if metric not in df.columns:
-            continue
-        sub = df[[ncol, metric]].dropna().sort_values(by=ncol)
-        if sub.empty:
-            continue
-        plt.plot(sub[ncol], sub[metric], marker="o", label=lang)
-        any_series = True
+def main() -> int:
+    data = load_data()
 
-    if not any_series:
-        plt.close()
-        print(f"Aviso: nenhuma linguagem (sem Python) disponível para a métrica {metric}.")
-        return
+    for metric in METRICS:
+        plot_series(
+            metric,
+            [(label, rows) for label, rows in data.items()],
+            f"grafico_{metric}_todas_linguagens.png",
+            f"Comparacao por linguagem - {TITLES[metric]}",
+        )
 
-    plt.xlabel("N (matriz com NxN elementos)")
-    plt.ylabel(f"Tempo (s)")
-    plt.title(f"Todas as linguagens (exceto Python) - {TITLES.get(metric, metric)}")
-    plt.legend()
-    out_img = out_dir / f"grafico_{metric}_sem_python.png"
-    plt.savefig(out_img, dpi=160, bbox_inches="tight")
-    plt.close()
-    print(f"✅ {metric} (sem Python): salvo em {out_img}")
+    for metric in METRICS:
+        prefer_c = "C_O3" if "C_O3" in data else "C"
+        prefer_cpp = "C++_O3" if "C++_O3" in data else "C++"
+        subset = [(label, data[label]) for label in (prefer_c, prefer_cpp) if label in data]
+        plot_series(
+            metric,
+            subset,
+            f"grafico_{metric}_C_vs_CPP.png",
+            f"C vs C++ - {TITLES[metric]}",
+        )
 
-# ============================
-# Execução
-# ============================
-for m in METRICS:
-    # 1) Todas as linguagens (mantido + alias de nome)
-     plot_metric(m)
+    for metric in METRICS:
+        subset = [(label, data[label]) for label in ("C", "C_O3", "C++", "C++_O3") if label in data]
+        plot_series(
+            metric,
+            subset,
+            f"grafico_{metric}_C_CPP_com_e_sem_O3.png",
+            f"C e C++ (com e sem -O3) - {TITLES[metric]}",
+        )
 
-for m in METRICS:
-    # 2) C vs C++ preferindo -O3 (mantido)
-    plot_metric_subset(m)
+    for metric in METRICS:
+        subset = [(label, rows) for label, rows in data.items() if label != "Python"]
+        plot_series(
+            metric,
+            subset,
+            f"grafico_{metric}_sem_python.png",
+            f"Todas as linguagens exceto Python - {TITLES[metric]}",
+        )
 
-for m in METRICS:
-    # 3) NOVO: C e C++ com e sem -O3 (até 4 séries)
-    plot_metric_c_cpp_all_variants(m)
+    print(f"Concluido. Graficos em: {out_dir}")
+    return 0
 
-for m in METRICS:
-    # 4) NOVO: Todas as linguagens menos Python
-    plot_metric_all_minus_python(m)
 
-print(f"Concluído. Gráficos em: {out_dir}")
+if __name__ == "__main__":
+    raise SystemExit(main())
