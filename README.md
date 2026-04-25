@@ -1,95 +1,85 @@
 # Matrix Multiplication Benchmark
 
-Este repositório contém códigos para realizar um **benchmark de multiplicação de matrizes** em várias linguagens de programação (**C, C++, Python, Java** – com expansão planejada para Rust e Elixir).  
-O objetivo é comparar o desempenho de cada linguagem em uma operação intensiva de cálculo: a multiplicação de matrizes quadradas de diferentes tamanhos.
+Benchmark reprodutível de multiplicação de matrizes quadradas em C, C++, Java e Python.
 
----
+O objetivo é comparar tempos de execução entre linguagens usando o mesmo contrato de entrada e o mesmo formato de saída, permitindo que colaboradores rodem os testes localmente e compartilhem seus resultados em `out/<run_id>/`.
 
-## 🎯 Objetivo
+## Execução Rápida
 
-- Avaliar o **tempo de execução** e o **uso de memória** na multiplicação de matrizes.
-- Comparar implementações equivalentes entre diferentes linguagens.
-- Construir uma base colaborativa de resultados, permitindo que qualquer pessoa rode os testes em sua máquina e contribua com seus dados.
-
----
-
-## 🚀 Como começar
-
-Clone o repositório:
+Linux/WSL:
 
 ```bash
-git clone https://github.com/<usuario>/<repo>.git
-cd <repo>
-````
-
-Execute os benchmarks:
-
-- **Linux/WSL**:
-
-  ```bash
-  chmod +x run_all.sh
-  ./run_all.sh
-  ```
-
-- **Windows (PowerShell)**:
-
-  ```powershell
-  .\run_all.ps1
-  ```
-
-Os resultados serão salvos em:
-
-```bash
-out/<NOME_DA_EXECUCAO>/
+python3 -m pip install -r requirements.txt
+./run_all.sh --batch --run-name meu_teste-linux-100 --B 100 --Npts 2 --M 1 --escala 1
 ```
 
-com arquivos `resultado_c.csv`, `resultado_cpp.csv`, `resultado_java.csv`, `resultado_python.csv`.
+Windows PowerShell:
 
----
+```powershell
+python -m pip install -r requirements.txt
+.\run_all.ps1 -Batch -RunName meu_teste-win-100 -B 100 -Npts 2 -M 1 -Escala 1
+```
 
-## 📊 Gráficos automáticos
+Também é possível rodar `./run_all.sh` ou `.\run_all.ps1` sem parâmetros para usar o modo interativo.
 
-Ao final da execução no Linux/WSL, o script `run_all.sh` chama automaticamente o `plot_benchmarks.py`, que gera gráficos comparativos para:
+## Saídas
 
-- **TCS**: Tempo de Cálculo da Multiplicação
-- **TAM**: Tempo de Alocação de Memória
-- **TDM**: Tempo de Desalocação de Memória (quando disponível na linguagem)
+Cada execução gera uma pasta em `out/<run_id>/` com:
 
-Cada gráfico inclui também uma **curva de referência** baseada em $N^3$, representando a complexidade teórica.
+- `resultado_c.csv`
+- `resultado_c_O3.csv`
+- `resultado_cpp.csv`
+- `resultado_cpp_O3.csv`
+- `resultado_java.csv`
+- `resultado_python.csv`
+- `system_info.md`
+- `system_info.json`
+- `run_manifest.json`
+- `grafico_*.png`
 
----
+Todos os CSVs seguem o mesmo cabeçalho:
 
-## Resultados Esperados
+```csv
+N,TCS,TAM,TDM
+```
 
-- C e C++ tendem a ter desempenho mais rápido em operações intensivas de CPU.
-- Rust oferece segurança de memória com um impacto mínimo no desempenho.
-- Python, por ser interpretado, tende a ser mais lento.
-- Elixir e Java podem variar em desempenho dependendo da implementação e do uso de paralelismo.
+Onde:
 
----
+- `N`: dimensão da matriz `N x N`
+- `TCS`: tempo de cálculo da multiplicação
+- `TAM`: tempo de alocação e inicialização das matrizes
+- `TDM`: tempo de desalocação; em Java e Python é registrado como `0.0`
 
-## 📚 Documentação complementar
+## Estrutura
 
-- [EXECUTION.md](EXECUTION.md) → Guia completo de execução (Linux/WSL e Windows).
-- [CONTRIBUTING.md](CONTRIBUTING.md) → Como rodar localmente e contribuir com seus resultados.
-- [OPERATIONS.md](OPERATIONS.md) → Análise teórica do número de operações na multiplicação de matrizes.
+```text
+.
+├─ src/          # código-fonte dos benchmarks e gerador de gráficos
+├─ experiments/  # versões ainda fora do fluxo publicável
+├─ scripts/      # coleta de sistema e validação de execuções
+├─ build/        # artefatos de compilação ignorados pelo Git
+├─ out/          # resultados versionáveis por execução
+├─ run_all.sh    # execução Linux/WSL
+└─ run_all.ps1   # execução Windows PowerShell
+```
 
----
+## Validação
 
-## 👥 Colaboração
+Depois de uma execução:
 
-- Projeto iniciado por [**Lucas Kriesel Sperotto**](https://github.com/Lucas-Sperotto).
-- Expansão com a participação de [**Marcos Adriano Silva David**](https://github.com/MarcosAS3).
-- Aberto para contribuições de estudantes, pesquisadores e entusiastas.
+```bash
+python3 scripts/validate_run.py out/<run_id>
+```
 
-Sinta-se à vontade para contribuir com melhorias ou incluir outras linguagens para comparação. Basta abrir uma issue ou enviar um pull request. Veja [CONTRIBUTING.md](CONTRIBUTING.md) para saber como participar.
+O validador confere CSVs esperados, cabeçalhos, valores numéricos, metadados e gráficos.
 
----
+## Documentação
 
-## 📄 Licença
+- [EXECUTION.md](EXECUTION.md): guia completo de execução.
+- [CONTRIBUTING.md](CONTRIBUTING.md): como contribuir com resultados.
+- [OPERATIONS.md](OPERATIONS.md): análise teórica de operações.
+- [TODO.md](TODO.md): plano de melhorias e próximas fases.
 
-Este projeto está licenciado sob a licença MIT - veja o arquivo [LICENSE](LICENSE) para mais detalhes.
+## Licença
 
-Entre em contato conosco e colabore.
-
----
+Este projeto está licenciado sob a licença MIT. Veja [LICENSE](LICENSE).

@@ -1,66 +1,79 @@
-# Contribuindo com resultados
+# Contribuindo
 
-Uma das propostas centrais deste projeto é ser **colaborativo**: qualquer pessoa pode rodar os benchmarks em sua máquina e compartilhar os resultados.
+Uma proposta central deste projeto é reunir resultados de máquinas diferentes em uma base comparável.
 
----
+## Como Gerar Resultados
 
-## 1) Rodando os benchmarks
+Siga [EXECUTION.md](EXECUTION.md).
 
-Siga as instruções de [EXECUTION.md](EXECUTION.md).  
-No final, você terá arquivos `.csv` gerados em `out/<NOME_DA_EXECUCAO>/`.
+Use um nome de execução descritivo:
 
----
-
-## 2) Nomeando a execução
-
-Escolha um nome descritivo para sua execução, incluindo:
-
-- **máquina ou processador**
-- **data**
+```text
+out/<autor-ou-id>-<maquina>-<os>-<B>-<data>/
+```
 
 Exemplos:
 
-````bash
-out/ryzen7\_5700u\_2025-09-03/
-out/intel\_i5-1135G7\_win11\_2025-09-05/
-````
+```text
+out/marcos-ryzen7-5700u-linux-3000-2026-04-25/
+out/ana-i5-1135g7-win11-1000-2026-04-25/
+```
 
----
+## Checklist Antes do Pull Request
 
-## 3) Fazendo um pull request
-
-1. Forke o repositório.  
-2. Copie sua pasta `out/<NOME_DA_EXECUCAO>/` para dentro do repositório.  
-3. Faça commit com mensagem clara
-4. Abra um **Pull Request**.
+Rode:
 
 ```bash
-git add out/ryzen7_5700u_2025-09-03
-git commit -m "Adiciona resultados no Ryzen 7 5700U (Linux, 2025-09-03)"
+python3 scripts/validate_run.py out/<run_id>
+```
+
+Confirme que a pasta contém:
+
+- `resultado_c.csv`
+- `resultado_c_O3.csv`
+- `resultado_cpp.csv`
+- `resultado_cpp_O3.csv`
+- `resultado_java.csv`
+- `resultado_python.csv`
+- `system_info.md`
+- `system_info.json`
+- `run_manifest.json`
+- gráficos `grafico_*.png`
+
+Confirme também que a raiz do projeto não recebeu arquivos gerados como:
+
+- `resultado_*.csv`
+- `matriz_c`
+- `matriz_cpp`
+- `*.class`
+
+## Enviando Resultados
+
+```bash
+git add out/<run_id>
+git commit -m "Adiciona resultados <maquina/os/B>"
 git push
-````
+```
 
----
+Abra um Pull Request descrevendo:
 
-## 4) Diversidade de contribuições
+- máquina/processador
+- sistema operacional
+- valor de `B`
+- observações relevantes, se houver
 
-- Não é necessário que os nomes sejam idênticos: cada pasta representa uma execução diferente.
-- Quanto mais contribuições, maior a base comparativa.
-- Resultados de máquinas variadas (desktops, notebooks, servidores) são todos bem-vindos.
+## Contribuindo com Código
 
----
+Para mudanças de código, preserve o contrato publicável:
 
-## 5) Outras formas de contribuir
+```text
+B Npts M escala out_csv
+```
 
-- Melhorar os códigos em cada linguagem.
-- Adicionar novas linguagens ao benchmark.
-- Melhorar os scripts de execução e visualização.
-- Ampliar a análise teórica ou estatística dos resultados.
+E preserve o cabeçalho CSV:
 
----
+```csv
+N,TCS,TAM,TDM
+```
 
-## 🙌 Agradecimentos
-
-- Este projeto começou como uma atividade de **Cálculo Numérico** na **UNEMAT – Campus Alto Araguaia** em 2014 e segue agora como parte do Trabaldo de Conclusão de Curso **TCC** do discente **Marcos Adriano**.
-
-- Agradecemos a cada um que quiser contribuir com esse repositório.
+Mudanças em Rust, Julia, Elixir, BLAS, paralelismo ou análise estatística são bem-vindas, mas devem ser integradas ao fluxo principal apenas quando seguirem o mesmo contrato e passarem no validador.
