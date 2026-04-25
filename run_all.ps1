@@ -1,166 +1,213 @@
-# run_all.ps1 — versão simplificada e robusta
+param(
+    [switch]$Batch,
+    [string]$RunName = "",
+    [int]$B = 0,
+    [int]$Npts = 0,
+    [int]$M = 0,
+    [int]$Escala = -1
+)
 
 chcp 65001 > $null
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
 
-
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-# --------- Helpers ---------
-function Have([string]$Cmd) { return $null -ne (Get-Command $Cmd -ErrorAction SilentlyContinue) }
-
-function Ensure-PythonPackage([string]$pkg) {
-    if (-not (Have "python")) { Write-Warning "Python não encontrado."; return }
-    $code = "import pkgutil,sys;sys.exit(0 if pkgutil.find_loader('$pkg') else 1)"
-    python -c $code | Out-Null
-    if ($LASTEXITCODE -eq 0) { Write-Host "✅ '$pkg' ok"; return }
-    Write-Host "Instalando '$pkg' com pip..."
-    if (Have "pip") { pip install $pkg | Out-Null } else { python -m pip install $pkg | Out-Null }
+function Have([string]$Cmd) {
+    return $null -ne (Get-Command $Cmd -ErrorAction SilentlyContinue)
 }
 
-function New-Dir([string]$p) { if (-not (Test-Path $p)) { New-Item -ItemType Directory -Path $p | Out-Null } }
-
-function Move-IfExists([string]$file, [string]$dstDir) {
-    if (Test-Path $file) { Move-Item -Force $file (Join-Path $dstDir (Split-Path $file -Leaf)) }
-}
-
-# --------- Checagem rápida (não bloqueia) ---------
-$haveGcc  = Have "gcc"
-$haveGpp  = Have "g++"
-$haveJava = Have "java"
-$haveJavc = Have "javac"
-$havePy   = Have "python"
-
-if ($havePy) {
-    Ensure-PythonPackage "pandas"
-    Ensure-PythonPackage "matplotlib"
-    Ensure-PythonPackage "psutil"
-} else {
-    Write-Warning "Python não encontrado; etapas Python/gráficos serão puladas."
-}
-
-# --------- Entradas ---------
-$RUN_NAME = Read-Host "Digite o nome da execução (ENTER para timestamp)"
-if ([string]::IsNullOrWhiteSpace($RUN_NAME)) { $RUN_NAME = (Get-Date -Format "yyyyMMdd_HHmmss") }
-
-$OUT_DIR = Join-Path "out" $RUN_NAME
-New-Dir $OUT_DIR
-
-$B      = Read-Host "Tamanho máximo de Matriz (B)"
-$ESCALA = Read-Host "Escala: [0]=Log, [1]=Linear"
-$Npts   = Read-Host "Npts (nº de pontos)"
-$M      = Read-Host "M (repetições para média)"
-
-Write-Host "`nSaída: $OUT_DIR`n"
-
-
-# --------- C (O3) ---------
-try {
-    if ($haveGcc -and (Test-Path "src\matriz_c.c")) {
-        Write-Host "C (O3)…"
-        gcc src\matriz_c.c -o matriz_c.exe -lm -O3
-        .\matriz_c.exe $B $Npts $M $ESCALA "-O3"
-        Move-IfExists "resultado_c_O3.csv" $OUT_DIR
-    } else { Write-Warning "GCC ausente ou src\matriz_c.c não encontrado. Pulando C (O3)." }
-} catch { Write-Warning "C (O3): $($_.Exception.Message)" }
-
-# --------- C (normal) ---------
-try {
-    if ($haveGcc -and (Test-Path "src\matriz_c.c")) {
-        Write-Host "C…"
-        gcc src\matriz_c.c -o matriz_c.exe -lm
-        .\matriz_c.exe $B $Npts $M $ESCALA
-        Move-IfExists "resultado_c.csv" $OUT_DIR
-    } else { Write-Warning "GCC ausente ou src\matriz_c.c não encontrado. Pulando C." }
-} catch { Write-Warning "C: $($_.Exception.Message)" }
-
-# --------- C++ (O3) ---------
-try {
-    if ($haveGpp -and (Test-Path "src\matriz_cpp.cpp")) {
-        Write-Host "C++ (O3)…"
-        g++ src\matriz_cpp.cpp -o matriz_cpp.exe -O3
-        .\matriz_cpp.exe $B $Npts $M $ESCALA "-O3"
-        Move-IfExists "resultado_cpp_O3.csv" $OUT_DIR
-    } else { Write-Warning "G++ ausente ou src\matriz_cpp.cpp não encontrado. Pulando C++ (O3)." }
-} catch { Write-Warning "C++ (O3): $($_.Exception.Message)" }
-
-# --------- C++ (normal) ---------
-try {
-    if ($haveGpp -and (Test-Path "src\matriz_cpp.cpp")) {
-        Write-Host "C++…"
-        g++ src\matriz_cpp.cpp -o matriz_cpp.exe
-        .\matriz_cpp.exe $B $Npts $M $ESCALA
-        Move-IfExists "resultado_cpp.csv" $OUT_DIR
-    } else { Write-Warning "G++ ausente ou src\matriz_cpp.cpp não encontrado. Pulando C++." }
-} catch { Write-Warning "C++: $($_.Exception.Message)" }
-
-# --------- Java ---------
-try {
-    if ($haveJava -and $haveJavc -and (Test-Path "src\matriz_java.java")) {
-        Write-Host "Java…"
-        javac src\matriz_java.java
-        # Classe sem package:
-        java -cp src matriz_java $B $Npts $M $ESCALA
-        Move-IfExists "resultado_java.csv" $OUT_DIR
-    } else { Write-Warning "Java/javac ausentes ou src\matriz_java.java não encontrado. Pulando Java." }
-} catch { Write-Warning "Java: $($_.Exception.Message)" }
-
-# --------- Python ---------
-try {
-    if ($havePy -and (Test-Path "src\matriz_python.py")) {
-        Write-Host "Python…"
-        python src\matriz_python.py $B $Npts $M $ESCALA
-        Move-IfExists "resultado_python.csv" $OUT_DIR
-    } else { Write-Warning "Python ausente ou src\matriz_python.py não encontrado. Pulando Python." }
-} catch { Write-Warning "Python: $($_.Exception.Message)" }
-
-# --------- system_info.md ---------
-try {
-    Write-Host "Gerando system_info.md…"
-    $os  = Get-CimInstance Win32_OperatingSystem
-    $cs  = Get-CimInstance Win32_ComputerSystem
-    $cpu = (Get-CimInstance Win32_Processor | Select-Object -First 1)
-    $ram = [math]::Round($cs.TotalPhysicalMemory / 1GB, 2)
-    $wsl = ""
-    try { $wsl = (wsl.exe --status 2>$null | Out-String).Trim() } catch { $wsl = "" }
-
-    $md = @()
-    $md += "# Informações do Sistema"
-    $md += ""
-    $md += "_Gerado em: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')_"
-    $md += ""
-    $md += "## Windows"
-    $md += "- **Edição/Versão**: $($os.Caption) $($os.Version)"
-    $md += "- **Build**: $($os.BuildNumber)"
-    $md += ""
-    $md += "### CPU (host)"
-    $md += "- **Modelo**: $($cpu.Name)"
-    $md += "- **Núcleos (físicos)**: $($cpu.NumberOfCores)"
-    $md += "- **Lógicos (threads)**: $($cpu.NumberOfLogicalProcessors)"
-    $md += "- **Clock Máx (MHz)**: $($cpu.MaxClockSpeed)"
-    $md += ""
-    $md += "### Memória (host)"
-    $md += "- **RAM total**: $ram GB"
-    if ($wsl) {
-        $md += ""
-        $md += "### WSL --status"
-        $md += '```'
-        $md += $wsl
-        $md += '```'
+function Require-Command([string]$Cmd) {
+    if (-not (Have $Cmd)) {
+        throw "Dependencia ausente: $Cmd. Instale conforme EXECUTION.md e tente novamente."
     }
-    $tmp = Join-Path $PWD "system_info.md"
-    $md | Set-Content -Encoding utf8 $tmp
-    Move-IfExists $tmp $OUT_DIR
-} catch { Write-Warning "system_info.md: $($_.Exception.Message)" }
+}
 
-# --------- plot_benchmarks.py ---------
-try {
-    if ($havePy -and (Test-Path "src\plot_benchmarks.py")) {
-        Write-Host "Gerando gráficos…"
-        python src\plot_benchmarks.py $OUT_DIR
-    } else { Write-Warning "plot_benchmarks.py não encontrado ou Python ausente. Pulando gráficos." }
-} catch { Write-Warning "plot_benchmarks: $($_.Exception.Message)" }
+function Require-PythonPackage([string]$Package) {
+    python -c "import $Package" | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "Dependencia Python ausente ou quebrada: $Package. Instale com: python -m pip install -r requirements.txt"
+    }
+}
 
-Write-Host "`n✅ Finalizado. Arquivos em: $OUT_DIR"
+function New-Dir([string]$Path) {
+    if (-not (Test-Path $Path)) {
+        New-Item -ItemType Directory -Path $Path | Out-Null
+    }
+}
+
+function Validate-Int([string]$Name, [int]$Value, [int]$Min, [int]$Max) {
+    if ($Value -lt $Min -or $Value -gt $Max) {
+        throw "Parametro invalido para ${Name}: $Value"
+    }
+}
+
+function First-Line([scriptblock]$Command) {
+    try {
+        $result = & $Command 2>&1 | Select-Object -First 1
+        if ($null -eq $result) { return "N/D" }
+        return $result.ToString()
+    } catch {
+        return "N/D"
+    }
+}
+
+if (-not $Batch) {
+    $RunName = Read-Host "Digite o nome da execucao (ENTER para timestamp)"
+    $B = [int](Read-Host "Digite o tamanho maximo de matriz (B)")
+    $Escala = [int](Read-Host "Escolha a escala [0]=Logaritmica, [1]=Linear")
+    $Npts = [int](Read-Host "Digite o numero de pontos na escala (Npts)")
+    $M = [int](Read-Host "Digite a quantidade de repeticoes para media (M)")
+}
+
+if ([string]::IsNullOrWhiteSpace($RunName)) {
+    $RunName = Get-Date -Format "yyyyMMdd_HHmmss"
+}
+
+Validate-Int "B" $B 100 100000
+Validate-Int "Npts" $Npts 2 10000
+Validate-Int "M" $M 1 100000
+Validate-Int "Escala" $Escala 0 1
+
+Require-Command "gcc"
+Require-Command "g++"
+Require-Command "java"
+Require-Command "javac"
+Require-Command "python"
+Require-PythonPackage "matplotlib"
+
+$OutDir = Join-Path "out" $RunName
+$BuildWin = Join-Path "build" "windows"
+$BuildJava = Join-Path "build" "java"
+New-Dir $OutDir
+New-Dir $BuildWin
+New-Dir $BuildJava
+
+Write-Host "Resultados serao salvos em $OutDir"
+Write-Host "Artefatos de compilacao em build/"
+Write-Host "-----------------------------------"
+
+$CExe = Join-Path $BuildWin "matriz_c.exe"
+$CO3Exe = Join-Path $BuildWin "matriz_c_O3.exe"
+$CppExe = Join-Path $BuildWin "matriz_cpp.exe"
+$CppO3Exe = Join-Path $BuildWin "matriz_cpp_O3.exe"
+
+Write-Host "Compilando C..."
+gcc src\matriz_c.c -o $CExe -lm
+gcc src\matriz_c.c -o $CO3Exe -lm -O3
+
+Write-Host "Compilando C++..."
+g++ src\matriz_cpp.cpp -o $CppExe
+g++ src\matriz_cpp.cpp -o $CppO3Exe -O3
+
+Write-Host "Compilando Java..."
+javac -d $BuildJava src\matriz_java.java
+
+Write-Host "Executando C..."
+& $CExe $B $Npts $M $Escala (Join-Path $OutDir "resultado_c.csv")
+
+Write-Host "Executando C -O3..."
+& $CO3Exe $B $Npts $M $Escala (Join-Path $OutDir "resultado_c_O3.csv")
+
+Write-Host "Executando C++..."
+& $CppExe $B $Npts $M $Escala (Join-Path $OutDir "resultado_cpp.csv")
+
+Write-Host "Executando C++ -O3..."
+& $CppO3Exe $B $Npts $M $Escala (Join-Path $OutDir "resultado_cpp_O3.csv")
+
+Write-Host "Executando Java..."
+java -cp $BuildJava matriz_java $B $Npts $M $Escala (Join-Path $OutDir "resultado_java.csv")
+
+Write-Host "Executando Python..."
+python src\matriz_python.py $B $Npts $M $Escala (Join-Path $OutDir "resultado_python.csv")
+
+Write-Host "Gerando system_info.md e system_info.json..."
+$Os = Get-CimInstance Win32_OperatingSystem
+$Cs = Get-CimInstance Win32_ComputerSystem
+$Cpu = Get-CimInstance Win32_Processor | Select-Object -First 1
+$RamGb = [math]::Round($Cs.TotalPhysicalMemory / 1GB, 2)
+$GeneratedAt = (Get-Date).ToString("o")
+$SysMd = Join-Path $OutDir "system_info.md"
+$SysJson = Join-Path $OutDir "system_info.json"
+
+$md = @(
+    "# Informações do Sistema",
+    "",
+    "_Gerado em: ${GeneratedAt}_",
+    "",
+    "## Windows",
+    "- **Edição/Versão**: $($Os.Caption) $($Os.Version)",
+    "- **Build**: $($Os.BuildNumber)",
+    "",
+    "### CPU",
+    "- **Modelo**: $($Cpu.Name)",
+    "- **Núcleos físicos**: $($Cpu.NumberOfCores)",
+    "- **Threads lógicas**: $($Cpu.NumberOfLogicalProcessors)",
+    "- **Clock máximo MHz**: $($Cpu.MaxClockSpeed)",
+    "",
+    "### Memória",
+    "- **RAM total**: $RamGb GB"
+)
+$md | Set-Content -Encoding utf8 $SysMd
+
+$sysInfo = [ordered]@{
+    generated_at = $GeneratedAt
+    windows = [ordered]@{
+        caption = $Os.Caption
+        version = $Os.Version
+        build = $Os.BuildNumber
+        cpu = [ordered]@{
+            model = $Cpu.Name
+            physical_cores = $Cpu.NumberOfCores
+            logical_processors = $Cpu.NumberOfLogicalProcessors
+            max_mhz = $Cpu.MaxClockSpeed
+        }
+        memory = [ordered]@{
+            ram_gb = $RamGb
+        }
+    }
+}
+$sysInfo | ConvertTo-Json -Depth 8 | Set-Content -Encoding utf8 $SysJson
+
+$Manifest = [ordered]@{
+    run_id = $RunName
+    generated_at = (Get-Date).ToUniversalTime().ToString("o")
+    commit_hash = First-Line { git rev-parse HEAD }
+    system = [ordered]@{
+        platform = "$($Os.Caption) $($Os.Version)"
+        machine = $env:PROCESSOR_ARCHITECTURE
+        python = First-Line { python --version }
+    }
+    parameters = [ordered]@{
+        B = $B
+        Npts = $Npts
+        M = $M
+        escala = $Escala
+    }
+    tools = [ordered]@{
+        gcc = First-Line { gcc --version }
+        "g++" = First-Line { g++ --version }
+        java = First-Line { java -version }
+        javac = First-Line { javac -version }
+        python = First-Line { python --version }
+    }
+    languages = @(
+        [ordered]@{ name = "C"; flags = ""; output = "resultado_c.csv" },
+        [ordered]@{ name = "C"; flags = "-O3"; output = "resultado_c_O3.csv" },
+        [ordered]@{ name = "C++"; flags = ""; output = "resultado_cpp.csv" },
+        [ordered]@{ name = "C++"; flags = "-O3"; output = "resultado_cpp_O3.csv" },
+        [ordered]@{ name = "Java"; flags = ""; output = "resultado_java.csv" },
+        [ordered]@{ name = "Python"; flags = ""; output = "resultado_python.csv" }
+    )
+}
+$Manifest | ConvertTo-Json -Depth 8 | Set-Content -Encoding utf8 (Join-Path $OutDir "run_manifest.json")
+
+Write-Host "Gerando graficos..."
+python src\plot_benchmarks.py $OutDir
+
+Write-Host "Validando execucao..."
+python scripts\validate_run.py $OutDir
+
+Write-Host "-----------------------------------"
+Write-Host "Finalizado. Arquivos em: $OutDir"
