@@ -11,7 +11,7 @@
  * Data: 05/09/2024
  *
  * Parâmetros:
- *  - N: tamanho da matriz (varia de 10 até 10.000)
+ *  - N: tamanho da matriz (varia de 100 até B)
  *
  * Saída: Arquivo de resultados contendo:
  *  - Tempo de alocação de memória
@@ -138,6 +138,8 @@ public class matriz_java {
                 writer.println("N,TCS,TAM,TDM");
 
                 for (int n : makePoints(b, npts, escala)) {
+                    runOnce(n);
+
                     double timeCalc = 0.0;
                     double timeAlloc = 0.0;
                     double timeFree = 0.0;

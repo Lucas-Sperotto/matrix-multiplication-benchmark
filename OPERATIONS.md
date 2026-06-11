@@ -95,5 +95,6 @@ $`
 
 Nos gráficos gerados pelo script `plot_benchmarks.py`, a curva de referência $`(N^3)`$ aparece como linha pontilhada, representando essa complexidade teórica.  
 Os resultados experimentais devem se aproximar (em escala) desse crescimento.
+É importante notar que esta análise se aplica ao algoritmo ingênuo de três laços. O desempenho real pode ser significativamente influenciado por otimizações do compilador, hierarquia de memória (localidade de cache) e o uso de bibliotecas otimizadas (como BLAS), que, embora geralmente mantenham a complexidade $`O(N^3)`$, possuem implementações muito mais eficientes em termos de constantes e acesso à memória.
 
 ---

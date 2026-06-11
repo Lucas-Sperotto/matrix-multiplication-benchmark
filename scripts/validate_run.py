@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import csv
 import json
+import math
 import sys
 from pathlib import Path
 
@@ -39,6 +40,7 @@ def validate_csv(path: Path) -> None:
             fail(f"Cabecalho invalido em {path}: {header}. Esperado: {EXPECTED_HEADER}")
 
         rows = 0
+        previous_n: int | None = None
         for line_number, row in enumerate(reader, start=2):
             if not row or all(not cell.strip() for cell in row):
                 continue
@@ -55,8 +57,14 @@ def validate_csv(path: Path) -> None:
 
             if n < 1:
                 fail(f"Linha {line_number} de {path} tem N invalido: {n}")
+            if previous_n is not None and n < previous_n:
+                fail(f"Linha {line_number} de {path} tem N fora de ordem: {n} apos {previous_n}")
             if tcs < 0 or tam < 0 or tdm < 0:
                 fail(f"Linha {line_number} de {path} tem tempo negativo")
+            if not all(math.isfinite(value) for value in (tcs, tam, tdm)):
+                fail(f"Linha {line_number} de {path} contem NaN ou Inf")
+
+            previous_n = n
             rows += 1
 
     if rows == 0:

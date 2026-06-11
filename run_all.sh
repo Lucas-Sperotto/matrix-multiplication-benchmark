@@ -137,12 +137,12 @@ echo "Artefatos de compilacao em build/"
 echo "-----------------------------------"
 
 echo "Compilando C..."
-gcc src/matriz_c.c -o "$BUILD_LINUX/matriz_c" -lm
-gcc src/matriz_c.c -o "$BUILD_LINUX/matriz_c_O3" -lm -O3
+gcc -std=c11 -Wall -Wextra src/matriz_c.c -o "$BUILD_LINUX/matriz_c" -lm
+gcc -std=c11 -Wall -Wextra src/matriz_c.c -o "$BUILD_LINUX/matriz_c_O3" -lm -O3
 
 echo "Compilando C++..."
-g++ src/matriz_cpp.cpp -o "$BUILD_LINUX/matriz_cpp"
-g++ src/matriz_cpp.cpp -o "$BUILD_LINUX/matriz_cpp_O3" -O3
+g++ -std=c++17 -Wall -Wextra src/matriz_cpp.cpp -o "$BUILD_LINUX/matriz_cpp"
+g++ -std=c++17 -Wall -Wextra src/matriz_cpp.cpp -o "$BUILD_LINUX/matriz_cpp_O3" -O3
 
 echo "Compilando Java..."
 javac -d "$BUILD_JAVA" src/matriz_java.java
@@ -211,10 +211,10 @@ data = {
         "python": run(["python3", "--version"]),
     },
     "languages": [
-        {"name": "C", "flags": "", "output": "resultado_c.csv"},
-        {"name": "C", "flags": "-O3", "output": "resultado_c_O3.csv"},
-        {"name": "C++", "flags": "", "output": "resultado_cpp.csv"},
-        {"name": "C++", "flags": "-O3", "output": "resultado_cpp_O3.csv"},
+        {"name": "C", "flags": "-std=c11 -Wall -Wextra", "output": "resultado_c.csv"},
+        {"name": "C", "flags": "-std=c11 -Wall -Wextra -O3", "output": "resultado_c_O3.csv"},
+        {"name": "C++", "flags": "-std=c++17 -Wall -Wextra", "output": "resultado_cpp.csv"},
+        {"name": "C++", "flags": "-std=c++17 -Wall -Wextra -O3", "output": "resultado_cpp_O3.csv"},
         {"name": "Java", "flags": "", "output": "resultado_java.csv"},
         {"name": "Python", "flags": "", "output": "resultado_python.csv"},
     ],

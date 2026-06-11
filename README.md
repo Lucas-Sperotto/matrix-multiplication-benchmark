@@ -50,6 +50,12 @@ Onde:
 - `TAM`: tempo de alocação e inicialização das matrizes
 - `TDM`: tempo de desalocação; em Java e Python é registrado como `0.0`
 
+## Metodologia
+
+Para cada valor de `N`, os benchmarks executam uma rodada de warm-up não cronometrada e depois calculam a média de `M` repetições cronometradas. O warm-up reduz efeitos da primeira execução, especialmente no Java por causa do JIT, e `M` suaviza variações pontuais do sistema.
+
+`TAM` inclui alocação e inicialização das matrizes, `TCS` mede apenas a multiplicação, e `TDM` mede a liberação quando a linguagem permite controle explícito. A versão Java usa `int[][]`, que é um array de arrays e não um buffer contíguo; isso é comportamento padrão da implementação Java deste benchmark e deve ser considerado ao comparar cache locality com C/C++.
+
 ## Estrutura
 
 ```text

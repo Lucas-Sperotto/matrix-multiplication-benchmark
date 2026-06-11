@@ -12,7 +12,7 @@
  * Data: 05/09/2024
  *
  * Parâmetros:
- *  - N: tamanho da matriz (varia de 10 até 10.000)
+ *  - N: tamanho da matriz (varia de 100 até B)
  *
  * Saída: Arquivo de resultados contendo:
  *  - Tempo de alocação de memória
@@ -202,9 +202,17 @@ int main(int argc, char **argv)
 
         for (int n : make_points(b, npts, escala))
         {
+            double warm_alloc = 0.0;
+            double warm_calc = 0.0;
+            double warm_free = 0.0;
             double time_alloc = 0.0;
             double time_calc = 0.0;
             double time_free = 0.0;
+
+            if (!run_once(n, warm_alloc, warm_calc, warm_free))
+            {
+                return 1;
+            }
 
             for (int m = 0; m < m_count; m++)
             {

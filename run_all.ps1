@@ -33,7 +33,7 @@ function Require-PythonPackage([string]$Package) {
 
 function New-Dir([string]$Path) {
     if (-not (Test-Path $Path)) {
-        New-Item -ItemType Directory -Path $Path | Out-Null
+        New-Item -ItemType Directory -Path $Path -Force | Out-Null
     }
 }
 
@@ -75,6 +75,9 @@ Require-Command "g++"
 Require-Command "java"
 Require-Command "javac"
 Require-Command "python"
+$MplCache = Join-Path ".cache" "matplotlib"
+New-Dir $MplCache
+$env:MPLCONFIGDIR = $MplCache
 Require-PythonPackage "matplotlib"
 
 $OutDir = Join-Path "out" $RunName
@@ -94,12 +97,12 @@ $CppExe = Join-Path $BuildWin "matriz_cpp.exe"
 $CppO3Exe = Join-Path $BuildWin "matriz_cpp_O3.exe"
 
 Write-Host "Compilando C..."
-gcc src\matriz_c.c -o $CExe -lm
-gcc src\matriz_c.c -o $CO3Exe -lm -O3
+gcc -std=c11 -Wall -Wextra src\matriz_c.c -o $CExe -lm
+gcc -std=c11 -Wall -Wextra src\matriz_c.c -o $CO3Exe -lm -O3
 
 Write-Host "Compilando C++..."
-g++ src\matriz_cpp.cpp -o $CppExe
-g++ src\matriz_cpp.cpp -o $CppO3Exe -O3
+g++ -std=c++17 -Wall -Wextra src\matriz_cpp.cpp -o $CppExe
+g++ -std=c++17 -Wall -Wextra src\matriz_cpp.cpp -o $CppO3Exe -O3
 
 Write-Host "Compilando Java..."
 javac -d $BuildJava src\matriz_java.java
@@ -193,10 +196,10 @@ $Manifest = [ordered]@{
         python = First-Line { python --version }
     }
     languages = @(
-        [ordered]@{ name = "C"; flags = ""; output = "resultado_c.csv" },
-        [ordered]@{ name = "C"; flags = "-O3"; output = "resultado_c_O3.csv" },
-        [ordered]@{ name = "C++"; flags = ""; output = "resultado_cpp.csv" },
-        [ordered]@{ name = "C++"; flags = "-O3"; output = "resultado_cpp_O3.csv" },
+        [ordered]@{ name = "C"; flags = "-std=c11 -Wall -Wextra"; output = "resultado_c.csv" },
+        [ordered]@{ name = "C"; flags = "-std=c11 -Wall -Wextra -O3"; output = "resultado_c_O3.csv" },
+        [ordered]@{ name = "C++"; flags = "-std=c++17 -Wall -Wextra"; output = "resultado_cpp.csv" },
+        [ordered]@{ name = "C++"; flags = "-std=c++17 -Wall -Wextra -O3"; output = "resultado_cpp_O3.csv" },
         [ordered]@{ name = "Java"; flags = ""; output = "resultado_java.csv" },
         [ordered]@{ name = "Python"; flags = ""; output = "resultado_python.csv" }
     )

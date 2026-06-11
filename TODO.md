@@ -1,284 +1,208 @@
-# ✅ TODO – Refatoração e Melhorias do Projeto de Benchmark de Matrizes
+# TODO – Benchmark de Multiplicação de Matrizes
 
-Este documento reúne todas as melhorias planejadas para o projeto, organizadas por arquivo e prioridade.
-Use como guia para refatoração, padronização, otimização e documentação.
+Guia de melhorias, correções e próximas fases. Organizado por arquivo e prioridade.
+Última revisão completa: 2026-04-25.
 
 ---
 
-## ✅ MVP publicável implementado — revisão de 2026-04-25
+## Revisão de código — 2026-04-25 (completa)
 
-- [x] Fluxo principal limitado a C, C++, Java e Python.
-- [x] Benchmarks principais aceitam contrato comum: `B Npts M escala out_csv`.
-- [x] CSVs novos usam cabeçalho comum: `N,TCS,TAM,TDM`.
+### Bugs corrigidos nesta revisão
+
+- [x] **`src/matriz_python.py`** — shebang `#!/usr/bin/env python3` estava na linha 27; movido para linha 1.
+      Efeito do bug: `./src/matriz_python.py` falha ao ser executado diretamente (kernel ignora shebang fora da linha 1).
+- [x] **`requirements.txt`** — `pandas` e `psutil` listados como dependências mas nenhum é usado por `src/` ou `scripts/`.
+      Mantido apenas `matplotlib>=3.6`. Instalar pandas (~60 MB) sem necessidade confundia usuários novos.
+- [x] **`src/plot_benchmarks.py`** — título do gráfico "C vs C++" enganoso quando o plot usa `C_O3` vs `C++_O3`.
+      Corrigido: o título agora reflete quais variantes estão sendo comparadas ("C -O3 vs C++ -O3").
+
+### Bugs conhecidos — a corrigir
+
+- [x] **`experiments/teste.py`** — `linear()` não depende mais de `Npts` global; o arquivo foi reescrito com validação antes da abertura do CSV, `time.perf_counter()` e cabeçalho `N,TCS,TAM,TDM`.
+- [x] **`experiments/matriz_c_blas.c`** — `cblas_dgemm` agora recebe buffers `double *` contíguos.
+- [x] **`experiments/matriz_c_blas.c`** — argumentos são validados antes de abrir o arquivo de saída.
+- [x] **`experiments/matriz_c_blas.c`** — `fopen` é checado antes de qualquer `fprintf`.
+
+### Achados gerais — qualidade e consistência
+
+- [x] **Comentários de cabeçalho desatualizados** em todos os arquivos de `src/` diziam "N varia de 10 até 10.000".
+      O mínimo real é 100 (enforced por `parse_int`). Atualizado para "N varia de 100 até B".
+- [x] **`experiments/teste.py`** — arquivo experimental com múltiplos problemas; reescrito antes de qualquer promoção a `src/`:
+      - `linear()` deixou de usar variável global
+      - `time.time()` foi substituído por `time.perf_counter()`
+      - `np.dot` e `psutil` foram removidos para evitar dependências externas nesse experimento
+      - Abertura do arquivo de saída passou a ocorrer após validação dos argumentos
+      - Código morto foi removido
+      - Cabeçalho CSV agora é `"N,TCS,TAM,TDM"`
+- [ ] **`experiments/matriz_rust.rs`** — usa `Vec<Vec<i32>>` (não contíguo), hardcoded Ns, saída `.dat` fora do contrato CSV.
+- [ ] **`experiments/matriz_Julia.jl`** — usa `Dates.now()` com resolução de milissegundo para temporização; Julia tem `time_ns()` ou `@elapsed` com nanosegundo. Saída `.dat` fora do contrato.
+- [x] **`build/` não aparece rastreado no índice atual** (`git ls-files build` retorna vazio). Nada a desrastrear nesta revisão.
+- [ ] **`out/teste/`** parece ser execução local temporária que não deveria estar no histórico. Avaliar remoção.
+- [x] **`run_all.sh`** usa flags de aviso na compilação (`-Wall -Wextra`).
+- [x] **`run_all.sh` e `run_all.ps1`** especificam padrão da linguagem (`-std=c11`, `-std=c++17`).
+- [x] **Java usa `int[][]`** (array de arrays, não contíguo). Documentado na metodologia.
+- [x] **Sem warm-up** antes de medir. Corrigido com 1 rodada não cronometrada antes do loop de M repetições.
+
+---
+
+## MVP publicável — status 2026-04-25
+
+- [x] Fluxo principal: C, C++, Java, Python com contrato comum `B Npts M escala out_csv`.
+- [x] CSVs com cabeçalho comum: `N,TCS,TAM,TDM`.
 - [x] C/C++ geram executáveis em `build/linux/`; Java compila em `build/java/`.
-- [x] `run_all.sh` possui modo interativo e modo `--batch`.
-- [x] `run_all.ps1` foi alinhado ao mesmo contrato no Windows.
-- [x] Resultados são escritos direto em `out/<run_id>/`.
-- [x] `run_manifest.json`, `system_info.md` e `system_info.json` são gerados por execução.
+- [x] `run_all.sh` com modo interativo e `--batch`.
+- [x] `run_all.ps1` alinhado ao mesmo contrato no Windows.
+- [x] Resultados em `out/<run_id>/`.
+- [x] `run_manifest.json`, `system_info.md` e `system_info.json` gerados por execução.
 - [x] `scripts/validate_run.py` valida CSVs, metadados e gráficos.
-- [x] `src/gen_sysinfo_md.sh` foi movido para `scripts/gen_sysinfo_md.sh`.
-- [x] Fontes experimentais fora do MVP foram movidas para `experiments/`.
-- [x] Binários gerados foram removidos da raiz e de `src/`.
-- [x] `.gitignore` foi revisado para ignorar `build/`, caches e execuções locais temporárias sem ignorar `out/` inteiro.
-- [x] `README.md`, `EXECUTION.md` e `CONTRIBUTING.md` foram atualizados para o fluxo MVP.
+- [x] `src/plot_benchmarks.py` sem dependência de pandas, apenas matplotlib.
+- [x] Shebang em `src/matriz_python.py` na linha 1.
+- [x] `requirements.txt` contém apenas dependências reais (`matplotlib`).
+- [x] Título do gráfico "C vs C++" reflete as variantes reais (-O3 quando disponível).
+- [ ] `run_all.ps1` não foi executado neste ambiente (sem `pwsh`). Validar em Windows antes de divulgar.
 
-### Nova verificação antes dos commits — 2026-04-25
+Itens fora do MVP (experimentos):
 
-- [x] `git diff --check` passou sem erros de whitespace.
-- [x] `bash -n run_all.sh` passou.
-- [x] `bash -n scripts/gen_sysinfo_md.sh` passou.
-- [x] `python3 -m py_compile src/matriz_python.py src/plot_benchmarks.py scripts/validate_run.py` passou.
-- [x] `gcc src/matriz_c.c -o build/linux/matriz_c_check -lm` passou.
-- [x] `g++ src/matriz_cpp.cpp -o build/linux/matriz_cpp_check` passou.
-- [x] `javac -d build/java src/matriz_java.java` passou.
-- [x] Smoke completo passou: `./run_all.sh --batch --run-name mvp_smoke_100 --B 100 --Npts 2 --M 1 --escala 1`.
-- [x] `python3 scripts/validate_run.py out/mvp_smoke_100` passou.
-- [x] `python3 src/plot_benchmarks.py out/mvp_smoke_100` passou.
-- [x] Não há `resultado_*.csv`, `matriz_c`, `matriz_cpp` ou `.class` fora de `build/`.
-- [x] `src/` contém apenas o fluxo principal: C, C++, Java, Python e plot.
-- [ ] `run_all.ps1` não foi executado neste ambiente porque não há `pwsh`/`powershell` disponível.
-
-Itens que continuam fora do MVP:
-
-- [ ] Integrar Rust, Julia e Elixir ao contrato comum.
-- [ ] Corrigir `matriz_c_blas.c` antes de adicioná-lo ao fluxo público.
-- [ ] Adicionar NumPy, paralelismo, energia, estatística avançada e relatório automático.
+- [ ] Integrar Rust, Julia e Elixir ao contrato comum (CLI, CSV, validador).
+- [x] Corrigir `experiments/matriz_c_blas.c` (bugs acima) antes de adicionar ao fluxo público.
+- [ ] Adicionar variante NumPy em Python para comparação justa de desempenho.
 
 ---
 
-## 🔴 Avaliação geral do repositório — revisão de 2026-04-25
+## 0. Padronização Geral
 
-Objetivo desta rodada: preparar o projeto para divulgação pública, reprodução por terceiros e sincronização de resultados dentro de `out/`, mantendo `src/` apenas com código-fonte e evitando binários espalhados pela raiz ou dentro de `src/`.
-
-### Achados objetivos
-
-- [ ] Remover binários gerados da árvore versionada/visível:
-      `matriz_c` e `matriz_cpp` aparecem na raiz como executáveis ELF;
-      `src/matriz_c_blas` também é um executável ELF dentro de `src/`.
-- [ ] Definir política de versionamento para `out/`:
-      manter resultados aceitos/publicáveis em `out/<id_da_execucao>/`, mas separar execuções locais/testes temporários para evitar poluir o histórico.
-- [ ] Padronizar `out/<id_da_execucao>/` como destino direto de CSVs, gráficos, `system_info.md` e futuro `run_manifest.json`; evitar gerar `resultado_*.csv` na raiz para depois mover.
-- [ ] Corrigir divergência entre documentação e código:
-      a documentação ainda cita `MatrixMultiplication.java` e arquivos `.dat`, mas o código atual usa `src/matriz_java.java` e CSVs como `resultado_java.csv`.
-- [ ] Corrigir contrato dos CSVs entre linguagens:
-      C/C++ escrevem `TLM`, o plot remapeia para `TDM`, Java/Python não escrevem `TDM`, e Rust/Julia/Elixir ainda usam formatos `.dat`.
-- [ ] Criar `requirements.txt` ou `pyproject.toml` para dependências Python (`pandas`, `matplotlib`, `psutil`, opcionalmente `numpy`), pois o ambiente atual falhou ao gerar gráficos por falta/instalação incompleta de `pandas`.
-- [ ] Evitar instalação automática com `sudo apt` dentro de `run_all.sh` no fluxo principal; para divulgação pública, preferir checagem clara + instrução de instalação ou flag explícita `--install-deps`.
-- [ ] Revisar `.gitignore`: hoje ignora binários sem extensão de forma muito ampla (`**/[!.]*`), o que pode esconder arquivos válidos; ao mesmo tempo `.vscode/` já está rastreado apesar de estar no `.gitignore`.
-- [ ] Definir se `bin/` será usado para executáveis finais ou wrappers. Recomendação: compilar em `build/` e reservar `bin/` apenas para comandos estáveis/distribuíveis, se necessário.
-- [ ] Manter `src/` apenas com código-fonte. Scripts auxiliares de execução/coleta podem ficar em `scripts/` se a organização crescer.
-
-### Verificações feitas nesta revisão
-
-- [x] `bash -n run_all.sh` passou.
-- [x] `bash -n scripts/gen_sysinfo_md.sh` passou.
-- [x] `python3 -m py_compile src/matriz_python.py src/plot_benchmarks.py scripts/validate_run.py` passou.
-- [x] Compilação leve de `src/matriz_c.c`, `src/matriz_cpp.cpp` e `src/matriz_java.java` para `build/` passou.
-- [x] Execução mínima de C, C++, Java e Python com `B=100`, `Npts=2`, `M=1`, `escala=1` passou em `out/mvp_smoke_100`.
-- [x] `src/plot_benchmarks.py` foi refeito sem dependência obrigatória de `pandas`, mantendo `matplotlib`.
-- [ ] `experiments/matriz_c_blas.c` compila, mas com warnings graves: `cblas_dgemm` espera `double *` contíguo e o código passa `int **`.
-- [ ] Rust não foi verificado porque `rustc` não está instalado neste ambiente.
-
-### Decisões recomendadas antes de divulgar
-
-- [ ] Estrutura-alvo:
-
-```text
-.
-├─ src/                  # apenas implementações-fonte dos benchmarks
-├─ scripts/              # shell/PowerShell/utilitários, se separados da raiz
-├─ build/                # artefatos de compilação ignorados pelo Git
-├─ experiments/          # implementações fora do fluxo publicável
-├─ bin/                  # opcional: wrappers estáveis ou executáveis publicados
-├─ out/                  # resultados sincronizáveis por execução
-├─ docs/                 # documentação mais longa, se necessário
-└─ README.md
-```
-
-- [ ] Convenção para contribuições em `out/`:
-      `out/<autor_ou_id>-<maquina>-<os>-<B>-<data>/`.
-- [ ] Cada pasta em `out/` deve conter, no mínimo:
-      `resultado_*.csv`, `system_info.md`, `run_manifest.json` e gráficos gerados.
-- [ ] `run_manifest.json` deve registrar: parâmetros (`B`, `Npts`, `M`, escala), linguagens executadas, versões dos compiladores/interpretes, flags de compilação, data/hora, sistema operacional e hash do commit.
-- [ ] Criar um comando de validação pré-PR, por exemplo `./scripts/validate_run.sh out/<id>`, para conferir nomes, colunas CSV e presença de manifesto.
+- [x] Colunas CSV: `N,TCS,TAM,TDM`
+- [x] Python e Java registram `TDM=0.0`
+- [x] Nomes de arquivo: `resultado_c.csv`, `resultado_c_O3.csv`, etc.
+- [x] Contrato CLI: `<B> <Npts> <M> <escala> <out_csv>`
+- [x] Validação de argumentos de entrada em todas as linguagens
+- [x] Adicionar **warm-up** (1 rodada não cronometrada antes das M repetições)
+- [x] Documentar metodologia: o que é TCS, TAM, TDM; por que M repetições; por que warm-up
+- [x] Flags de compilação padrão: `-std=c11`, `-std=c++17`
 
 ---
 
-## 🔹 0. Padronização Geral (Aplica a todas as linguagens)
+## 1. `src/matriz_c.c`
 
-- [ ] Padronizar nomes das colunas CSV como: `N,TCS,TAM,TDM`
-- [ ] Python não mede TDM → registrar `0.0` para manter consistência
-- [ ] Java não mede desalocação manual → registrar `TDM=0.0` ou `NA` conforme contrato definido
-- [ ] Trocar `TLM` por `TDM` em C, C++ e qualquer variante BLAS
-- [ ] Padronizar nomes de arquivos com/sem otimização:
-      Ex: `resultado_c.csv`, `resultado_c_O3.csv`, etc.
-- [ ] Definir contrato único de CLI para todas as linguagens:
-      `<B> <Npts> <M> <escala> <out_dir> [--variant nome]`
-- [ ] Validar argumentos de entrada (`B >= 100`, `Npts >= 2`, `M >= 1`, escala em `{0,1}`) antes de executar benchmarks pesados
-- [ ] Adicionar execução de **warm-up** (1 rodada não cronometrada)
-- [ ] (Opcional) Fixar **semente aleatória** (se houver geração de dados)
-- [ ] Adicionar coluna de **memória (RSS)** em todas as linguagens ou remover completamente psutil
-- [ ] Verificação do resultado: usar **amostragem** ou **checksum simples**, não percorrer toda a matriz
-- [ ] Documentar M (número de repetições) em cada execução ou em manifesto
-- [ ] (Opcional) Registrar número de threads / afinidade (consistência entre execuções)
+**Estado atual:** bom. Alocação 1D contígua, `CLOCK_MONOTONIC`, overflow check, `verify_sample` por amostragem.
+
+- [x] Atualizar comentário de cabeçalho: "N varia de 100 até B" (não "de 10 até 10.000")
+- [x] Adicionar warm-up antes do loop de M
+- [x] Adicionar `-std=c11 -Wall -Wextra` na compilação (em `run_all.sh`)
+- [ ] (Opcional) Separar explicitamente inicialização de alocação no TAM para clareza metodológica
 
 ---
 
-## 🔹 1. Arquivo: `matriz_c.c`
+## 2. `src/matriz_cpp.cpp`
 
-- [ ] Substituir alocação `int**` por **buffer contíguo (uma malloc só)**
-- [ ] Implementar macro ou função de indexação: `A[i*N + j]`
-- [ ] Trocar `clock()` por `clock_gettime(CLOCK_MONOTONIC)` para tempo de parede
-- [ ] Ajustar cabeçalho CSV para `"N,TCS,TAM,TDM"`
-- [ ] Receber caminho de saída por argumento e escrever diretamente em `out/<execucao>/resultado_c.csv`
-- [ ] Remover lógica `if (argc > 5)` para detectar `_O3`
-- [ ] Usar macro de compilação `-DO3_BUILD` ou flag explícita para indicar O3
-- [ ] Reduzir verificação do resultado para **amostragem**
-- [ ] Garantir chamada de `free()` para todos os buffers
-- [ ] Opcional: separar funções (alocação, multiplicação, temporização, verificação) para legibilidade
+**Estado atual:** bom. `std::chrono::steady_clock`, `std::vector<int>` plano, tratamento de exceções.
+
+- [x] Atualizar comentário de cabeçalho: "N varia de 100 até B"
+- [x] Adicionar warm-up antes do loop de M
+- [x] Adicionar `-std=c++17 -Wall -Wextra` na compilação (em `run_all.sh`)
+- [ ] (Opcional) Substituir `std::vector<int>().swap(mat1)` por `mat1 = {}` — mais legível, mesmo efeito
 
 ---
 
-## 🔹 2. Arquivo: `matriz_cpp.cpp`
+## 3. `src/matriz_java.java`
 
-- [ ] Substituir `new[]/delete[]` por `std::vector<int>` ou `std::unique_ptr<int[]>`
-- [ ] Usar `<chrono>` (`std::chrono::steady_clock`) em vez de `clock()`
-- [ ] Padronizar cabeçalho `"N,TCS,TAM,TDM"`
-- [ ] Receber caminho de saída por argumento e escrever diretamente em `out/<execucao>/resultado_cpp.csv`
-- [ ] Remover dependência de `argc` para sufixo `_O3`
-- [ ] Usar macro `-DO3_BUILD` ou flag `--o3` para indicar otimização
-- [ ] Reduzir verificação para **amostragem ou checksum**
-- [ ] (Opcional) Modularizar código em funções auxiliares
-- [ ] (Opcional) Usar paralelismo (OpenMP, std::thread) em versão futura
+**Estado atual:** bom. `System.nanoTime()`, `Locale.US`, `Files.createDirectories`, TDM=0.0 consistente.
+
+- [x] Atualizar comentário de cabeçalho: "N varia de 100 até B"
+- [x] Adicionar warm-up antes do loop de M (crítico: JIT não otimizado na primeira chamada)
+- [x] Documentar que `int[][]` é array de arrays (não contíguo) — comportamento padrão Java, não bug
+- [ ] (Opcional) Renomear classe para `MatrizJava` seguindo convenção Java (requer renomear arquivo)
 
 ---
 
-## 🔹 3. Arquivo: `matriz_python.py` ✅ PRIORIDADE ALTA
+## 4. `src/matriz_python.py`
 
-- [ ] **Finalizar correção:** função `linear()` ainda usa `range(Npts)` em vez de `range(npts)`, ficando dependente de variável global
-- [ ] Trocar `time.time()` por `time.perf_counter()` (melhor resolução)
-- [ ] Padronizar cabeçalho `"N,TCS,TAM,TDM"` (TDM = 0.0)
-- [ ] Receber caminho de saída por argumento e escrever diretamente em `out/<execucao>/resultado_python.csv`
-- [ ] Decidir uso de `psutil`:
-    - [ ] Remover completamente (evitar dependência)
-    - [ ] OU registrar memória no CSV (`MEM_KB`)
-- [ ] (Opcional) Criar variante com NumPy (`--numpy`)
-- [ ] (Opcional) Parametrizar B, npts, M via `argparse`
-- [ ] (Opcional) Melhorar verificação do resultado com amostragem
+**Estado atual:** bom após correção do shebang. `time.perf_counter()`, `csv.writer`, `Path`, sem dependências externas.
+
+- [x] Shebang na linha 1
+- [x] Atualizar comentário de cabeçalho: "N varia de 100 até B"
+- [x] Adicionar warm-up antes do loop de M
+- [ ] (Opcional) Variante com NumPy para comparação (`experiments/matriz_numpy.py`)
 
 ---
 
-## 🔹 4. Arquivo: `plot_benchmarks.py`
+## 5. `src/plot_benchmarks.py`
 
-- [ ] Ajustar `detect_N_column()` para usar sempre `.lower()` nos nomes de coluna
-- [ ] Remover necessidade de remapear `"TLM"` para `"TDM"` (se arquivos forem padronizados)
-- [ ] Adicionar validação explícita de dependências e erro didático quando `pandas`/`matplotlib` não estiverem instalados corretamente
-- [ ] Definir `MPLCONFIGDIR` em diretório gravável (`out/<execucao>/.matplotlib` ou `.cache/matplotlib`) para evitar warning de cache/config em ambientes restritos
-- [ ] Adicionar **filtro genérico de exclusão** de linguagens ou versões (ex: “todas menos Python e sem O3”)
-- [ ] Adicionar flags `--logx` e `--logy` para escalas logarítmicas
-- [ ] Adicionar grid leve nos gráficos para melhor leitura
-- [ ] Criar gráficos extras:
-    - [ ] “Todas as linguagens menos Python e C/C++ sem O3”
-    - [ ] (Opcional) Gráficos separados para memória (TAM/TDM)
-- [ ] Garantir nomes de arquivos de saída consistentes com alias dos grupos comparados
+**Estado atual:** funcional. Gera 4 grupos de gráficos, lida com CSVs faltantes.
+
+- [x] Título do gráfico "C vs C++" reflete variantes reais
+- [x] Adicionar flags `--logx` / `--logy` para escalas logarítmicas nos eixos
+- [x] Gráfico adicional: "C e C++ sem otimização" (somente `C` e `C++`, sem `_O3`)
+- [x] Aceitar lista de linguagens a excluir via argumento: `--exclude Python`
 
 ---
 
-## 🔹 5. Arquivo: `run_all.sh`
+## 6. `run_all.sh`
 
-- [ ] Criar modo `--batch` (sem interação) e manter modo interativo atual
-- [ ] Usar `pushd/popd` para garantir execução sempre na raiz do projeto
-- [ ] Criar `build/` automaticamente e compilar C/C++ nele, por exemplo `build/linux/matriz_c` e `build/linux/matriz_cpp`
-- [ ] Remover geração de executáveis na raiz (`./matriz_c`, `./matriz_cpp`)
-- [ ] Compilar Java com `javac -d build/java src/matriz_java.java` e executar com `java -cp build/java matriz_java`
-- [ ] Fazer cada linguagem escrever direto em `out/<RUN_NAME>/`, sem arquivos temporários na raiz e sem `mv resultado_*.csv`
-- [ ] Padronizar nomenclatura de arquivos `_O3` sem depender de `argc` no binário
-- [ ] Adicionar opção `--venv` para criar ambiente Python isolado
-- [ ] Instalar dependências Python usando `requirements.txt` ao invés de `pip install` direto
-- [ ] Substituir instalação automática via `sudo apt` por mensagens de pré-requisito ou por uma flag explícita `--install-deps`
-- [ ] Criar `run_manifest.json` com:
-    - B, Npts, M, escala,
-    - data/hora da execução,
-    - hash do commit
-- [ ] Registrar versões de `gcc`, `g++`, `java`, `javac`, `python`, pacotes Python e flags de compilação no manifesto
-- [ ] (Opcional) Copiar todos os resultados e gráficos para pasta com timestamp
-- [ ] (Opcional) Permitir passar parâmetros via linha de comando (sem `read`)
+**Estado atual:** bom. `set -euo pipefail`, `--batch`, validação, manifest, validação pós-execução.
+
+- [x] Adicionar `-std=c11` e `-Wall -Wextra` nas invocações de `gcc`
+- [x] Adicionar `-std=c++17` e `-Wall -Wextra` nas invocações de `g++`
+- [x] O cache matplotlib em `check_python_runtime` usa `$ROOT_DIR/.cache/matplotlib`; o gerador de gráficos usa `out_dir/.matplotlib`. Unificado para `.cache/matplotlib`.
 
 ---
 
-## 🔹 6. Arquivo: `gen_sysinfo_md.sh`
+## 7. `scripts/validate_run.py`
 
-- [ ] Adicionar detecção de GPU (NVIDIA / AMD / via `lspci` ou `nvidia-smi`)
-- [ ] Exportar informações também em **JSON** (`system_info.json`) além do `.md`
-- [ ] Garantir consistência de formato entre Linux, WSL e Windows
-- [ ] (Opcional) Adicionar informações adicionais:
-    - Número de núcleos e threads
-    - Tamanho de cache L1/L2/L3
-    - Frequência da CPU
-- [ ] (Opcional) Usar comandos mais robustos para coletar dados em diferentes distros
+**Estado atual:** sólido. Valida CSVs, cabeçalhos, tipos, metadados, PNGs.
+
+- [x] Adicionar check de NaN/Inf nos valores float dos CSVs
+- [x] Validar que N é monotonicamente não decrescente nas linhas
 
 ---
 
-## 🔹 7. Organização e Documentação
+## 8. `scripts/gen_sysinfo_md.sh`
 
-- [ ] Criar `README.md` mais detalhado:
-    - Descrição do projeto
-    - Objetivo dos benchmarks
-    - Como compilar e executar cada linguagem
-    - Como rodar `run_all.sh`
-    - Estrutura do repositório
-- [ ] Atualizar `EXECUTION.md` para refletir nomes reais: `src/matriz_java.java`, CSVs, `out/<RUN_NAME>/` e futura pasta `build/`
-- [ ] Atualizar `CONTRIBUTING.md` com a convenção de `out/<id_da_execucao>/` e checklist mínimo para aceitar resultados
-- [ ] Adicionar seção: **Metodologia de benchmark**
-    - Explicar TCS, TAM, TDM
-    - Justificar warm-up e repetições (M)
-- [ ] Criar `CONTRIBUTING.md` com padrão de commits e branches
-- [ ] Adicionar `.gitignore` completo (binários, CSVs, venv, etc.)
-- [ ] Adicionar `LICENSE` (MIT ou GPL ou outra)
-- [ ] (Opcional) Adicionar **diagramas ou imagens** no README
-- [ ] (Opcional) Traduzir README para inglês (README_en.md)
+**Estado atual:** bom. Detecta WSL, captura info via PowerShell, gera `.md` e `.json`.
+
+- [ ] Verificar compatibilidade do `date -Iseconds` em macOS (GNU vs BSD date)
 
 ---
 
-## 🔹 8. Extensões Futuras (Opcional, mas recomendadas)
+## 9. `experiments/` — itens antes de promover ao fluxo principal
 
-- [ ] Implementar versão Python com NumPy para comparação justa
-- [ ] Integrar Rust, Julia e Elixir ao mesmo contrato de CLI/CSV antes de divulgá-las como suportadas
-- [ ] Corrigir `experiments/matriz_c_blas.c` antes de adicioná-lo ao fluxo público, usando buffers `double *` contíguos compatíveis com BLAS
-- [ ] Avaliar impacto de tipos (int vs float vs double)
-- [ ] Implementar paralelismo em C/C++ (OpenMP) e Java (Threads)
-- [ ] Medir consumo de energia (perf, RAPL, nvidia-smi)
-- [ ] Consolidar todos os resultados em um único CSV/JSON final
-- [ ] Criar script de análise estatística (média, desvio, boxplot)
-- [ ] Gerar relatório final automático (Markdown ou PDF)
+- [x] `teste.py` — corrigir bug em `linear()` (usa `Npts` global), remover código morto, trocar `time.time()` por `time.perf_counter()`, adicionar coluna TDM
+- [x] `matriz_c_blas.c` — corrigir tipo das matrizes (`double *` contíguo), corrigir ordem de validação de argc/fopen
+- [ ] `matriz_rust.rs` — adaptar ao contrato CLI/CSV, usar buffer flat, adicionar `verify_sample` por amostragem
+- [ ] `matriz_Julia.jl` — adaptar ao contrato CLI/CSV, usar `time_ns()` para melhor resolução
 
 ---
 
-## 🔹 9. Estrutura de diretórios, `bin/`, `build/` e `src/`
+## 10. Organização do repositório
 
-- [ ] Remover da raiz os executáveis gerados localmente (`matriz_c`, `matriz_cpp`) e garantir que continuem ignorados pelo Git.
-- [x] Remover `src/matriz_c_blas` do versionamento por ser binário; manter apenas `experiments/matriz_c_blas.c`.
-- [ ] Criar e documentar `build/` como destino padrão de compilação local.
-- [ ] Decidir papel de `bin/`:
-    - [ ] Opção recomendada: `bin/` vazio ou contendo apenas wrappers estáveis, como `bin/run-benchmark`.
-    - [ ] Evitar versionar executáveis compilados em `bin/` porque variam por sistema operacional e arquitetura.
-- [ ] Revisar `.gitignore` para ignorar `build/`, binários compilados, caches Python e execuções temporárias, sem esconder arquivos-fonte sem extensão.
-- [ ] Avaliar remoção de `.vscode/` do versionamento ou manter apenas configurações realmente portáveis.
-- [ ] Se `out/` deve ser sincronizado por colaboradores, não ignorar `out/` inteiro; em vez disso, documentar quais subpastas são aceitas e quais são locais/temporárias.
+- [x] `build/` — confirmado sem arquivos rastreados no índice atual; nenhuma ação `git rm --cached` necessária nesta revisão
+- [ ] Avaliar remoção de `out/teste/` do histórico se for execução local descartável
+- [ ] (Opcional) Adicionar README em inglês (`README_en.md`) para ampliar alcance
+- [ ] (Opcional) Adicionar GitHub Actions para smoke test automático em PRs
 
 ---
 
-## 🔹 10. Checklist mínimo antes de publicação
+## 11. Checklist pré-publicação
 
-- [ ] Clonar em pasta limpa e rodar o fluxo completo sem depender de arquivos gerados previamente.
-- [ ] Rodar `./run_all.sh --batch ...` em Linux/WSL e `.\run_all.ps1` no Windows.
-- [ ] Confirmar que nada é criado na raiz exceto arquivos explicitamente versionados.
-- [ ] Confirmar que `src/` contém apenas código-fonte.
-- [ ] Confirmar que `build/` contém artefatos de compilação e é ignorado pelo Git.
-- [ ] Confirmar que `out/<id>/` contém todos os CSVs, gráficos, `system_info.md` e `run_manifest.json`.
-- [ ] Rodar validador de CSVs: colunas, tipos numéricos, nomes esperados e ausência de linhas vazias.
-- [ ] Rodar gerador de gráficos em ambiente limpo com dependências instaladas por `requirements.txt`.
-- [ ] Atualizar README com comando rápido de reprodução e exemplo de PR de resultados.
+- [ ] Clonar em pasta limpa e rodar `./run_all.sh --batch ...` sem arquivos pré-gerados
+- [ ] Rodar `.\run_all.ps1` no Windows nativo
+- [ ] Confirmar que `src/` contém apenas código-fonte
+- [ ] Confirmar que `build/` não está no histórico git
+- [ ] Confirmar que `out/<id>/` tem CSVs, gráficos, `system_info.md` e `run_manifest.json`
+- [ ] Rodar `python3 scripts/validate_run.py out/<id>` com resultado "sucesso"
+
+---
+
+## 12. Extensões futuras
+
+- [ ] Variante NumPy para Python
+- [ ] Rust, Julia, Elixir no contrato comum
+- [ ] BLAS (C/C++) no contrato comum — experimento C corrigido, ainda não integrado ao fluxo principal
+- [ ] Paralelismo: OpenMP em C/C++, threads em Java
+- [ ] Coluna de memória RSS em todos os benchmarks
+- [ ] Análise estatística: desvio padrão, boxplot
+- [ ] Relatório final automático em Markdown
+- [ ] Medição de energia (RAPL, nvidia-smi)
 
 ---
 

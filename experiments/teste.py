@@ -1,10 +1,8 @@
+#!/usr/bin/env python3
 # **********************************************************************
 # Projeto: Benchmark de Multiplicação de Matrizes
-# Descrição: Este código realiza a multiplicação de duas matrizes 
-#            de tamanho N x N, variando automaticamente o valor de N 
-#            e medindo o tempo de alocação de memória e do cálculo.
-#            O código salva os resultados em um arquivo de saída.
-#            UTILIZANDO NP
+# Descrição: Experimento em Python puro para multiplicação de matrizes
+#            N x N, com CSV compatível com o fluxo principal.
 #
 # Linguagem: Python
 #
@@ -12,117 +10,123 @@
 # Data: 05/09/2024
 #
 # Parâmetros:
-#  - N: tamanho da matriz (varia de 10 até 10.000)
-#
-# Saída: Arquivo de resultados contendo:
-#  - Tempo de alocação de memória
-#  - Tempo de cálculo (multiplicação das matrizes)
-#
-# Uso:
-#  - Execute o código, e o arquivo de saída será gerado contendo os 
-#    resultados para diferentes valores de N.
+#  - B: tamanho máximo da matriz; N varia de 100 até B
+#  - Npts: número de pontos na escala
+#  - M: repetições para calcular a média
+#  - Escala: 0=logarítmica, 1=linear
+#  - out_csv: caminho opcional do CSV de saída
 # **********************************************************************
+from __future__ import annotations
 
-import time
-import psutil
+import csv
 import sys
-import numpy as np
+import time
+from pathlib import Path
 
-def multiply(mat1, mat2, N):
-    res = [[0] * N for _ in range(N)]
-    for i in range(N):
-        for j in range(N):
-            for k in range(N):
-                res[i][j] += mat1[i][k] * mat2[k][j]
+
+def parse_int(text: str, name: str, min_value: int, max_value: int) -> int:
+    try:
+        value = int(text)
+    except ValueError as exc:
+        raise ValueError(f"Parametro invalido para {name}: {text}") from exc
+
+    if value < min_value or value > max_value:
+        raise ValueError(f"Parametro invalido para {name}: {text}")
+    return value
+
+
+def logspace(b: int, npts: int, a: float = 100.0) -> list[int]:
+    ratio = (b / a) ** (1.0 / (npts - 1))
+    return [round(a * (ratio**i)) for i in range(npts)]
+
+
+def linear(b: int, npts: int, a: float = 100.0) -> list[int]:
+    step = (b - a) / (npts - 1)
+    return [round(a + step * i) for i in range(npts)]
+
+
+def multiply(mat1: list[list[int]], mat2: list[list[int]], n: int) -> list[list[int]]:
+    res = [[0] * n for _ in range(n)]
+    for i in range(n):
+        for j in range(n):
+            total = 0
+            for k in range(n):
+                total += mat1[i][k] * mat2[k][j]
+            res[i][j] = total
     return res
 
-def logspace(b, npts, a=100.0):
-    """Gera npts pontos entre a e b em escala logarítmica"""
-    if npts < 2:
-        return None
-    
-    r = (b / a) ** (1.0 / (npts - 1))  # razão geométrica
-    arr = [int(round(a * (r ** i))) for i in range(npts)]
-    return arr
 
-def linear(b, npts, a=100.0):
-    """Gera npts pontos entre a e b em escala linear"""
-    if npts < 2:
-        return None
-    
-    step = (b - a) / (Npts - 1)
-    arr = [round(a + step * i) for i in range(Npts)]
-    return arr
-
-# Abrir o arquivo para salvar os resultados
-with open("resultado_python.csv", "w") as f:
+def verify_sample(res: list[list[int]], n: int) -> None:
+    idxs = (0, n // 2, n - 1)
+    for i in idxs:
+        for j in idxs:
+            if res[i][j] != i + j:
+                raise RuntimeError(f"Erro na multiplicacao para N={n} em [{i},{j}]")
 
 
-    if len(sys.argv) <= 4:
-        print(f"Uso: python {sys.argv[0]} <B> <Npts> <M> <Escala>")
-        print(f"Exemplo: python {sys.argv[0]} 4000 12 5 1")
-        sys.exit(1)
+def run_once(n: int) -> tuple[float, float, float]:
+    start_alloc = time.perf_counter()
+    mat1 = [[i + j for j in range(n)] for i in range(n)]
+    mat2 = [[1 if i == j else 0 for j in range(n)] for i in range(n)]
+    end_alloc = time.perf_counter()
 
-    B = int(sys.argv[1])      # valor máximo
-    Npts = int(sys.argv[2])   # quantidade de pontos
-    M = int(sys.argv[3])      # número de repetições
-    escala = int(sys.argv[4])
+    start_calc = time.perf_counter()
+    res = multiply(mat1, mat2, n)
+    end_calc = time.perf_counter()
 
-    Ns = linear(B, Npts) if escala == 1 else logspace(B, Npts)
+    verify_sample(res, n)
+    return end_calc - start_calc, end_alloc - start_alloc, 0.0
 
-    if Ns is None:
-        print("Erro ao gerar escala logarítmica.")
-        sys.exit(1)
-        
-    f.write(f"N,TCS,TAM\n")
-    
 
-    if len(sys.argv) == 2:  # se passou 1 argumento além do nome do script
-        M = int(sys.argv[1])  # converte string para inteiro
-    
-    #print("B:", B)
-    #print("Npts:", Npts)
-    #print("M:", M)
+def main(argv: list[str]) -> int:
+    if len(argv) not in (5, 6):
+        print(f"Uso: python {argv[0]} <B> <Npts> <M> <Escala> [out_csv]", file=sys.stderr)
+        print(f"Exemplo: python {argv[0]} 4000 12 5 1 resultado_python.csv", file=sys.stderr)
+        return 1
 
-    for N in Ns:  # Varie N automaticamente de 10 a 10000
+    try:
+        b = parse_int(argv[1], "B", 100, 100000)
+        npts = parse_int(argv[2], "Npts", 2, 10000)
+        m_count = parse_int(argv[3], "M", 1, 100000)
+        escala = parse_int(argv[4], "Escala", 0, 1)
+    except ValueError as exc:
+        print(exc, file=sys.stderr)
+        return 1
 
-        time_alloc = 0.0
-        time_calc = 0.0
+    out_csv = Path(argv[5]) if len(argv) == 6 else Path("resultado_python.csv")
+    if out_csv.parent != Path("."):
+        out_csv.parent.mkdir(parents=True, exist_ok=True)
 
-        for m in range(1, M + 1):
-        # Medir o tempo de alocação de memória
-            start_alloc = time.time()
-            mat1 = [[i + j for j in range(N)] for i in range(N)]
-            mat2 = [[1 if i == j else 0 for j in range(N)] for i in range(N)]
-            end_alloc = time.time()
-            time_alloc += end_alloc - start_alloc
+    ns = linear(b, npts) if escala == 1 else logspace(b, npts)
 
-            # Medir a quantidade de memória usada
-            process = psutil.Process()
-            memory_info = process.memory_info().rss / 1024  # Convert to KB
+    with out_csv.open("w", newline="", encoding="utf-8") as file:
+        writer = csv.writer(file, lineterminator="\n")
+        writer.writerow(["N", "TCS", "TAM", "TDM"])
 
-            # Medir o tempo de cálculo
-            start_calc = time.time()
-            res = np.dot(mat1, mat2)
-            end_calc = time.time()
-            time_calc += end_calc - start_calc
-            
-            # Verificação do resultado
-            for i in range(N):
-                for j in range(N):
-                    if res[i][j] != i + j:
-                        print(f"Erro na multiplicação das matrizes para N = {N}!")
-            
-            # Em Python, não precisamos medir o tempo de liberação de memória, pois o garbage collector cuida disso.
-            #print(f"{N}")
-            #print(f"{time_calc:.6e}")
-            #print(f"{time_alloc:.6e}\n")
+        for n in ns:
+            time_calc = 0.0
+            time_alloc = 0.0
+            time_free = 0.0
 
-        # Salvando os resultados no arquivo
-        f.write(f"{N},")
-        f.write(f"{(time_calc/M):.6e},")
-        f.write(f"{(time_alloc/M):.6e}\n")        
-        #f.write(f"Memória usada: {memory_info} KB\n")
-        print(f"Resultados para N = {N} salvos.")
+            for _ in range(m_count):
+                calc, alloc, free = run_once(n)
+                time_calc += calc
+                time_alloc += alloc
+                time_free += free
 
-print("Todos os resultados foram salvos no arquivo resultado_python.csv.")
+            writer.writerow(
+                [
+                    n,
+                    f"{time_calc / m_count:.6e}",
+                    f"{time_alloc / m_count:.6e}",
+                    f"{time_free / m_count:.6e}",
+                ]
+            )
+            print(f"Resultados para N = {n} salvos.")
+
+    print(f"Todos os resultados foram salvos em {out_csv}.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv))

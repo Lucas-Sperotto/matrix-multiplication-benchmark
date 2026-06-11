@@ -89,6 +89,16 @@ Todos escrevem CSV com:
 N,TCS,TAM,TDM
 ```
 
+Campos:
+
+- `TCS`: tempo de cálculo da multiplicação
+- `TAM`: tempo de alocação e inicialização das matrizes
+- `TDM`: tempo de desalocação; em Java e Python é registrado como `0.0`
+
+Para cada valor de `N`, cada benchmark faz 1 rodada de warm-up não cronometrada e depois registra a média de `M` repetições. O warm-up ajuda a reduzir efeitos da primeira execução, especialmente no Java por causa do JIT.
+
+A implementação Java usa `int[][]`, que é um array de arrays e não um buffer contíguo. Esse desenho é intencional para a versão Java atual e deve ser levado em conta na interpretação dos resultados.
+
 ## Artefatos
 
 Os scripts compilam para:

@@ -1,10 +1,7 @@
 /**********************************************************************
  * Projeto: Benchmark de Multiplicação de Matrizes
- * Descrição: Este código realiza a multiplicação de duas matrizes
- *            de tamanho N x N, variando automaticamente o valor de N
- *            e medindo o tempo de alocação de memória, cálculo,
- *            e liberação de memória.
- *            O código salva os resultados em um arquivo de saída.
+ * Descrição: Experimento de multiplicação de matrizes N x N usando BLAS
+ *            com buffers double contíguos compatíveis com cblas_dgemm.
  *
  * Linguagem: C
  *
@@ -12,232 +9,251 @@
  * Data: 05/09/2024
  *
  * Parâmetros:
- *  - N: tamanho da matriz (varia de 10 até 10.000)
- *
- * Saída: Arquivo de resultados contendo:
- *  - Tempo de alocação de memória
- *  - Tempo de cálculo (multiplicação das matrizes)
- *  - Tempo de liberação de memória
- *
- * Uso:
- *  - Compile e execute o código, e o arquivo de saída será gerado
- *    contendo os resultados para diferentes valores de N.
+ *  - B: tamanho máximo da matriz; N varia de 100 até B
+ *  - Npts: número de pontos na escala
+ *  - M: repetições para calcular a média
+ *  - Escala: 0=logarítmica, 1=linear
+ *  - out_csv: caminho opcional do CSV de saída
  **********************************************************************/
 
+#define _POSIX_C_SOURCE 200809L
+
+#include <cblas.h>
+#include <errno.h>
+#include <math.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h> // para medição do tempo
-#include <math.h>
-// #include <sys/resource.h>
-#include <cblas.h>   // Cabeçalho BLAS
+#include <time.h>
 
-
-// Função para gerar pontos em escala logarítmica
-int *logspace(double b, int Npts)
+static double now_seconds(void)
 {
-    double a = 100.0; // valor inicial fixo
-    if (Npts < 2)
-        return NULL;
-
-    int *arr = malloc(Npts * sizeof(int));
-    if (!arr)
-        return NULL;
-
-    double r = pow(b / a, 1.0 / (Npts - 1)); // razão geométrica
-    for (int i = 0; i < Npts; i++)
-    {
-        arr[i] = (int)(a * pow(r, i) + 0.5); // arredonda para o inteiro mais próximo
-    }
-
-    return arr;
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (double)ts.tv_sec + (double)ts.tv_nsec / 1e9;
 }
 
-int *linear(double b, int Npts)
+static int parse_int(const char *text, const char *name, int min_value, int max_value, int *out)
 {
-    double a = 100.0; // valor inicial fixo
-    if (Npts < 2)
-        return NULL;
+    char *end = NULL;
+    long value;
 
-    int *arr = malloc(Npts * sizeof(int));
-    if (!arr)
-        return NULL;
-
-    double step = (b - a) / (Npts - 1); // passo linear
-    for (int i = 0; i < Npts; i++)
+    errno = 0;
+    value = strtol(text, &end, 10);
+    if (errno != 0 || end == text || *end != '\0' || value < min_value || value > max_value)
     {
-        arr[i] = (int)(a + step * i + 0.5); // arredonda para o inteiro mais próximo
+        fprintf(stderr, "Parametro invalido para %s: %s\n", name, text);
+        return 0;
     }
 
-    return arr;
+    *out = (int)value;
+    return 1;
+}
+
+static int *make_points(int b, int npts, int escala)
+{
+    const double a = 100.0;
+    int *points = (int *)malloc((size_t)npts * sizeof(int));
+    if (points == NULL)
+    {
+        return NULL;
+    }
+
+    if (escala == 1)
+    {
+        double step = ((double)b - a) / (double)(npts - 1);
+        for (int i = 0; i < npts; i++)
+        {
+            points[i] = (int)(a + step * i + 0.5);
+        }
+    }
+    else
+    {
+        double ratio = pow((double)b / a, 1.0 / (double)(npts - 1));
+        for (int i = 0; i < npts; i++)
+        {
+            points[i] = (int)(a * pow(ratio, i) + 0.5);
+        }
+    }
+
+    return points;
+}
+
+static int verify_sample(const double *res, int n)
+{
+    const int idxs[3] = {0, n / 2, n - 1};
+
+    for (int a = 0; a < 3; a++)
+    {
+        int i = idxs[a];
+        for (int b = 0; b < 3; b++)
+        {
+            int j = idxs[b];
+            double expected = (double)(i + j);
+            double actual = res[(size_t)i * (size_t)n + (size_t)j];
+            if (fabs(actual - expected) > 1e-9)
+            {
+                fprintf(stderr, "Erro na multiplicacao para N=%d em [%d,%d]\n", n, i, j);
+                return 0;
+            }
+        }
+    }
+
+    return 1;
+}
+
+static int run_once(int n, double *time_alloc, double *time_calc, double *time_free)
+{
+    size_t n2;
+    double *mat1 = NULL;
+    double *mat2 = NULL;
+    double *res = NULL;
+    double start;
+    double end;
+
+    if ((size_t)n > SIZE_MAX / (size_t)n)
+    {
+        fprintf(stderr, "N muito grande: %d\n", n);
+        return 0;
+    }
+    n2 = (size_t)n * (size_t)n;
+    if (n2 > SIZE_MAX / sizeof(double))
+    {
+        fprintf(stderr, "Matriz muito grande para alocar: N=%d\n", n);
+        return 0;
+    }
+
+    start = now_seconds();
+    mat1 = (double *)malloc(n2 * sizeof(double));
+    mat2 = (double *)malloc(n2 * sizeof(double));
+    res = (double *)malloc(n2 * sizeof(double));
+    if (mat1 == NULL || mat2 == NULL || res == NULL)
+    {
+        fprintf(stderr, "Falha de alocacao para N=%d\n", n);
+        free(mat1);
+        free(mat2);
+        free(res);
+        return 0;
+    }
+
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < n; j++)
+        {
+            mat1[(size_t)i * (size_t)n + (size_t)j] = (double)(i + j);
+            mat2[(size_t)i * (size_t)n + (size_t)j] = (i == j) ? 1.0 : 0.0;
+            res[(size_t)i * (size_t)n + (size_t)j] = 0.0;
+        }
+    }
+    end = now_seconds();
+    *time_alloc += end - start;
+
+    start = now_seconds();
+    cblas_dgemm(
+        CblasRowMajor,
+        CblasNoTrans,
+        CblasNoTrans,
+        n,
+        n,
+        n,
+        1.0,
+        mat1,
+        n,
+        mat2,
+        n,
+        0.0,
+        res,
+        n);
+    end = now_seconds();
+    *time_calc += end - start;
+
+    if (!verify_sample(res, n))
+    {
+        free(mat1);
+        free(mat2);
+        free(res);
+        return 0;
+    }
+
+    start = now_seconds();
+    free(mat1);
+    free(mat2);
+    free(res);
+    end = now_seconds();
+    *time_free += end - start;
+
+    return 1;
 }
 
 int main(int argc, char **argv)
 {
-    FILE *f;
-    if (argc > 5)
-    {
-        f = fopen("resultado_c_ot.csv", "w");
-        fprintf(f, "N,TCS,TAM,TLM\n"); //
-        if (f == NULL)
-        {
-            printf("Erro ao abrir o arquivo!\n");
-            return 1;
-        }
-    }
-    else
-    {
-        f = fopen("resultado_c.csv", "w");
-        fprintf(f, "N,TCS,TAM,TLM\n"); //
-        if (f == NULL)
-        {
-            printf("Erro ao abrir o arquivo!\n");
-            return 1;
-        }
-    }   
+    int b;
+    int npts;
+    int m_count;
+    int escala;
+    int *ns = NULL;
+    FILE *file = NULL;
+    const char *out_csv;
 
-    int M = 1;
-
-    if (argc < 5)
+    if (argc != 5 && argc != 6)
     {
-        printf("Uso: %s <B> <Npts> <M> <Escala>\n", argv[0]);
-        printf("Exemplo: %s 4000 12 5 1\n", argv[0]);
+        fprintf(stderr, "Uso: %s <B> <Npts> <M> <Escala> [out_csv]\n", argv[0]);
+        fprintf(stderr, "Exemplo: %s 4000 12 5 1 resultado_c_blas.csv\n", argv[0]);
         return 1;
     }
 
-    int B = atoi(argv[1]);      // valor máximo
-    int Npts = atoi(argv[2]);   // quantidade de pontos
-    M = atoi(argv[3]);          // número de repetições
-    int escala = atoi(argv[4]); // escala do grafico
-
-    int *Ns = NULL;
-
-    if (escala == 1)
-        Ns = linear(B, Npts);
-    else
-        Ns = logspace(B, Npts);
-
-    if (Ns == NULL)
+    if (!parse_int(argv[1], "B", 100, 100000, &b) ||
+        !parse_int(argv[2], "Npts", 2, 10000, &npts) ||
+        !parse_int(argv[3], "M", 1, 100000, &m_count) ||
+        !parse_int(argv[4], "Escala", 0, 1, &escala))
     {
-        printf("Erro ao gerar escala .\n");
         return 1;
     }
 
-    printf("B = %d\n\n", B);
-    printf("Npts = %d\n\n", Npts);
-    printf("M = %d\n\n", M);
-
-    for (int n = 0; n < Npts; n++)
+    out_csv = (argc == 6) ? argv[5] : "resultado_c_blas.csv";
+    ns = make_points(b, npts, escala);
+    if (ns == NULL)
     {
-        int N = Ns[n];
-        double time_free = 0.0, time_alloc = 0.0, time_calc = 0.0;
-        printf("%d:\n", N);
-        for (int m = 1; m <= M; m++)
-        {
-
-            // Medindo o tempo de alocação de memória
-            clock_t start_alloc = clock();
-            int **mat1 = (int **)malloc(N * sizeof(int *));
-            int **mat2 = (int **)malloc(N * sizeof(int *));
-            int **res = (int **)malloc(N * sizeof(int *));
-
-            for (int i = 0; i < N; i++)
-            {
-                mat1[i] = (int *)malloc(N * sizeof(int));
-                mat2[i] = (int *)malloc(N * sizeof(int));
-                res[i] = (int *)malloc(N * sizeof(int));
-            }
-
-            clock_t end_alloc = clock();
-            time_alloc += ((double)(end_alloc - start_alloc)) / CLOCKS_PER_SEC;
-
-            // Inicializando as matrizes
-            for (int i = 0; i < N; i++)
-            {
-                for (int j = 0; j < N; j++)
-                {
-                    mat1[i][j] = i + j;
-                    if (i == j)
-                        mat2[i][j] = 1;
-                    else
-                    {
-                        mat2[i][j] = 0;
-                    }
-                }
-            }
-
-            // Medindo o tempo de cálculo
-            clock_t start_calc = clock();
-
-            double alpha = 1.0, beta = 0.0;
-
-    // C = alpha * A * B + beta * C multiply(mat1, mat2, res, N);
-    cblas_dgemm(
-        CblasRowMajor,   // Layout das matrizes em memória (row-major como NumPy)
-        CblasNoTrans,    // A não transposta
-        CblasNoTrans,    // B não transposta
-        N, N, N,
-        alpha,
-        mat1, N,            // lda = número de colunas de A
-        mat2, N,            // ldb = número de colunas de B
-        beta,
-        res, N             // ldc = número de colunas de C
-    );
-            
-            clock_t end_calc = clock();
-            time_calc += (((double)(end_calc - start_calc)) / CLOCKS_PER_SEC);
-
-            // Medição do uso de memória
-            // struct rusage usage;
-            // getrusage(RUSAGE_SELF, &usage);
-            // long memory_used_kb = usage.ru_maxrss;  // Memória usada em KB
-
-            // Verificação do resultado
-            for (int i = 0; i < N; i++)
-            {
-                for (int j = 0; j < N; j++)
-                {
-                    if (res[i][j] != i + j)
-                        printf("Erro na multiplicação das matrizes para N = %d!\n", N);
-                }
-            }
-
-            // Medindo o tempo de liberação de memória
-            clock_t start_free = clock();
-            for (int i = 0; i < N; i++)
-            {
-                free(mat1[i]);
-                free(mat2[i]);
-                free(res[i]);
-            }
-            free(mat1);
-            free(mat2);
-            free(res);
-            clock_t end_free = clock();
-            time_free += ((double)(end_free - start_free)) / CLOCKS_PER_SEC;
-            // Salvando os resultados no arquivo
-            // printf("%d,", N);            // valor de N
-            // printf("%e,", (time_calc));  // Tempo de cálculo: %f segundos\n
-            // printf("%e,", (time_alloc)); // Tempo de alocação de memória: %f segundos\n
-            // printf("%e\n", (time_free)); // Tempo de liberação de memória: %f segundos
-
-            // valor de N
-            printf("[%d]:\t%e\n", m, (((double)(end_calc - start_calc)) / CLOCKS_PER_SEC)); // Tempo de cálculo: %f segundos\n
-            // printf("%e,", (time_alloc)); // Tempo de alocação de memória: %f segundos\n
-            // printf("%e\n", (time_free)); // Tempo de liberação de memória: %f segundos
-
-            // fprintf(f, "Memória usada: %ld KB\n", memory_used_kb);
-
-            // printf("Resultados para N = %d salvos M = %d.\n", N, M);
-        }
-        // Salvando os resultados no arquivo
-        fprintf(f, "%d,", N);                        // valor de N
-        fprintf(f, "%e,", (time_calc / (double)M));  // Tempo de cálculo: %f segundos\n
-        fprintf(f, "%e,", (time_alloc / (double)M)); // Tempo de alocação de memória: %f segundos\n
-        fprintf(f, "%e\n", (time_free / (double)M)); // Tempo de liberação de memória: %f segundos
-        // fprintf(f, "Memória usada: %ld KB\n", memory_used_kb);
+        fprintf(stderr, "Erro ao gerar escala.\n");
+        return 1;
     }
-    fclose(f);
-    free(Ns);
-    printf("Todos os resultados foram salvos no arquivo resultado_c.csv.\n");
+
+    file = fopen(out_csv, "w");
+    if (file == NULL)
+    {
+        fprintf(stderr, "Erro ao abrir arquivo de saida: %s\n", out_csv);
+        free(ns);
+        return 1;
+    }
+    fprintf(file, "N,TCS,TAM,TDM\n");
+
+    for (int n_idx = 0; n_idx < npts; n_idx++)
+    {
+        int n = ns[n_idx];
+        double time_alloc = 0.0;
+        double time_calc = 0.0;
+        double time_free = 0.0;
+
+        for (int m = 0; m < m_count; m++)
+        {
+            if (!run_once(n, &time_alloc, &time_calc, &time_free))
+            {
+                fclose(file);
+                free(ns);
+                return 1;
+            }
+        }
+
+        fprintf(file, "%d,%.6e,%.6e,%.6e\n",
+                n,
+                time_calc / (double)m_count,
+                time_alloc / (double)m_count,
+                time_free / (double)m_count);
+        printf("Resultados para N = %d salvos.\n", n);
+    }
+
+    fclose(file);
+    free(ns);
+    printf("Todos os resultados foram salvos em %s.\n", out_csv);
     return 0;
 }

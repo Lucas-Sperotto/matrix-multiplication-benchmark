@@ -1,30 +1,22 @@
+#!/usr/bin/env python3
 # **********************************************************************
 # Projeto: Benchmark de Multiplicação de Matrizes
-# Descrição: Este código realiza a multiplicação de duas matrizes 
-#            de tamanho N x N, variando automaticamente o valor de N 
-#            e medindo o tempo de alocação de memória e do cálculo.
-#            O código salva os resultados em um arquivo de saída.
+# Descrição: Multiplicação de matrizes N x N em Python puro, medindo
+#            tempo de alocação (TAM), cálculo (TCS) e desalocação (TDM).
+#            TDM é sempre 0.0 pois Python não possui desalocação manual.
 #
 # Linguagem: Python
 #
 # Autores: Lucas Kriesel Sperotto, Marcos Adriano Silva David
 # Data: 05/09/2024
 #
-# Parâmetros:
-#  - N: tamanho da matriz (varia de 10 até 10.000)
-#
-# Saída: Arquivo de resultados contendo:
-#  - Tempo de alocação de memória
-#  - Tempo de cálculo (multiplicação das matrizes)
-#
-# Uso:
-#  - Execute o código, e o arquivo de saída será gerado contendo os 
-#    resultados para diferentes valores de N.
+# Parâmetros (CLI): B Npts M Escala out_csv
+#  - B: tamanho máximo da matriz; N varia de 100 até B
+#  - Npts: número de pontos na escala (mín. 2)
+#  - M: repetições para calcular a média
+#  - Escala: 0=logarítmica, 1=linear
+#  - out_csv: caminho do arquivo CSV de saída
 # **********************************************************************
-
-
-
-#!/usr/bin/env python3
 from __future__ import annotations
 
 import csv
@@ -109,6 +101,8 @@ def main(argv: list[str]) -> int:
         writer.writerow(["N", "TCS", "TAM", "TDM"])
 
         for n in make_points(b, npts, escala):
+            run_once(n)
+
             time_calc = 0.0
             time_alloc = 0.0
             time_free = 0.0
