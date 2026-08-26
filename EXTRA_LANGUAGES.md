@@ -293,6 +293,8 @@ O separador `--` e obrigatorio. Tudo depois dele e o comando-base da implementac
 
 O harness e a verificacao manual de codigo sao os criterios desta fase. `scripts/validate_run.py` valida uma execucao completa do fluxo principal e, por isso, nao substitui `test_extra_language.py` durante o desenvolvimento isolado.
 
+**Limite conhecido do harness:** o CSV de saida carrega apenas tempos, nunca valores de matriz, entao `test_extra_language.py` nao tem como detectar uma multiplicacao aritmeticamente incorreta — uma implementacao com `verify_sample` (ou equivalente) quebrado, incompleto ou nunca chamado pode passar em todos os testes automatizados desde que produza um CSV bem formado. A corretude aritmetica depende inteiramente da revisao manual do codigo de verificacao amostral durante o PR (ver checklist em `.github/pull_request_template.md`).
+
 ## 7. Commits, PR e promocao para `src/`
 
 Antes de enviar:
