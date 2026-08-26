@@ -1,244 +1,286 @@
 # TODO – Benchmark de Multiplicação de Matrizes
 
-Guia de melhorias, correções e próximas fases. Organizado por arquivo e prioridade.
-Última revisão completa: 2026-04-25. Trilha de linguagens extras preparada em 2026-08-25.
+Guia de melhorias, correções e próximas fases da trilha `tcc-lic-thassio`.
+
+Última revisão: **2026-08-26**.
 
 ---
 
-## Trilha `tcc-lic-thassio` — Rust, Julia e Elixir
+## 1. Estado atual da trilha `tcc-lic-thassio`
 
-O objetivo desta branch é preparar o contrato, os testes e o fluxo de colaboração. Os protótipos em `experiments/` ainda não são implementações aceitas. O plano detalhado está em [EXTRA_LANGUAGES.md](EXTRA_LANGUAGES.md).
+Contrato comum adotado para todas as implementações:
 
-Infraestrutura de contribuição:
+```text
+B Npts M escala out_csv
+```
 
-- [x] Documentar o fork com `origin` do aluno e `upstream/tcc-lic-thassio` como base.
-- [x] Definir branches e PRs separados: `feat/rust-benchmark`, `feat/julia-benchmark`, `feat/elixir-benchmark`.
-- [x] Fixar o contrato `B Npts M escala out_csv` e o CSV `N,TCS,TAM,TDM`.
-- [x] Adicionar diagnóstico das toolchains em `scripts/check_extra_toolchains.sh`.
-- [x] Adicionar o harness isolado `scripts/test_extra_language.py`.
-- [x] Preparar o validador para CSVs extras declarados no manifesto, preservando os seis CSVs principais obrigatórios.
-- [x] Preparar o plotador para reconhecer Rust, Julia e Elixir quando os CSVs estiverem presentes.
-- [x] Adicionar template de Pull Request com o checklist da trilha.
+CSV comum:
 
-Implementações, obrigatoriamente nesta ordem:
+```text
+N,TCS,TAM,TDM
+```
 
-- [ ] **Rust:** adaptar `experiments/matriz_rust.rs`, usar `Vec<i32>` plano, `Instant`, `drop` medido em `TDM`, warm-up e validação amostral; passar no harness.
-- [ ] **Julia:** adaptar `experiments/matriz_Julia.jl`, preservar os valores lógicos com indexação 1-based, usar `time_ns()`, registrar `TDM=0.0`, fazer warm-up e passar no harness.
-- [ ] **Elixir:** reescrever `experiments/matriz_multiplication.exs`, escolher acesso indexado previsível, usar `System.monotonic_time/0`, registrar `TDM=0.0`, fazer warm-up e passar no harness.
+Infraestrutura já disponível:
 
-Aceite e integração:
+- [x] Contrato CLI comum documentado.
+- [x] Regra de geração de N padronizada com arredondamento metade-para-cima.
+- [x] Regressão para geração da série de N.
+- [x] Harness isolado `scripts/test_extra_language.py`.
+- [x] Casos inválidos incluindo limites inferiores, superiores e valores negativos.
+- [x] `scripts/validate_run.py` confere contagem de linhas contra `Npts`.
+- [x] `scripts/validate_run.py` confere consistência da série de N entre CSVs.
+- [x] Plotador preparado para reconhecer Rust, Julia e Elixir quando presentes.
+- [x] Diagnóstico de toolchains extras.
+- [x] Template de Pull Request da trilha.
+- [x] Implementação Rust validada e promovida para `src/`.
+- [x] Implementação Julia validada e promovida para `src/`.
+- [ ] Implementação Elixir: PR aberto, aguardando aceite/merge.
 
-- [ ] Promover cada arquivo de `experiments/` para `src/` somente após aceite explícito do mantenedor e repetir o harness no novo caminho.
-- [ ] Depois dos três PRs, avaliar um PR separado `feat/extra-languages-integration`.
-- [ ] Se aprovado, tornar as novas linguagens opcionais nos runners e registrar toolchains/saídas no manifesto.
-- [ ] Confirmar o validador e os gráficos opcionais no fluxo completo depois que as implementações existirem.
-- [ ] Manter C, C++, Java e Python executáveis e validáveis quando nenhuma toolchain extra estiver instalada.
+### Pull Requests da trilha
 
----
+Revisar e tratar **nesta ordem**:
 
-## Revisão de código — 2026-04-25 (completa)
+- [ ] **PR #9 — Rust:** `docs(rust): formaliza aceite técnico do benchmark Rust`.
+- [ ] **PR #10 — Julia:** `docs(julia): formaliza aceite técnico do benchmark Julia`.
+- [ ] **PR #11 — Elixir:** `feat(elixir): integra benchmark Elixir ao contrato comum`.
 
-### Bugs corrigidos nesta revisão
+Observação histórica:
 
-- [x] **`src/matriz_python.py`** — shebang `#!/usr/bin/env python3` estava na linha 27; movido para linha 1.
-      Efeito do bug: `./src/matriz_python.py` falha ao ser executado diretamente (kernel ignora shebang fora da linha 1).
-- [x] **`requirements.txt`** — `pandas` e `psutil` listados como dependências mas nenhum é usado por `src/` ou `scripts/`.
-      Mantido apenas `matplotlib>=3.6`. Instalar pandas (~60 MB) sem necessidade confundia usuários novos.
-- [x] **`src/plot_benchmarks.py`** — título do gráfico "C vs C++" enganoso quando o plot usa `C_O3` vs `C++_O3`.
-      Corrigido: o título agora reflete quais variantes estão sendo comparadas ("C -O3 vs C++ -O3").
-
-### Bugs conhecidos — a corrigir
-
-- [x] **`experiments/teste.py`** — `linear()` não depende mais de `Npts` global; o arquivo foi reescrito com validação antes da abertura do CSV, `time.perf_counter()` e cabeçalho `N,TCS,TAM,TDM`.
-- [x] **`experiments/matriz_c_blas.c`** — `cblas_dgemm` agora recebe buffers `double *` contíguos.
-- [x] **`experiments/matriz_c_blas.c`** — argumentos são validados antes de abrir o arquivo de saída.
-- [x] **`experiments/matriz_c_blas.c`** — `fopen` é checado antes de qualquer `fprintf`.
-
-### Achados gerais — qualidade e consistência
-
-- [x] **Comentários de cabeçalho desatualizados** em todos os arquivos de `src/` diziam "N varia de 10 até 10.000".
-      O mínimo real é 100 (enforced por `parse_int`). Atualizado para "N varia de 100 até B".
-- [x] **`experiments/teste.py`** — arquivo experimental com múltiplos problemas; reescrito antes de qualquer promoção a `src/`:
-      - `linear()` deixou de usar variável global
-      - `time.time()` foi substituído por `time.perf_counter()`
-      - `np.dot` e `psutil` foram removidos para evitar dependências externas nesse experimento
-      - Abertura do arquivo de saída passou a ocorrer após validação dos argumentos
-      - Código morto foi removido
-      - Cabeçalho CSV agora é `"N,TCS,TAM,TDM"`
-- [ ] **`experiments/matriz_rust.rs`** — usa `Vec<Vec<i32>>` (não contíguo), valores de N fixos e saída `.dat` fora do contrato CSV; seguir a etapa Rust de `EXTRA_LANGUAGES.md`.
-- [ ] **`experiments/matriz_Julia.jl`** — usa `Dates.now()` com resolução inadequada e conversão incorreta para segundos, além de saída `.dat`; seguir a etapa Julia de `EXTRA_LANGUAGES.md`.
-- [ ] **`experiments/matriz_multiplication.exs`** — referencia resultado fora de escopo, usa acesso incompatível com listas e saída `.dat`; reescrever conforme a etapa Elixir de `EXTRA_LANGUAGES.md`.
-- [x] **`build/` não aparece rastreado no índice atual** (`git ls-files build` retorna vazio). Nada a desrastrear nesta revisão.
-- [ ] **`out/teste/`** parece ser execução local temporária que não deveria estar no histórico. Avaliar remoção.
-- [x] **`run_all.sh`** usa flags de aviso na compilação (`-Wall -Wextra`).
-- [x] **`run_all.sh` e `run_all.ps1`** especificam padrão da linguagem (`-std=c11`, `-std=c++17`).
-- [x] **Java usa `int[][]`** (array de arrays, não contíguo). Documentado na metodologia.
-- [x] **Sem warm-up** antes de medir. Corrigido com 1 rodada não cronometrada antes do loop de M repetições.
+- O PR #8 de Elixir foi fechado sem merge apenas para corrigir a ordem formal dos PRs.
+- Rust e Julia já haviam sido incorporados ao histórico de `tcc-lic-thassio` antes da formalização dos PRs; por isso #9 e #10 registram aceite técnico retroativo sem reescrever histórico.
 
 ---
 
-## MVP publicável — status 2026-04-25
+## 2. Prioridade imediata — antes/durante o Prompt 7
 
-- [x] Fluxo principal: C, C++, Java, Python com contrato comum `B Npts M escala out_csv`.
-- [x] CSVs com cabeçalho comum: `N,TCS,TAM,TDM`.
-- [x] C/C++ geram executáveis em `build/linux/`; Java compila em `build/java/`.
-- [x] `run_all.sh` com modo interativo e `--batch`.
-- [x] `run_all.ps1` alinhado ao mesmo contrato no Windows.
-- [x] Resultados em `out/<run_id>/`.
-- [x] `run_manifest.json`, `system_info.md` e `system_info.json` gerados por execução.
-- [x] `scripts/validate_run.py` valida CSVs, metadados e gráficos.
-- [x] `src/plot_benchmarks.py` sem dependência de pandas, apenas matplotlib.
-- [x] Shebang em `src/matriz_python.py` na linha 1.
-- [x] `requirements.txt` contém apenas dependências reais (`matplotlib`).
-- [x] Título do gráfico "C vs C++" reflete as variantes reais (-O3 quando disponível).
-- [ ] `run_all.ps1` não foi executado neste ambiente (sem `pwsh`). Validar em Windows antes de divulgar.
+### P0/P1 de contrato e execução
 
-Itens fora do MVP (experimentos):
+- [ ] **C e C++:** criar o diretório pai de `out_csv` quando ele ainda não existir, como já fazem Java/Python/Rust/Julia/Elixir.
+- [ ] Adicionar regressão no harness/testes para execução com caminho de saída em diretório pai inexistente.
+- [ ] Manter `validate_run.py` exigindo exatamente `Npts` linhas por CSV.
+- [ ] Manter `validate_run.py` exigindo a mesma série de N em todas as implementações da execução.
+- [ ] Manter teste regressivo do caso `B=101 Npts=3 escala=1` → `N=[100,101,101]`.
 
-- [ ] Implementar Rust, Julia e Elixir em três PRs separados e promover a `src/` somente após aceite.
-- [ ] Avaliar a integração opcional dessas linguagens ao runner, manifesto, validador e gráficos em um quarto PR.
-- [x] Corrigir `experiments/matriz_c_blas.c` (bugs acima) antes de adicionar ao fluxo público.
-- [ ] Adicionar variante NumPy em Python para comparação justa de desempenho.
+### Corretude do algoritmo
+
+O harness de contrato valida CLI/CSV/tempos/série N, mas não prova sozinho que a multiplicação está matematicamente correta.
+
+- [ ] Criar testes internos pequenos de multiplicação para C, C++, Java, Python, Rust, Julia e Elixir.
+- [ ] Usar matrizes pequenas conhecidas, incluindo uma matriz que **não seja identidade**, para evitar falso negativo estrutural.
+- [ ] Executar esses testes fora da janela de benchmark; eles são testes de corretude, não métricas de desempenho.
+- [ ] Manter a validação amostral em nove posições durante a execução como defesa adicional.
 
 ---
 
-## 0. Padronização Geral
+## 3. Recomendações metodológicas obrigatórias
 
-- [x] Colunas CSV: `N,TCS,TAM,TDM`
-- [x] Python e Java registram `TDM=0.0`
-- [x] Nomes de arquivo: `resultado_c.csv`, `resultado_c_O3.csv`, etc.
-- [x] Contrato CLI: `<B> <Npts> <M> <escala> <out_csv>`
-- [x] Validação de argumentos de entrada em todas as linguagens
-- [x] Adicionar **warm-up** (1 rodada não cronometrada antes das M repetições)
-- [x] Documentar metodologia: o que é TCS, TAM, TDM; por que M repetições; por que warm-up
-- [x] Flags de compilação padrão: `-std=c11`, `-std=c++17`
+### Definir claramente o objeto da comparação
 
----
+Adotar explicitamente uma formulação equivalente a:
 
-## 1. `src/matriz_c.c`
+> Comparam-se implementações funcional e algoritmicamente equivalentes de multiplicação matricial manual O(N³), preservando características fundamentais de representação e runtime de cada linguagem. Não se assume equivalência microarquitetural das estruturas de dados.
 
-**Estado atual:** bom. Alocação 1D contígua, `CLOCK_MONOTONIC`, overflow check, `verify_sample` por amostragem.
+- [ ] Registrar essa definição em `METHODOLOGY.md`.
+- [ ] Evitar afirmar que todas as linguagens realizam operações de memória internamente idênticas.
 
-- [x] Atualizar comentário de cabeçalho: "N varia de 100 até B" (não "de 10 até 10.000")
-- [x] Adicionar warm-up antes do loop de M
-- [x] Adicionar `-std=c11 -Wall -Wextra` na compilação (em `run_all.sh`)
-- [ ] (Opcional) Separar explicitamente inicialização de alocação no TAM para clareza metodológica
+### Métricas TAM, TCS e TDM
 
----
+- [ ] Documentar que TAM/TCS/TDM têm significado operacional diferente em runtimes com GC e estruturas imutáveis.
+- [ ] Não comparar TDM de C/C++/Rust diretamente com `TDM=0.0` de Java/Python/Julia/Elixir como se medissem o mesmo mecanismo.
+- [ ] Avaliar uma métrica derivada para análise global:
 
-## 2. `src/matriz_cpp.cpp`
+```text
+TEXEC = TAM + TCS + TDM
+```
 
-**Estado atual:** bom. `std::chrono::steady_clock`, `std::vector<int>` plano, tratamento de exceções.
+- [ ] Se `TEXEC` for adotado, manter TAM/TCS/TDM como métricas diagnósticas e declarar as limitações de GC/JIT.
 
-- [x] Atualizar comentário de cabeçalho: "N varia de 100 até B"
-- [x] Adicionar warm-up antes do loop de M
-- [x] Adicionar `-std=c++17 -Wall -Wextra` na compilação (em `run_all.sh`)
-- [ ] (Opcional) Substituir `std::vector<int>().swap(mat1)` por `mat1 = {}` — mais legível, mesmo efeito
+### Warm-up, JIT e GC
+
+- [ ] Preservar pelo menos um warm-up descartado por N conforme o contrato atual.
+- [ ] Registrar versões e características de runtime/toolchain no manifesto.
+- [ ] Documentar diferenças de JIT entre Java, Julia e BEAM.
+- [ ] Não forçar GC para fabricar uma métrica TDM em linguagens com memória gerenciada.
+- [ ] Considerar aumentar M nos experimentos finais e analisar estabilidade/variância dos tempos.
 
 ---
 
-## 3. `src/matriz_java.java`
+## 4. Rust — decisões a documentar
 
-**Estado atual:** bom. `System.nanoTime()`, `Locale.US`, `Files.createDirectories`, TDM=0.0 consistente.
+Estado: implementação aceita tecnicamente e já presente em `src/`.
 
-- [x] Atualizar comentário de cabeçalho: "N varia de 100 até B"
-- [x] Adicionar warm-up antes do loop de M (crítico: JIT não otimizado na primeira chamada)
-- [x] Documentar que `int[][]` é array de arrays (não contíguo) — comportamento padrão Java, não bug
-- [ ] (Opcional) Renomear classe para `MatrizJava` seguindo convenção Java (requer renomear arquivo)
-
----
-
-## 4. `src/matriz_python.py`
-
-**Estado atual:** bom após correção do shebang. `time.perf_counter()`, `csv.writer`, `Path`, sem dependências externas.
-
-- [x] Shebang na linha 1
-- [x] Atualizar comentário de cabeçalho: "N varia de 100 até B"
-- [x] Adicionar warm-up antes do loop de M
-- [ ] (Opcional) Variante com NumPy para comparação (`experiments/matriz_numpy.py`)
+- [x] `Vec<i32>` plano.
+- [x] Indexação `i*N+j`.
+- [x] `Instant` para temporização monotônica.
+- [x] `drop` explícito em TDM.
+- [x] Warm-up e M repetições.
+- [x] Validação amostral fora de TCS.
+- [x] `black_box` fora da janela TCS.
+- [x] Acesso sem bounds-check no laço quente com invariantes de segurança documentadas.
+- [ ] Registrar em `METHODOLOGY.md` que o benchmark Rust usa `unsafe/get_unchecked` no laço quente.
+- [ ] Registrar em `THREATS_TO_VALIDITY.md` que essa opção aproxima o custo de acesso de C/C++, mas não representa uma implementação Rust genérica com bounds-check ativo.
+- [ ] Preservar no runner exatamente a política de compilação usada na validação (`--edition=2021`, otimização e warnings como erro quando aplicável).
 
 ---
 
-## 5. `src/plot_benchmarks.py`
+## 5. Julia — decisões antes dos experimentos finais
 
-**Estado atual:** funcional. Gera 4 grupos de gráficos, lida com CSVs faltantes.
+Estado: implementação aceita tecnicamente e já presente em `src/`.
 
-- [x] Título do gráfico "C vs C++" reflete variantes reais
-- [x] Adicionar flags `--logx` / `--logy` para escalas logarítmicas nos eixos
-- [x] Gráfico adicional: "C e C++ sem otimização" (somente `C` e `C++`, sem `_O3`)
-- [x] Aceitar lista de linguagens a excluir via argumento: `--exclude Python`
-
----
-
-## 6. `run_all.sh`
-
-**Estado atual:** bom. `set -euo pipefail`, `--batch`, validação, manifest, validação pós-execução.
-
-- [x] Adicionar `-std=c11` e `-Wall -Wextra` nas invocações de `gcc`
-- [x] Adicionar `-std=c++17` e `-Wall -Wextra` nas invocações de `g++`
-- [x] O cache matplotlib em `check_python_runtime` usa `$ROOT_DIR/.cache/matplotlib`; o gerador de gráficos usa `out_dir/.matplotlib`. Unificado para `.cache/matplotlib`.
+- [x] Multiplicação manual O(N³).
+- [x] Sem BLAS/`*` matricial.
+- [x] `time_ns()`.
+- [x] `TDM=0.0`, sem GC forçado.
+- [x] Conversão correta entre índices lógicos 0-based e indexação Julia 1-based.
+- [x] `@inbounds` validado também com `--check-bounds=yes`.
+- [ ] **Decidir formalmente `Matrix{Int}` versus `Matrix{Int32}`.**
+- [ ] Preferir `Int32` se o objetivo for aproximar a largura do elemento usada por C/C++/Java/Rust, salvo justificativa experimental em contrário.
+- [ ] Se `Int` for mantido, registrar que em plataformas 64-bit normalmente representa 64 bits e altera consumo de memória/cache.
+- [ ] Documentar layout column-major de Julia versus layout row-major/linear das outras implementações.
+- [ ] Documentar que a ordem `i,j,k` foi mantida para preservar equivalência algorítmica, mesmo não sendo a ordem mais favorável ao layout column-major.
+- [ ] Registrar a participação potencial do GC em TAM.
 
 ---
 
-## 7. `scripts/validate_run.py`
+## 6. Elixir — decisões metodológicas e operacionais
 
-**Estado atual:** sólido. Valida CSVs, cabeçalhos, tipos, metadados, PNGs.
+Estado: implementação validada na branch `feat/elixir-benchmark`; PR #11 aberto.
 
-- [x] Adicionar check de NaN/Inf nos valores float dos CSVs
-- [x] Validar que N é monotonicamente não decrescente nas linhas
-
----
-
-## 8. `scripts/gen_sysinfo_md.sh`
-
-**Estado atual:** bom. Detecta WSL, captura info via PowerShell, gera `.md` e `.json`.
-
-- [ ] Verificar compatibilidade do `date -Iseconds` em macOS (GNU vs BSD date)
-
----
-
-## 9. `experiments/` — itens antes de promover ao fluxo principal
-
-- [x] `teste.py` — corrigir bug em `linear()` (usa `Npts` global), remover código morto, trocar `time.time()` por `time.perf_counter()`, adicionar coluna TDM
-- [x] `matriz_c_blas.c` — corrigir tipo das matrizes (`double *` contíguo), corrigir ordem de validação de argc/fopen
-- [ ] `matriz_rust.rs` — adaptar ao contrato CLI/CSV, usar buffer plano, `Instant`, `drop` medido e `verify_sample`; validar com `scripts/test_extra_language.py`
-- [ ] `matriz_Julia.jl` — adaptar ao contrato CLI/CSV, usar `time_ns()`, `TDM=0.0` e `verify_sample`; validar com o harness
-- [ ] `matriz_multiplication.exs` — reescrever com acesso indexado válido, relógio monotônico, `TDM=0.0` e validação amostral; validar com o harness
-- [ ] Promover os três arquivos para nomes padronizados em `src/` somente após aceite do respectivo PR
+- [x] Representação escolhida após comparar listas, tuplas aninhadas, `:array` e tupla plana.
+- [x] Tupla plana indexada por `i*N+j`.
+- [x] Construção O(N²) por lista + `List.to_tuple/1`.
+- [x] Multiplicação manual O(N³).
+- [x] `System.monotonic_time/0` e `System.convert_time_unit/3`.
+- [x] `TDM=0.0` sem GC forçado.
+- [x] Harness completo aprovado.
+- [x] Escalonamento compatível com O(N³) em teste diagnóstico.
+- [ ] Fazer review final e merge do PR #11 somente após #9 e #10.
+- [ ] Documentar que `res` é construído durante TCS por causa da imutabilidade da linguagem.
+- [ ] Documentar que TAM sofre pressão/variância de GC causada pela lista intermediária.
+- [ ] Não interpretar TCS de Elixir como fase operacional idêntica ao TCS de linguagens que pré-alocam `res`.
+- [ ] Definir limites experimentais práticos para B/M em Elixir antes da coleta definitiva, evitando execuções inviáveis.
 
 ---
 
-## 10. Organização do repositório
+## 7. Auditoria independente — decisões sobre achados
 
-- [x] `build/` — confirmado sem arquivos rastreados no índice atual; nenhuma ação `git rm --cached` necessária nesta revisão
-- [ ] Avaliar remoção de `out/teste/` do histórico se for execução local descartável
-- [ ] (Opcional) Adicionar README em inglês (`README_en.md`) para ampliar alcance
-- [ ] (Opcional) Adicionar GitHub Actions para smoke test automático em PRs
+### Falsos positivos identificados
 
----
+- [x] **Arredondamento C++:** `std::round` não usa bankers rounding; para N positivo coincide com a política metade-para-cima adotada no projeto.
+- [x] **Arredondamento Java:** `Math.round(double)` é compatível com `floor(x + 0.5)` para os valores positivos do benchmark.
+- [x] **Overflow do acumulador com a matriz identidade:** o resultado esperado é `i+j`; com `N <= 100000`, não há overflow de `int32` no valor calculado nas implementações atuais.
 
-## 11. Checklist pré-publicação
+Esses itens **não devem gerar alteração de código** sem nova evidência.
 
-- [ ] Clonar em pasta limpa e rodar `./run_all.sh --batch ...` sem arquivos pré-gerados
-- [ ] Rodar `.\run_all.ps1` no Windows nativo
-- [ ] Confirmar que `src/` contém apenas código-fonte
-- [ ] Confirmar que `build/` não está no histórico git
-- [ ] Confirmar que `out/<id>/` tem CSVs, gráficos, `system_info.md` e `run_manifest.json`
-- [ ] Rodar `python3 scripts/validate_run.py out/<id>` com resultado "sucesso"
+### Achados reais a preservar
 
----
+- [ ] C/C++ não criam automaticamente o diretório pai de `out_csv`.
+- [ ] Layout de memória varia entre linguagens e deve constar nas ameaças à validade.
+- [ ] JIT, GC e política de warm-up não são semanticamente idênticos entre runtimes.
+- [ ] TDM não é métrica diretamente comparável entre memória manual e memória gerenciada.
 
-## 12. Extensões futuras
+### Auditoria pós-integração
 
-- [ ] Variante NumPy para Python
-- [ ] Rust, Julia e Elixir no contrato comum, seguindo a ordem e os PRs de `EXTRA_LANGUAGES.md`
-- [ ] BLAS (C/C++) no contrato comum — experimento C corrigido, ainda não integrado ao fluxo principal
-- [ ] Paralelismo: OpenMP em C/C++, threads em Java
-- [ ] Coluna de memória RSS em todos os benchmarks
-- [ ] Análise estatística: desvio padrão, boxplot
-- [ ] Relatório final automático em Markdown
-- [ ] Medição de energia (RAPL, nvidia-smi)
+- [ ] Repetir auditoria independente depois do Prompt 7.
+- [ ] Exigir que o auditor registre antes da análise:
+  - branch atual;
+  - SHA atual;
+  - `git status`;
+  - lista das sete implementações realmente analisadas.
+- [ ] Não aceitar conclusões baseadas em `main` quando o alvo da auditoria for `tcc-lic-thassio`.
 
 ---
 
-✅ FIM DO TODO
+## 8. Prompt 7 — integração das linguagens extras
+
+Criar/usar uma branch específica, preferencialmente:
+
+```text
+feat/extra-languages-integration
+```
+
+Objetivos:
+
+- [ ] Integrar Rust, Julia e Elixir aos runners sem quebrar o fluxo principal.
+- [ ] Manter C, C++, Java e Python funcionais quando nenhuma toolchain extra estiver instalada.
+- [ ] Definir política das extras: opcionais por detecção automática, por flags explícitas, ou ambas.
+- [ ] Se uma linguagem for explicitamente solicitada e a toolchain estiver ausente, abortar com erro claro.
+- [ ] Registrar no manifesto **somente** linguagens realmente executadas.
+- [ ] Registrar versões das toolchains usadas.
+- [ ] Incluir os CSVs extras no manifesto quando executados.
+- [ ] Validar todos os CSVs declarados.
+- [ ] Manter os CSVs principais obrigatórios conforme a política atual, salvo decisão explícita em contrário.
+- [ ] Fazer o plotador incluir apenas séries presentes e válidas.
+- [ ] Garantir que ausência de uma linguagem opcional não invalide uma execução do núcleo principal.
+- [ ] Testar o fluxo completo com todas as toolchains disponíveis.
+- [ ] Testar o fluxo principal simulando ausência das toolchains extras.
+- [ ] Atualizar README/EXECUTION/CONTRIBUTING após a arquitetura de integração estar estabilizada.
+
+---
+
+## 9. Validação e testes
+
+- [ ] Criar uma suíte de smoke test oficial do projeto.
+- [ ] Manter `scripts/test_point_generation.py` como regressão do contrato de N.
+- [ ] Manter `scripts/test_validate_run.py` para CSV truncado e séries N divergentes.
+- [ ] Executar `git diff --check` antes de cada merge.
+- [ ] Executar `py_compile` nos scripts Python alterados.
+- [ ] Rodar harness específico de cada linguagem antes da integração.
+- [ ] Rodar `validate_run.py` em execução completa depois da integração.
+- [ ] Validar `run_all.ps1` no Windows nativo antes da publicação.
+- [ ] Clonar o repositório em diretório limpo e reproduzir uma execução completa antes da coleta experimental final.
+
+---
+
+## 10. Documentação científica
+
+Criar/atualizar:
+
+- [ ] `METHODOLOGY.md`.
+- [ ] `docs/THREATS_TO_VALIDITY.md`.
+- [ ] README com quick start e visão geral.
+- [ ] `EXECUTION.md` com execução operacional e exemplos.
+- [ ] `CONTRIBUTING.md` com fluxo atualizado das branches.
+- [ ] `EXTRA_LANGUAGES.md` refletindo o estado pós-integração.
+
+`METHODOLOGY.md` deve cobrir, no mínimo:
+
+- [ ] objetivo do benchmark;
+- [ ] variável independente N;
+- [ ] variáveis dependentes TAM/TCS/TDM e eventual TEXEC;
+- [ ] controles experimentais;
+- [ ] geração de N e regra de arredondamento;
+- [ ] warm-up e número de repetições;
+- [ ] validação matemática;
+- [ ] flags de compilação;
+- [ ] JIT;
+- [ ] GC;
+- [ ] layout e tipo numérico;
+- [ ] hardware e sistema operacional;
+- [ ] versões das toolchains;
+- [ ] limitações e ameaças à validade;
+- [ ] procedimento de reprodução.
+
+---
+
+## 11. Portabilidade e organização
+
+- [ ] Verificar compatibilidade de `date -Iseconds` no macOS.
+- [ ] Confirmar que `src/` contém apenas código-fonte.
+- [ ] Confirmar que `build/` não está rastreado.
+- [ ] Avaliar remoção de resultados locais históricos em `out/teste/`, se ainda existirem.
+- [ ] Confirmar que artefatos compilados/caches/resultados locais permanecem ignorados.
+- [ ] Considerar GitHub Actions para smoke tests automáticos em PRs.
+- [ ] Considerar README em inglês após estabilização do TCC.
+
+---
+
+## 12. Extensões futuras — fora do escopo imediato
+
+- [ ] Variante NumPy para Python.
+- [ ] BLAS em C/C++ no contrato comum.
+- [ ] Paralelismo com OpenMP/threads.
+- [ ] Medição de memória RSS.
+- [ ] Estatística adicional: desvio padrão, percentis, boxplots e intervalos de confiança.
+- [ ] Relatório automático em Markdown.
+- [ ] Medição de energia quando houver infraestrutura adequada.
