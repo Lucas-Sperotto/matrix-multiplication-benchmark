@@ -1,7 +1,7 @@
 # Diagramas de Execucao e Arquitetura
 
 Este documento descreve os fluxos do benchmark publicavel de multiplicacao de matrizes:
-C, C++, Java e Python executados por `run_all.sh` ou `run_all.ps1`.
+C, C++, Java e Python formam o nucleo; Rust, Julia e Elixir entram opcionalmente por flags de `run_all.sh` ou `run_all.ps1`.
 
 Os diagramas usam Mermaid. No GitHub, eles sao renderizados automaticamente em arquivos Markdown.
 
@@ -11,7 +11,7 @@ Os diagramas usam Mermaid. No GitHub, eles sao renderizados automaticamente em a
 - Orquestradores: `run_all.sh` e `run_all.ps1`
 - Scripts auxiliares: `scripts/`
 - Saida padrao de cada execucao: `out/<run_id>/`
-- Experimentos em `experiments/` ainda nao fazem parte do fluxo publicavel.
+- Experimentos que permanecem em `experiments/`, como BLAS, ainda nao fazem parte do fluxo publicavel.
 
 ## Visao Geral
 
@@ -55,6 +55,9 @@ flowchart LR
 | `src/matriz_cpp.cpp` | Benchmark C++, incluindo versao compilada normal e `-O3`. |
 | `src/matriz_java.java` | Benchmark Java com `int[][]`, compilado para `build/java/`. |
 | `src/matriz_python.py` | Benchmark Python puro. |
+| `src/matriz_rust.rs` | Benchmark Rust opcional, compilado quando `--with-rust`/`-WithRust` e usado. |
+| `src/matriz_Julia.jl` | Benchmark Julia opcional, executado quando `--with-julia`/`-WithJulia` e usado. |
+| `src/matriz_multiplication.exs` | Benchmark Elixir opcional, executado quando `--with-elixir`/`-WithElixir` e usado. |
 | `src/plot_benchmarks.py` | Le CSVs de uma execucao e gera graficos PNG para TCS, TAM e TDM. |
 | `scripts/gen_sysinfo_md.sh` | Gera `system_info.md` e `system_info.json` em Linux/WSL. |
 | `scripts/validate_run.py` | Valida CSVs, metadados JSON/MD e existencia dos graficos. |
@@ -75,9 +78,12 @@ sequenceDiagram
     U->>R: Informa parametros ou usa modo interativo
     R->>R: Normaliza run_name e valida B, Npts, M, escala
     R->>R: Confere gcc, g++, Java, Python e matplotlib
+    opt Flags de linguagens extras
+        R->>R: Confere rustc, julia e/ou elixir solicitados
+    end
     R->>B: Compila C, C -O3, C++, C++ -O3 e Java
 
-    loop Para cada variante
+    loop Para cada variante central ou extra solicitada
         R->>C: Executa com B Npts M escala out_csv
         C->>C: Warm-up por N
         C->>C: M repeticoes cronometradas por N
@@ -108,13 +114,17 @@ flowchart TD
     F -- Nao --> F1[Mostra uso e encerra]
     F -- Sim --> G[Valida intervalos: B, Npts, M, escala]
     G --> H[Checa gcc, g++, javac, java e python3]
-    H --> I[Checa matplotlib com MPLCONFIGDIR em .cache/matplotlib]
+    H --> H1{Ha flags de extras?}
+    H1 -- Sim --> H2[Checa rustc, julia e/ou elixir solicitados]
+    H1 -- Nao --> I[Checa matplotlib com MPLCONFIGDIR em .cache/matplotlib]
+    H2 --> I
     I --> J["Cria out/<run_id>/, build/linux/ e build/java/"]
     J --> K[Compila C e C -O3]
     K --> L[Compila C++ e C++ -O3]
     L --> M[Compila Java]
-    M --> N[Executa 6 benchmarks]
-    N --> O[Coleta system_info.md e system_info.json]
+    M --> N[Executa 6 benchmarks centrais]
+    N --> N1[Compila/executa extras solicitadas]
+    N1 --> O[Coleta system_info.md e system_info.json]
     O --> P[Gera run_manifest.json]
     P --> Q[Gera graficos PNG]
     Q --> R[Valida execucao]
@@ -133,13 +143,17 @@ flowchart TD
     E --> F
     F --> G[Valida B, Npts, M e Escala]
     G --> H[Checa gcc, g++, java, javac e python]
-    H --> I[Checa matplotlib]
+    H --> H1{Ha switches de extras?}
+    H1 -- Sim --> H2[Checa rustc, julia e/ou elixir solicitados]
+    H1 -- Nao --> I[Checa matplotlib]
+    H2 --> I
     I --> J["Cria out/<run_id>/, build/windows/ e build/java/"]
     J --> K[Compila C e C -O3 para .exe]
     K --> L[Compila C++ e C++ -O3 para .exe]
     L --> M[Compila Java]
     M --> N[Executa C, C -O3, C++, C++ -O3, Java e Python]
-    N --> O[Gera system_info.md e system_info.json via PowerShell]
+    N --> N1[Compila/executa extras solicitadas]
+    N1 --> O[Gera system_info.md e system_info.json via PowerShell]
     O --> P[Gera run_manifest.json]
     P --> Q[Executa plot_benchmarks.py]
     Q --> R[Executa validate_run.py]
@@ -173,7 +187,7 @@ N,TCS,TAM,TDM
 | `N` | Dimensao da matriz quadrada `N x N` |
 | `TCS` | Tempo medio de calculo da multiplicacao |
 | `TAM` | Tempo medio de alocacao e inicializacao das matrizes |
-| `TDM` | Tempo medio de desalocacao; em Java e Python e `0.0` |
+| `TDM` | Tempo medio de desalocacao; em Java, Python, Julia e Elixir e `0.0` |
 
 ## Ciclo Interno de um Benchmark
 
@@ -435,7 +449,7 @@ stateDiagram-v2
 
 ## Integracao de Nova Linguagem ao Fluxo Principal
 
-Use este roteiro quando um experimento for promovido para `src/`.
+Use este roteiro quando um experimento for promovido para `src/`. Rust, Julia e Elixir seguem este fluxo: sao **opcionais por flag**, nao obrigatorias -- nao entram em `EXPECTED_CSVS` (que permanece só com os 6 nomes centrais), so no manifesto quando a flag correspondente e usada e a execucao tem sucesso.
 
 ```mermaid
 flowchart TD
@@ -443,13 +457,13 @@ flowchart TD
     B --> C[Gerar CSV com cabecalho N,TCS,TAM,TDM]
     C --> D[Adicionar warm-up e M repeticoes]
     D --> E[Adicionar verificacao do resultado]
-    E --> F[Atualizar run_all.sh]
-    E --> G[Atualizar run_all.ps1]
-    F --> H[Adicionar entrada no run_manifest.json]
+    E --> F["Adicionar flag opcional em run_all.sh (--with-X)"]
+    E --> G["Adicionar flag opcional em run_all.ps1 (-WithX)"]
+    F --> H["Se a flag for usada: detectar toolchain, compilar/executar, abortar tudo se falhar"]
     G --> H
-    H --> I[Atualizar FILES em plot_benchmarks.py]
-    I --> J[Atualizar EXPECTED_CSVS em validate_run.py]
-    J --> K["Executar smoke test em out/<run_id>/"]
+    H --> I["Adicionar entrada em run_manifest.json (languages/tools) somente se a execucao teve sucesso"]
+    I --> J["Manter plot_benchmarks.py e validate_run.py compativeis com a serie opcional"]
+    J --> K["Executar smoke test com e sem a flag em out/<run_id>/"]
     K --> L[Documentar diferencas metodologicas relevantes]
 ```
 
@@ -457,9 +471,9 @@ flowchart TD
 
 - `TAM` mede alocacao e inicializacao juntas.
 - `TCS` mede apenas a multiplicacao.
-- `TDM` mede liberacao explicita quando a linguagem permite; Java e Python registram `0.0`.
+- `TDM` mede liberacao explicita quando a linguagem permite; Java, Python, Julia e Elixir registram `0.0`.
 - O warm-up nao entra na media final.
 - `M` reduz ruido por media aritmetica simples.
 - O algoritmo principal e cubico, com tres lacos aninhados.
 - A matriz identidade como segundo operando torna a verificacao simples sem alterar a complexidade do calculo.
-- Comparacoes entre linguagens devem considerar layout de memoria, otimizacoes do compilador, JIT do Java e overhead do interpretador Python.
+- Comparacoes entre linguagens devem considerar layout de memoria, largura dos inteiros, otimizacoes do compilador, JIT de Java/Julia/BEAM, GC e imutabilidade.

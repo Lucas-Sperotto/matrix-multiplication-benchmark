@@ -1,14 +1,14 @@
-# Trilha Rust, Julia e Elixir
+# Rust, Julia e Elixir
 
-Este guia prepara a contribuicao do aluno responsavel por Rust, Julia e Elixir. A base de trabalho e a branch `tcc-lic-thassio`; as implementacoes existentes em `experiments/` sao apenas prototipos e ainda nao atendem ao contrato publicavel.
+Este guia registra o ambiente, o contrato e os critérios de validação de Rust, Julia e Elixir. As três implementações foram aceitas em `src/` e são opcionais nos runners; a base de integração continua sendo a branch `tcc-lic-thassio`.
 
-O trabalho deve seguir esta ordem, com um Pull Request por linguagem:
+O desenvolvimento inicial seguiu esta ordem, com um Pull Request por linguagem:
 
 1. `feat/rust-benchmark`
 2. `feat/julia-benchmark`
 3. `feat/elixir-benchmark`
 
-Cada PR deve usar `tcc-lic-thassio` como branch de destino. Somente comece a linguagem seguinte depois de atualizar a base com o PR anterior aceito. A integracao dos extras nos orquestradores, manifesto, graficos e execucoes publicaveis e uma etapa posterior e opcional; ela nao deve ser misturada aos tres PRs de implementacao.
+Cada PR usou `tcc-lic-thassio` como branch de destino, e a base foi atualizada entre as etapas. A integração posterior adicionou flags explícitas aos orquestradores sem tornar as toolchains extras obrigatórias para o fluxo central.
 
 ## 1. Preparar o ambiente
 
@@ -78,7 +78,7 @@ Por fim, na raiz do repositorio:
 python3 scripts/test_extra_language.py --language Python -- python3 src/matriz_python.py
 ```
 
-O segundo comando testa o harness contra a implementacao Python de referencia. Ele nao testa Rust, Julia ou Elixir.
+O segundo comando testa o harness contra a implementacao Python de referencia. Os comandos específicos das três linguagens estão na seção 5.
 
 O ambiente virtual evita misturar o Matplotlib do sistema com versoes de NumPy instaladas no perfil do usuario. Ative-o novamente com `source .venv/bin/activate` sempre que for executar o fluxo completo do repositorio.
 
@@ -243,17 +243,17 @@ Use um relogio monotonicamente crescente e de alta resolucao. A validacao fica f
 - trate overflow no calculo do tamanho antes de alocar;
 - cronometre com `std::time::Instant`;
 - use `drop` para tornar a liberacao explicita e medir `TDM`;
-- nao adicione crates: o prototipo deve continuar compilavel apenas com `rustc`.
+- nao adicione crates: a implementação deve continuar compilável apenas com `rustc`.
 
-Trabalhe primeiro em `experiments/matriz_rust.rs`. Os comandos abaixo so devem ser executados depois que o arquivo aceitar o contrato; o prototipo atual ignora a CLI e tenta dimensoes muito grandes:
+O código aceito está em `src/matriz_rust.rs`:
 
 ```bash
-mkdir -p build/extra
-rustfmt --check experiments/matriz_rust.rs
-rustc --edition=2021 -C opt-level=3 -D warnings experiments/matriz_rust.rs -o build/extra/matriz_rust
+mkdir -p build/linux
+rustfmt --check src/matriz_rust.rs
+rustc --edition=2021 -C opt-level=3 -D warnings src/matriz_rust.rs -o build/linux/matriz_rust
 
-./build/extra/matriz_rust 144 3 1 1 "out/tmp-extra-rust/resultado_rust.csv"
-python3 scripts/test_extra_language.py --language Rust -- ./build/extra/matriz_rust
+./build/linux/matriz_rust 144 3 1 1 "out/tmp-extra-rust/resultado_rust.csv"
+python3 scripts/test_extra_language.py --language Rust -- ./build/linux/matriz_rust
 ```
 
 ### Julia
@@ -264,27 +264,27 @@ python3 scripts/test_extra_language.py --language Rust -- ./build/extra/matriz_r
 - mantenha `TDM=0.0` e nao inclua uma coleta forcada do GC na metrica;
 - use apenas a biblioteca padrao.
 
-Trabalhe primeiro no nome historico `experiments/matriz_Julia.jl`. Nao execute o prototipo atual antes de adaptar a CLI: ele tambem percorre dimensoes fixas ate `10000`.
+O código aceito está em `src/matriz_Julia.jl`:
 
 ```bash
-julia experiments/matriz_Julia.jl 144 3 1 1 "out/tmp-extra-julia/resultado_julia.csv"
-python3 scripts/test_extra_language.py --language Julia -- julia experiments/matriz_Julia.jl
+julia src/matriz_Julia.jl 144 3 1 1 "out/tmp-extra-julia/resultado_julia.csv"
+python3 scripts/test_extra_language.py --language Julia -- julia src/matriz_Julia.jl
 ```
 
 ### Elixir
 
-- reestruture o prototipo atual, que nao e uma implementacao de referencia;
+- preserve a representação plana documentada no código e justifique qualquer mudança estrutural;
 - use uma representacao com acesso indexado previsivel e documente a escolha no PR;
 - cronometre com `System.monotonic_time/0` e converta com `System.convert_time_unit/3`;
 - mantenha a multiplicacao explicita e `TDM=0.0`;
 - use apenas Elixir/Erlang padrao, sem dependencias Hex.
 
-Scripts `.exs` nao exigem uma etapa separada de build. Trabalhe primeiro em `experiments/matriz_multiplication.exs`; o prototipo atual nao compila e nao deve ser usado como smoke test antes da reescrita:
+Scripts `.exs` não exigem uma etapa separada de build. O código aceito está em `src/matriz_multiplication.exs`:
 
 ```bash
-mix format --check-formatted experiments/matriz_multiplication.exs
-elixir experiments/matriz_multiplication.exs 144 3 1 1 "out/tmp-extra-elixir/resultado_elixir.csv"
-python3 scripts/test_extra_language.py --language Elixir -- elixir experiments/matriz_multiplication.exs
+mix format --check-formatted src/matriz_multiplication.exs
+elixir src/matriz_multiplication.exs 144 3 1 1 "out/tmp-extra-elixir/resultado_elixir.csv"
+python3 scripts/test_extra_language.py --language Elixir -- elixir src/matriz_multiplication.exs
 ```
 
 ## 6. O que o teste automatizado cobre
@@ -295,40 +295,36 @@ O harness e a verificacao manual de codigo sao os criterios desta fase. `scripts
 
 **Limite conhecido do harness:** o CSV de saida carrega apenas tempos, nunca valores de matriz, entao `test_extra_language.py` nao tem como detectar uma multiplicacao aritmeticamente incorreta — uma implementacao com `verify_sample` (ou equivalente) quebrado, incompleto ou nunca chamado pode passar em todos os testes automatizados desde que produza um CSV bem formado. A corretude aritmetica depende inteiramente da revisao manual do codigo de verificacao amostral durante o PR (ver checklist em `.github/pull_request_template.md`).
 
-## 7. Commits, PR e promocao para `src/`
+## 7. Estado atual e integração nos runners
 
-Antes de enviar:
+Antes de enviar qualquer alteração:
 
 ```bash
 git status
 git diff --check
 python3 scripts/test_extra_language.py --language LINGUAGEM -- COMANDO_BASE
-git add experiments/ARQUIVO_DA_LINGUAGEM
-git commit -m "Implementa benchmark em LINGUAGEM"
+git add src/ARQUIVO_DA_LINGUAGEM
+git commit -m "tipo(linguagem): descreve a alteracao"
 git push --set-upstream origin BRANCH_FEAT
 ```
 
 Inclua no PR as versoes da ferramenta, os comandos executados e a saida resumida dos testes. Nao versione executaveis, arquivos `.beam`, caches nem resultados locais.
 
-O arquivo deve permanecer em `experiments/` durante a primeira revisao. Mova-o para o nome padronizado abaixo somente depois de aceite explicito do mantenedor:
+Os arquivos publicáveis aceitos são:
 
 ```text
 src/matriz_rust.rs
-src/matriz_julia.jl
-src/matriz_elixir.exs
+src/matriz_Julia.jl
+src/matriz_multiplication.exs
 ```
 
-Apos a promocao, repita o teste apontando para `src/`. Exemplos:
+Para executar o fluxo completo, use as flags opcionais:
 
 ```bash
-rustc --edition=2021 -C opt-level=3 -D warnings src/matriz_rust.rs -o build/extra/matriz_rust
-python3 scripts/test_extra_language.py --language Rust -- ./build/extra/matriz_rust
-
-python3 scripts/test_extra_language.py --language Julia -- julia src/matriz_julia.jl
-python3 scripts/test_extra_language.py --language Elixir -- elixir src/matriz_elixir.exs
+./run_all.sh --batch --run-name extras-100 --B 100 --Npts 2 --M 1 --escala 1 --with-all-extras
 ```
 
-Somente depois dos tres PRs aceitos deve ser avaliado um quarto PR, por exemplo `feat/extra-languages-integration`, para tornar as linguagens opcionais nos runners e registrar comandos, versoes e saidas no manifesto. O validador e o plotador desta branch ja reconhecem CSVs extras opcionais; o PR de integracao deve confirmar esse fluxo de ponta a ponta. As seis saidas atuais de C, C++, Java e Python devem continuar funcionando sem que as toolchains extras estejam instaladas.
+Também existem `--with-rust`, `--with-julia` e `--with-elixir` individualmente; no PowerShell, use `-WithRust`, `-WithJulia`, `-WithElixir` ou `-WithAllExtras`. Uma extra solicitada sem toolchain disponível aborta a execução. Sem flags, as seis saídas centrais continuam funcionando sem Rust, Julia ou Elixir instalados. O manifesto lista somente as linguagens efetivamente executadas, e o validador rejeita CSV extra órfão.
 
 ## 8. Referencias oficiais de instalacao
 

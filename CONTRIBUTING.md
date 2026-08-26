@@ -4,8 +4,8 @@ Uma proposta central deste projeto é reunir resultados de máquinas diferentes 
 
 Há dois fluxos distintos:
 
-- resultados do benchmark principal, descritos abaixo;
-- código para Rust, Julia e Elixir na branch `tcc-lic-thassio`, descrito em [EXTRA_LANGUAGES.md](EXTRA_LANGUAGES.md).
+- resultados do benchmark, descritos abaixo;
+- mudanças de código e metodologia, inclusive Rust, Julia e Elixir, descritas em [EXTRA_LANGUAGES.md](EXTRA_LANGUAGES.md).
 
 ## Como Gerar Resultados
 
@@ -45,6 +45,8 @@ Confirme que a pasta contém:
 - `run_manifest.json`
 - gráficos `grafico_*.png`
 
+Se alguma flag extra foi usada, confirme também o CSV correspondente (`resultado_rust.csv`, `resultado_julia.csv` e/ou `resultado_elixir.csv`) e sua entrada em `run_manifest.json`. Não reutilize um `run_id`: os runners rejeitam diretórios não vazios para impedir mistura de resultados.
+
 Confirme também que a raiz do projeto não recebeu arquivos gerados como:
 
 - `resultado_*.csv`
@@ -83,9 +85,9 @@ N,TCS,TAM,TDM
 
 Mudanças em Rust, Julia, Elixir, BLAS, paralelismo ou análise estatística são bem-vindas, mas devem ser integradas ao fluxo principal apenas quando seguirem o mesmo contrato e passarem no validador.
 
-## Fork para Rust, Julia e Elixir
+## Fork e mudanças em Rust, Julia e Elixir
 
-Os protótipos em `experiments/` ainda não estão prontos. Para esta trilha, o fork do aluno é o remoto `origin` e o repositório original é o remoto `upstream`:
+As três implementações já foram aceitas em `src/` e integradas aos runners como opções por flag. Para novas mudanças, o fork do aluno é o remoto `origin` e o repositório original é o remoto `upstream`:
 
 ```bash
 git clone https://github.com/SEU_USUARIO/matrix-multiplication-benchmark.git
@@ -103,7 +105,7 @@ git switch tcc-lic-thassio
 git branch --set-upstream-to=upstream/tcc-lic-thassio
 ```
 
-Antes de cada etapa, atualize `tcc-lic-thassio` a partir de `upstream/tcc-lic-thassio`. Crie e envie um PR por linguagem, sempre com base em `tcc-lic-thassio`:
+Antes de criar uma branch, atualize `tcc-lic-thassio` a partir de `upstream/tcc-lic-thassio`. Use uma branch focada por mudança, sempre com base em `tcc-lic-thassio`. As branches abaixo registram a sequência histórica da implementação inicial:
 
 ```text
 feat/rust-benchmark
@@ -111,7 +113,7 @@ feat/julia-benchmark
 feat/elixir-benchmark
 ```
 
-A ordem é Rust, depois Julia e por último Elixir. Não abra os PRs contra `main`, não reúna as três linguagens em um único PR e não inclua a integração dos runners nesta fase.
+Novos PRs não devem reabrir essa sequência: nomeie a branch pelo escopo real (`fix/rust-...`, `docs/methodology-...`, por exemplo), não reúna assuntos independentes e confirme explicitamente a branch-base antes de enviar.
 
 ## Critérios para os PRs de linguagens extras
 
@@ -130,12 +132,13 @@ Além do contrato `B Npts M escala out_csv` e do cabeçalho `N,TCS,TAM,TDM`, cad
 Exemplo para Rust:
 
 ```bash
-python3 scripts/test_extra_language.py --language Rust -- ./build/extra/matriz_rust
+rustc --edition=2021 -C opt-level=3 -D warnings src/matriz_rust.rs -o build/linux/matriz_rust
+python3 scripts/test_extra_language.py --language Rust -- ./build/linux/matriz_rust
 ```
 
 Os comandos equivalentes para Julia e Elixir, a metodologia completa e as instalações oficiais estão em [EXTRA_LANGUAGES.md](EXTRA_LANGUAGES.md).
 
-Mantenha o arquivo em `experiments/` até o mantenedor aceitar explicitamente sua promoção. Só então ele deve ser movido para `src/` e testado novamente. Uma integração posterior pode adicionar as linguagens como opções dos runners e registrá-las no manifesto, sem torná-las dependências obrigatórias do fluxo atual. O validador e o plotador já aceitam os três CSVs quando presentes.
+Os arquivos publicáveis atuais são `src/matriz_rust.rs`, `src/matriz_Julia.jl` e `src/matriz_multiplication.exs`. Os runners só os executam quando a flag correspondente é informada; sem flags, nenhuma toolchain extra é exigida. CSVs extras devem aparecer no manifesto exatamente quando forem executados.
 
 ## Checklist de código antes do Pull Request
 

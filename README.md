@@ -1,6 +1,6 @@
 # Matrix Multiplication Benchmark
 
-Benchmark reprodutível de multiplicação de matrizes quadradas. O fluxo principal e publicável executa C, C++, Java e Python.
+Benchmark reprodutível de multiplicação de matrizes quadradas. O núcleo publicável executa C, C++, Java e Python; Rust, Julia e Elixir podem ser incluídas explicitamente como linguagens opcionais.
 
 O objetivo é comparar tempos de execução entre linguagens usando o mesmo contrato de entrada e o mesmo formato de saída, permitindo que colaboradores rodem os testes localmente e compartilhem seus resultados em `out/<run_id>/`.
 
@@ -22,17 +22,21 @@ python -m pip install -r requirements.txt
 
 Também é possível rodar `./run_all.sh` ou `.\run_all.ps1` sem parâmetros para usar o modo interativo.
 
-## Trilha Rust, Julia e Elixir
+## Rust, Julia e Elixir (opcionais)
 
-A branch `tcc-lic-thassio` prepara uma contribuição separada para Rust, Julia e Elixir. Os arquivos atuais em `experiments/` são protótipos: eles ainda não devem ser tratados como implementações prontas nem fazem parte de `run_all.sh` ou `run_all.ps1`.
+Rust, Julia e Elixir foram aceitas em `src/` e podem ser incluídas na execução via flags — sem elas, o fluxo continua igual ao de sempre (C, C++, Java, Python), sem exigir nenhuma toolchain extra:
 
-O aluno deve criar um fork com `origin` apontando para o próprio repositório e `upstream` para este repositório, partir especificamente de `upstream/tcc-lic-thassio` e enviar três PRs independentes, nesta ordem:
+```bash
+./run_all.sh --batch --run-name meu_teste-linux-100 --B 100 --Npts 2 --M 1 --escala 1 --with-rust --with-julia --with-elixir
+# ou, equivalente:
+./run_all.sh --batch --run-name meu_teste-linux-100 --B 100 --Npts 2 --M 1 --escala 1 --with-all-extras
+```
 
-1. `feat/rust-benchmark`
-2. `feat/julia-benchmark`
-3. `feat/elixir-benchmark`
+```powershell
+.\run_all.ps1 -Batch -RunName meu_teste-win-100 -B 100 -Npts 2 -M 1 -Escala 1 -WithAllExtras
+```
 
-Os três PRs devem ter `tcc-lic-thassio` como base. Instalação das toolchains, contrato, testes e fluxo completo do fork estão em [EXTRA_LANGUAGES.md](EXTRA_LANGUAGES.md).
+Cada flag exige a toolchain correspondente no `PATH` (`rustc`, `julia`, `elixir`). Se uma linguagem for pedida explicitamente e a toolchain estiver ausente ou a execução falhar, o script inteiro aborta com erro claro — pedir algo explicitamente e não entregá-lo é tratado como falha, não como omissão silenciosa. Sem a flag correspondente, a ausência da toolchain é irrelevante: ela nunca é verificada. Detalhes da arquitetura de integração em [INTEGRATION_PLAN.md](INTEGRATION_PLAN.md) e do contrato de cada linguagem em [EXTRA_LANGUAGES.md](EXTRA_LANGUAGES.md).
 
 ## Saídas
 
@@ -49,6 +53,8 @@ Cada execução gera uma pasta em `out/<run_id>/` com:
 - `run_manifest.json`
 - `grafico_*.png`
 
+Com `--with-rust`/`--with-julia`/`--with-elixir`/`--with-all-extras`, a pasta também recebe `resultado_rust.csv`, `resultado_julia.csv` e/ou `resultado_elixir.csv`, e `run_manifest.json` lista exatamente as linguagens que rodaram (nunca uma linguagem opcional não solicitada).
+
 Todos os CSVs seguem o mesmo cabeçalho:
 
 ```csv
@@ -60,7 +66,7 @@ Onde:
 - `N`: dimensão da matriz `N x N`
 - `TCS`: tempo de cálculo da multiplicação
 - `TAM`: tempo de alocação e inicialização das matrizes
-- `TDM`: tempo de desalocação; em Java e Python é registrado como `0.0`
+- `TDM`: tempo de desalocação; em Java, Python, Julia e Elixir é registrado como `0.0`
 
 ## Metodologia
 
@@ -95,7 +101,7 @@ O validador confere CSVs esperados, cabeçalhos, valores numéricos, metadados e
 
 - [EXECUTION.md](EXECUTION.md): guia completo de execução.
 - [CONTRIBUTING.md](CONTRIBUTING.md): como contribuir com resultados ou código.
-- [EXTRA_LANGUAGES.md](EXTRA_LANGUAGES.md): trilha de implementação de Rust, Julia e Elixir.
+- [EXTRA_LANGUAGES.md](EXTRA_LANGUAGES.md): contrato, validação e histórico de integração de Rust, Julia e Elixir.
 - [OPERATIONS.md](OPERATIONS.md): análise teórica de operações.
 - [TODO.md](TODO.md): plano de melhorias e próximas fases.
 
