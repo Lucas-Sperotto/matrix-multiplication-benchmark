@@ -60,7 +60,11 @@ public class matriz_java {
         return points;
     }
 
-    private static void multiply(int[][] mat1, int[][] mat2, int[][] res, int n) {
+    // Visibilidade de pacote (nao private): permite que
+    // tests/TestMatrizJava.java, no mesmo pacote default, chame esta funcao
+    // diretamente para validar um caso nao identidade, sem duplicar a
+    // implementacao nem expor a funcao fora do pacote.
+    static void multiply(int[][] mat1, int[][] mat2, int[][] res, int n) {
         for (int i = 0; i < n; i++) {
             for (int j = 0; j < n; j++) {
                 int sum = 0;
