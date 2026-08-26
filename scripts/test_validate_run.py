@@ -55,11 +55,20 @@ def build_valid_run(run_dir: Path) -> None:
     (run_dir / "grafico_teste.png").write_bytes(b"\x89PNG\r\n")
 
 
-def run_validator(run_dir: Path) -> subprocess.CompletedProcess[str]:
+def declare_output(run_dir: Path, language: str, output: str) -> None:
+    manifest_path = run_dir / "run_manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["languages"].append({"name": language, "flags": "", "output": output})
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+
+def run_validator(run_dir: Path, *, relative: bool = False) -> subprocess.CompletedProcess[str]:
+    argument = run_dir.name if relative else str(run_dir)
     return subprocess.run(
-        [sys.executable, str(VALIDATE_RUN), str(run_dir)],
+        [sys.executable, str(VALIDATE_RUN), argument],
         capture_output=True,
         text=True,
+        cwd=run_dir.parent if relative else None,
     )
 
 
@@ -80,6 +89,15 @@ def main() -> int:
         expect(
             result.returncode == 0,
             f"execucao sintetica valida deveria passar, mas falhou: {result.stderr}",
+            failures,
+        )
+
+        relative_dir = root / "relativo"
+        build_valid_run(relative_dir)
+        result = run_validator(relative_dir, relative=True)
+        expect(
+            result.returncode == 0,
+            f"caminho relativo deveria passar, mas falhou: {result.stderr}",
             failures,
         )
 
@@ -113,13 +131,42 @@ def main() -> int:
             failures,
         )
 
+        orphan_dir = root / "extra-nao-declarado"
+        build_valid_run(orphan_dir)
+        write_csv(orphan_dir / "resultado_rust.csv", N_SERIES)
+        result = run_validator(orphan_dir)
+        expect(
+            result.returncode != 0,
+            "CSV extra nao declarado no manifesto deveria ser rejeitado, mas passou",
+            failures,
+        )
+        expect(
+            "nao declarado" in result.stderr,
+            f"mensagem de erro nao menciona CSV nao declarado: {result.stderr}",
+            failures,
+        )
+
+        declared_extra_dir = root / "extra-declarado"
+        build_valid_run(declared_extra_dir)
+        write_csv(declared_extra_dir / "resultado_rust.csv", N_SERIES)
+        declare_output(declared_extra_dir, "Rust", "resultado_rust.csv")
+        result = run_validator(declared_extra_dir)
+        expect(
+            result.returncode == 0,
+            f"CSV extra declarado deveria passar, mas falhou: {result.stderr}",
+            failures,
+        )
+
     if failures:
         print("FALHA em scripts/test_validate_run.py:", file=sys.stderr)
         for failure in failures:
             print(f"  - {failure}", file=sys.stderr)
         return 1
 
-    print("validate_run.py rejeita CSVs truncados e series de N divergentes; aceita execucao valida.")
+    print(
+        "validate_run.py aceita caminhos relativos e extras declarados; "
+        "rejeita CSVs truncados, series divergentes e extras orfaos."
+    )
     return 0
 
 
