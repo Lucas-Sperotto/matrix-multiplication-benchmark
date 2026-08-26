@@ -1,9 +1,9 @@
 # Diagramas de Execucao e Arquitetura
 
-Este documento descreve os fluxos do benchmark publicavel de multiplicacao de matrizes:
-C, C++, Java e Python formam o nucleo; Rust, Julia e Elixir entram opcionalmente por flags de `run_all.sh` ou `run_all.ps1`.
+Este documento descreve os fluxos do benchmark publicavel de multiplicacao de matrizes.
+C, C++, Java e Python formam o nucleo. Rust, Julia e Elixir entram opcionalmente por flags de `run_all.sh` ou `run_all.ps1`.
 
-Os diagramas usam Mermaid. No GitHub, eles sao renderizados automaticamente em arquivos Markdown.
+Os diagramas usam Mermaid e foram escritos com sintaxe conservadora para renderizacao direta no GitHub.
 
 ## Escopo do Fluxo Publicavel
 
@@ -11,60 +11,60 @@ Os diagramas usam Mermaid. No GitHub, eles sao renderizados automaticamente em a
 - Orquestradores: `run_all.sh` e `run_all.ps1`
 - Scripts auxiliares: `scripts/`
 - Testes de contrato e corretude: `tests/`
-- Saida padrao de cada execucao: `out/<run_id>/`
-- Experimentos que permanecem em `experiments/`, como BLAS, ainda nao fazem parte do fluxo publicavel.
+- Staging de uma execucao: `out/.running-<run_id>/`
+- Saida final de uma execucao aprovada: `out/<run_id>/`
+- Experimentos em `experiments/`, como BLAS, nao fazem parte do fluxo publicavel.
 
 ## Visao Geral
 
 ```mermaid
 flowchart LR
-    Usuario[Usuario] --> Runner[run_all.sh ou run_all.ps1]
+    Usuario["Usuario"] --> Runner["run_all.sh ou run_all.ps1"]
 
-    Runner --> Parametros[Entrada: run_name, B, Npts, M, escala]
-    Runner --> Deps[Checagem de dependencias]
-    Runner --> Build[Compilacao]
-    Runner --> Exec[Execucao dos benchmarks]
-    Runner --> Meta[Coleta de metadados]
-    Runner --> Plot[Geracao de graficos]
-    Runner --> Val[Validacao]
+    Runner --> Parametros["Entrada: run_name, B, Npts, M, escala"]
+    Runner --> Deps["Preflight de dependencias"]
+    Runner --> Build["Compilacao"]
+    Runner --> Exec["Execucao dos benchmarks"]
+    Runner --> Meta["Coleta de metadados"]
+    Runner --> Plot["Geracao de graficos"]
+    Runner --> Val["Validacao"]
 
-    Build --> CBin[build/linux ou build/windows: matriz_c]
-    Build --> CO3Bin[build/linux ou build/windows: matriz_c_O3]
-    Build --> CppBin[build/linux ou build/windows: matriz_cpp]
-    Build --> CppO3Bin[build/linux ou build/windows: matriz_cpp_O3]
-    Build --> JavaClass[build/java: matriz_java.class]
+    Build --> CBin["C e C -O3"]
+    Build --> CppBin["C++ e C++ -O3"]
+    Build --> JavaClass["Java"]
+    Build -. opcional .-> RustBin["Rust"]
 
-    Exec --> Csvs[(resultado_*.csv)]
-    Meta --> SysInfo[(system_info.md e system_info.json)]
-    Meta --> Manifest[(run_manifest.json)]
-    Plot --> Pngs[(grafico_*.png)]
-    Val --> Status[Execucao aprovada ou erro detalhado]
+    Exec --> Csvs["resultado_*.csv"]
+    Meta --> SysInfo["system_info.md e system_info.json"]
+    Meta --> Manifest["run_manifest.json"]
+    Plot --> Pngs["grafico_*.png"]
 
-    Csvs --> Staging["out/.running-<run_id>/"]
+    Csvs --> Staging["out/.running-run_id/"]
     SysInfo --> Staging
     Manifest --> Staging
     Pngs --> Staging
-    Status -- Aprovada --> Promote[Promocao]
-    Staging --> Promote
-    Promote --> OutDir["out/<run_id>/"]
+    Staging --> Val
+    Val -- aprovada --> Promote["Promocao atomica ou Move-Item"]
+    Val -- falha --> Preserve["Staging preservado para diagnostico"]
+    Promote --> OutDir["out/run_id/"]
 ```
 
 ## Componentes e Responsabilidades
 
 | Componente | Responsabilidade |
 | --- | --- |
-| `run_all.sh` | Orquestra execucao Linux/WSL: valida parametros, compila, executa, coleta sistema, gera manifest, plota e valida. |
-| `run_all.ps1` | Orquestra execucao Windows PowerShell com o mesmo contrato do fluxo Linux/WSL. |
-| `src/matriz_c.c` | Benchmark C, incluindo versao compilada normal e `-O3`. |
-| `src/matriz_cpp.cpp` | Benchmark C++, incluindo versao compilada normal e `-O3`. |
-| `src/matriz_java.java` | Benchmark Java com `int[][]`, compilado para `build/java/`. |
+| `run_all.sh` | Orquestra Linux/WSL: valida parametros e `run_name`, faz preflight de dependencias, compila, executa, coleta sistema, gera manifesto, plota, valida e promove a execucao. |
+| `run_all.ps1` | Orquestra Windows PowerShell com o mesmo contrato e verificacao explicita de codigos de saida de programas nativos. |
+| `src/matriz_c.c` | Benchmark C, usado nas variantes normal e `-O3`. |
+| `src/matriz_cpp.cpp` | Benchmark C++, usado nas variantes normal e `-O3`. |
+| `src/matriz_java.java` | Benchmark Java com `int[][]`. |
 | `src/matriz_python.py` | Benchmark Python puro. |
-| `src/matriz_rust.rs` | Benchmark Rust opcional, compilado quando `--with-rust`/`-WithRust` e usado. |
-| `src/matriz_Julia.jl` | Benchmark Julia opcional, executado quando `--with-julia`/`-WithJulia` e usado. |
-| `src/matriz_multiplication.exs` | Benchmark Elixir opcional, executado quando `--with-elixir`/`-WithElixir` e usado. |
-| `src/plot_benchmarks.py` | Le CSVs de uma execucao e gera graficos PNG para TCS, TAM e TDM. |
+| `src/matriz_rust.rs` | Benchmark Rust opcional, compilado quando solicitado. |
+| `src/matriz_Julia.jl` | Benchmark Julia opcional, executado quando solicitado. |
+| `src/matriz_multiplication.exs` | Benchmark Elixir opcional, executado quando solicitado. |
+| `src/plot_benchmarks.py` | Le os CSVs disponiveis e gera graficos PNG para TCS, TAM e TDM. |
 | `scripts/gen_sysinfo_md.sh` | Gera `system_info.md` e `system_info.json` em Linux/WSL. |
-| `scripts/validate_run.py` | Valida CSVs, metadados JSON/MD e existencia dos graficos. |
+| `scripts/validate_run.py` | Valida CSVs, manifesto, metadados e existencia dos graficos. |
 | `tests/` | Reune regressões de contrato e testes pequenos de corretude nao identidade. |
 
 ## Sequencia Ponta a Ponta
@@ -72,47 +72,52 @@ flowchart LR
 ```mermaid
 sequenceDiagram
     actor U as Usuario
-    participant R as run_all
-    participant B as build
+    participant R as Runner
+    participant B as Build
     participant C as Benchmarks
     participant S as Sistema
-    participant P as plot_benchmarks.py
-    participant V as validate_run.py
-    participant O as out/.running-run_id/ (staging)
+    participant P as Plot
+    participant V as Validador
+    participant O as Staging
 
     U->>R: Informa parametros ou usa modo interativo
-    R->>R: Normaliza run_name e valida B, Npts, M, escala
-    R->>R: Confere gcc, g++, Java, Python e matplotlib
-    R->>O: Confere colisoes e cria staging
+    R->>R: Normaliza e valida run_name
+    R->>R: Valida B, Npts, M e escala
+    R->>R: Confere dependencias centrais e matplotlib
+    opt Linguagens extras solicitadas
+        R->>R: Confere rustc, julia e ou elixir no preflight
+    end
+    R->>R: Confere colisao de run_id
+    R->>O: Cria out/.running-run_id/
     R->>B: Compila C, C -O3, C++, C++ -O3 e Java
 
     loop Para cada variante central
         R->>C: Executa com B Npts M escala out_csv
         C->>C: Warm-up por N
-        C->>C: M repeticoes cronometradas por N
-        C->>O: Grava resultado_*.csv
+        C->>C: M repeticoes medidas por N
+        C->>O: Grava resultado CSV
     end
 
-    opt Flags de linguagens extras
-        R->>R: Confere rustc, julia e/ou elixir no ponto de uso
-        R->>B: Compila Rust, se solicitado
+    opt Linguagens extras solicitadas
+        R->>B: Compila Rust quando solicitado
         R->>C: Executa cada extra solicitada
-        C->>O: Grava o respectivo resultado_*.csv
+        C->>O: Grava o CSV da extra
     end
 
-    R->>S: Coleta informacoes de sistema
-    S->>O: Grava system_info.md e system_info.json
+    R->>S: Coleta informacoes do sistema
+    S->>O: Grava system_info
     R->>O: Grava run_manifest.json
-    R->>P: Gera graficos a partir dos CSVs
-    P->>O: Grava grafico_*.png
-    R->>V: Valida out/.running-run_id/
-    V->>O: Le CSVs, JSONs, MD e PNGs
+    R->>P: Gera graficos
+    P->>O: Grava grafico PNG
+    R->>V: Valida o staging
+    V->>O: Le CSVs, JSON, Markdown e PNG
     V-->>R: Sucesso ou erro
+
     alt Sucesso
-        R->>O: Promove (rename) para out/run_id/
-        R-->>U: Caminho final: out/run_id/
+        R->>O: Promove staging para out/run_id/
+        R-->>U: Informa o caminho final
     else Erro depois da criacao do staging
-        R-->>U: Aborta; out/.running-run_id/ preservado, out/run_id/ nunca criado
+        R-->>U: Aborta e preserva o staging para diagnostico
     end
 ```
 
@@ -120,65 +125,71 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-    A[Inicio: ./run_all.sh] --> B{Modo batch?}
-    B -- Nao --> C[Solicita run_name, B, escala, Npts e M]
-    B -- Sim --> D[Le argumentos CLI]
-    C --> E[Define run_name por timestamp se vazio]
+    A["Inicio: ./run_all.sh"] --> B{"Modo batch?"}
+    B -- nao --> C["Solicita run_name, B, escala, Npts e M"]
+    B -- sim --> D["Le argumentos CLI"]
+    C --> E["Define run_name por timestamp se vazio"]
     D --> E
-    E --> F{Parametros obrigatorios presentes?}
-    F -- Nao --> F1[Mostra uso e encerra]
-    F -- Sim --> G[Valida intervalos: B, Npts, M, escala]
-    G --> H[Checa gcc, g++, javac, java e python3]
-    H --> I[Checa matplotlib com MPLCONFIGDIR em .cache/matplotlib]
-    I --> I1{"out/<run_id>/ ja existe, mesmo vazio, ou out/.running-<run_id>/ ja existe?"}
-    I1 -- Sim --> I2[Aborta: nao sobrescreve execucao completa nem staging incompleto]
-    I1 -- Nao --> J["Cria out/.running-<run_id>/ (staging), build/linux/ e build/java/"]
-    J --> K[Compila C e C -O3]
-    K --> L[Compila C++ e C++ -O3]
-    L --> M[Compila Java]
-    M --> N[Executa 6 benchmarks centrais]
-    N --> N1{Ha flags de extras?}
-    N1 -- Sim --> N2[Checa toolchains no ponto de uso e compila/executa extras]
-    N1 -- Nao --> O[Coleta system_info.md e system_info.json]
+    E --> F{"Parametros obrigatorios presentes?"}
+    F -- nao --> F1["Mostra uso e encerra"]
+    F -- sim --> G["Valida run_name e intervalos numericos"]
+    G --> H["Checa gcc, g++, javac, java e python3"]
+    H --> I["Checa matplotlib"]
+    I --> X{"Alguma extra foi solicitada?"}
+    X -- sim --> X1["Preflight de rustc, julia e ou elixir solicitados"]
+    X -- nao --> I1{"Destino final ou staging ja existem?"}
+    X1 --> I1
+    I1 -- sim --> I2["Aborta sem criar novo staging"]
+    I1 -- nao --> J["Cria staging e diretorios de build"]
+    J --> K["Compila C e C -O3"]
+    K --> L["Compila C++ e C++ -O3"]
+    L --> M["Compila Java"]
+    M --> N["Executa 6 variantes centrais"]
+    N --> N1{"Ha extras solicitadas?"}
+    N1 -- sim --> N2["Compila Rust quando preciso e executa extras"]
+    N1 -- nao --> O["Coleta system_info"]
     N2 --> O
-    O --> P["Gera run_manifest.json (inclui java_gc)"]
-    P --> Q[Gera graficos PNG]
-    Q --> R[Valida execucao]
-    R -- Falha --> R1["Aborta; se ja criado, staging e preservado para diagnostico; destino final nunca e criado"]
-    R -- Sucesso --> T["Promove: mv out/.running-<run_id>/ para out/<run_id>/"]
-    T --> S["Finaliza com caminho de out/<run_id>/"]
+    O --> P["Gera run_manifest.json"]
+    P --> Q["Gera graficos PNG"]
+    Q --> R["Executa validate_run.py"]
+    R -- falha --> R1["Aborta e preserva staging para diagnostico"]
+    R -- sucesso --> T["Move staging para out/run_id/"]
+    T --> S["Finaliza com caminho da execucao"]
 ```
 
 ## Fluxo do Orquestrador Windows PowerShell
 
 ```mermaid
 flowchart TD
-    A["Inicio: .\run_all.ps1"] --> B[Configura UTF-8, StrictMode e Stop on error]
-    B --> C{Parametro -Batch foi usado?}
-    C -- Nao --> D[Solicita run_name, B, escala, Npts e M]
-    C -- Sim --> E[Usa parametros informados na CLI]
-    D --> F[Define run_name por timestamp se vazio]
+    A["Inicio: run_all.ps1"] --> B["Configura UTF-8, StrictMode e Stop"]
+    B --> C{"Parametro Batch foi usado?"}
+    C -- nao --> D["Solicita run_name, B, escala, Npts e M"]
+    C -- sim --> E["Usa parametros informados"]
+    D --> F["Define run_name por timestamp se vazio"]
     E --> F
-    F --> G[Valida B, Npts, M e Escala]
-    G --> H[Checa gcc, g++, java, javac e python]
-    H --> I[Checa matplotlib]
-    I --> I1{"out/<run_id>/ ja existe, mesmo vazio, ou out/.running-<run_id>/ ja existe?"}
-    I1 -- Sim --> I2[Aborta: nao sobrescreve execucao completa nem staging incompleto]
-    I1 -- Nao --> J["Cria out/.running-<run_id>/ (staging), build/windows/ e build/java/"]
-    J --> K[Compila C e C -O3 para .exe]
-    K --> L[Compila C++ e C++ -O3 para .exe]
-    L --> M[Compila Java]
-    M --> N[Executa C, C -O3, C++, C++ -O3, Java e Python]
-    N --> N1{Ha switches de extras?}
-    N1 -- Sim --> N2[Checa toolchains no ponto de uso e compila/executa extras]
-    N1 -- Nao --> O[Gera system_info.md e system_info.json via PowerShell]
+    F --> G["Valida run_name, B, Npts, M e Escala"]
+    G --> H["Checa gcc, g++, java, javac e python"]
+    H --> I["Checa matplotlib"]
+    I --> X{"Alguma extra foi solicitada?"}
+    X -- sim --> X1["Preflight de rustc, julia e ou elixir solicitados"]
+    X -- nao --> I1{"Destino final ou staging ja existem?"}
+    X1 --> I1
+    I1 -- sim --> I2["Aborta sem criar novo staging"]
+    I1 -- nao --> J["Cria staging e diretorios de build"]
+    J --> K["Compila C e C -O3 para EXE"]
+    K --> L["Compila C++ e C++ -O3 para EXE"]
+    L --> M["Compila Java"]
+    M --> N["Executa 6 variantes centrais"]
+    N --> N1{"Ha extras solicitadas?"}
+    N1 -- sim --> N2["Compila Rust quando preciso e executa extras"]
+    N1 -- nao --> O["Gera system_info via PowerShell"]
     N2 --> O
-    O --> P["Gera run_manifest.json (inclui java_gc)"]
-    P --> Q[Executa plot_benchmarks.py]
-    Q --> R[Executa validate_run.py]
-    R -- Falha --> R1["Aborta; se ja criado, staging e preservado para diagnostico; destino final nunca e criado"]
-    R -- Sucesso --> T["Promove: Move-Item out/.running-<run_id>/ para out/<run_id>/"]
-    T --> S["Finaliza com caminho de out/<run_id>/"]
+    O --> P["Gera run_manifest.json"]
+    P --> Q["Executa plot_benchmarks.py"]
+    Q --> R["Executa validate_run.py"]
+    R -- falha --> R1["Aborta e preserva staging para diagnostico"]
+    R -- sucesso --> T["Move-Item do staging para out/run_id/"]
+    T --> S["Finaliza com caminho da execucao"]
 ```
 
 ## Contrato dos Benchmarks
@@ -189,15 +200,15 @@ Todos os benchmarks principais recebem os mesmos argumentos:
 B Npts M escala out_csv
 ```
 
-| Argumento | Significado | Regras atuais |
+| Argumento | Significado | Regra |
 | --- | --- | --- |
 | `B` | Maior valor de `N` | Inteiro entre `100` e `100000` |
-| `Npts` | Quantidade de pontos de medicao | Inteiro entre `2` e `10000` |
-| `M` | Repeticoes cronometradas para media | Inteiro entre `1` e `100000` |
-| `escala` | Geracao dos pontos de `N` | `0` logaritmica, `1` linear |
-| `out_csv` | Caminho do CSV de saida | Arquivo dentro de `out/<run_id>/` |
+| `Npts` | Quantidade de pontos | Inteiro entre `2` e `10000` |
+| `M` | Repeticoes medidas | Inteiro entre `1` e `100000` |
+| `escala` | Geracao de `N` | `0` logaritmica, `1` linear |
+| `out_csv` | Caminho do CSV | O benchmark cria os diretorios pais quando necessario e sobrescreve o arquivo. Nos runners, o caminho aponta para o staging. |
 
-Saida CSV comum:
+Cabecalho comum:
 
 ```csv
 N,TCS,TAM,TDM
@@ -206,29 +217,29 @@ N,TCS,TAM,TDM
 | Coluna | Significado |
 | --- | --- |
 | `N` | Dimensao da matriz quadrada `N x N` |
-| `TCS` | Tempo medio de calculo da multiplicacao |
-| `TAM` | Tempo medio de alocacao e inicializacao das matrizes |
-| `TDM` | Tempo medio de desalocacao; em Java, Python, Julia e Elixir e `0.0` |
+| `TCS` | Tempo medio da multiplicacao |
+| `TAM` | Tempo medio de alocacao e inicializacao |
+| `TDM` | Tempo medio de desalocacao explicita. Em Java, Python, Julia e Elixir e `0.0`. |
 
 ## Ciclo Interno de um Benchmark
 
 ```mermaid
 flowchart TD
-    A[main] --> B[Valida argc e converte B, Npts, M, escala]
-    B --> C[Gera lista de N com make_points]
-    C --> D[Abre out_csv]
-    D --> E[Escreve cabecalho N,TCS,TAM,TDM]
-    E --> F{Ainda ha N?}
-    F -- Nao --> Z[Fecha CSV e encerra]
-    F -- Sim --> G[Seleciona N atual]
-    G --> H[Warm-up: run_once sem entrar na media final]
-    H --> I[Zera acumuladores de TAM, TCS e TDM]
-    I --> J{m menor que M?}
-    J -- Sim --> K[run_once cronometrado]
-    K --> L[Acumula tempos]
+    A["main"] --> B["Valida CLI e converte B, Npts, M e escala"]
+    B --> C["Gera lista de N"]
+    C --> D["Cria diretorios pais e abre out_csv"]
+    D --> E["Escreve N,TCS,TAM,TDM"]
+    E --> F{"Ainda ha N?"}
+    F -- nao --> Z["Fecha CSV e encerra"]
+    F -- sim --> G["Seleciona N atual"]
+    G --> H["Executa um warm-up descartado"]
+    H --> I["Zera acumuladores"]
+    I --> J{"Ainda faltam repeticoes medidas?"}
+    J -- sim --> K["Executa run_once"]
+    K --> L["Acumula TAM, TCS e TDM"]
     L --> J
-    J -- Nao --> M[Calcula medias: tempo acumulado / M]
-    M --> N[Grava linha no CSV]
+    J -- nao --> M["Calcula medias dividindo por M"]
+    M --> N["Grava uma linha no CSV"]
     N --> F
 ```
 
@@ -236,117 +247,113 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A[run_once N] --> B[Checa tamanho da matriz]
-    B --> C[TAM inicio]
-    C --> D[Aloca entradas e, quando aplicavel, res]
-    D --> E[Inicializa mat1 com i + j]
-    E --> F[Inicializa mat2 como identidade]
-    F --> G[TAM fim]
-    G --> H[TCS inicio]
-    H --> I[Multiplica mat1 x mat2]
-    I --> J[TCS fim]
-    J --> K[Verifica amostras do resultado]
-    K --> L{Resultado valido?}
-    L -- Nao --> X[Erro e encerramento]
-    L -- Sim --> M[TDM inicio]
-    M --> N[Libera memoria quando aplicavel]
-    N --> O[TDM fim]
-    O --> P[Retorna tempos]
+    A["run_once N"] --> B["Checa tamanho e alocacao"]
+    B --> C["Inicio TAM"]
+    C --> D["Aloca entradas e resultado quando aplicavel"]
+    D --> E["Inicializa A com i + j"]
+    E --> F["Inicializa B como identidade"]
+    F --> G["Fim TAM"]
+    G --> H["Inicio TCS"]
+    H --> I["Multiplica A por B"]
+    I --> J["Fim TCS"]
+    J --> K["Verifica amostras do resultado"]
+    K --> L{"Resultado valido?"}
+    L -- nao --> X["Erro e encerramento"]
+    L -- sim --> M["Inicio TDM quando aplicavel"]
+    M --> N["Libera memoria explicita quando aplicavel"]
+    N --> O["Fim TDM"]
+    O --> P["Retorna tempos"]
 ```
 
 Observacoes:
 
-- Em C e C++, as matrizes principais usam buffers contiguos em memoria.
-- Em Java, a matriz e `int[][]`, ou seja, um array de arrays.
-- Em Python, as matrizes sao listas de listas.
-- Como `mat2` e identidade, o resultado esperado e igual a `mat1`; por isso a amostra verificada deve retornar `i + j`.
+- C e C++ usam buffers contiguos.
+- Rust usa `Vec<i32>` plano e acessos `get_unchecked` documentados.
+- Java usa `int[][]`.
+- Python usa listas de listas.
+- Julia usa `Matrix{Int32}` em layout column-major.
+- Elixir usa tupla plana imutavel e constroi o resultado dentro de TCS.
+- A validacao amostral do benchmark usa a identidade como segundo operando.
+- Os testes de corretude em `tests/` usam tambem uma matriz nao identidade 2x2.
 
 ## Geracao dos Pontos de N
 
 ```mermaid
 flowchart TD
-    A[make_points B, Npts, escala] --> B{escala == 1?}
-    B -->|Sim: linear| C["step = (B - 100) / (Npts - 1)"]
-    C --> D["N_i = round(100 + step * i)"]
-    B -->|Nao: logaritmica| E["ratio = (B / 100)^(1 / (Npts - 1))"]
-    E --> F["N_i = round(100 * ratio^i)"]
-    D --> G[Lista com Npts valores]
-    F --> G
+    A["make_points B, Npts, escala"] --> B{"escala igual a 1?"}
+    B -- sim --> C["x = 100 + (B - 100) * i / (Npts - 1)"]
+    B -- nao --> D["x = 100 * (B / 100) elevado a i / (Npts - 1)"]
+    C --> E["N = floor(x + 0.5)"]
+    D --> E
+    E --> F["Mantem exatamente Npts valores, inclusive repetidos"]
 ```
+
+A regra de arredondamento e metade-para-cima para valores positivos, implementada de forma equivalente a `floor(x + 0.5)`. O caso linear `B=101`, `Npts=3` deve produzir `[100, 101, 101]`.
 
 ## Algoritmo de Multiplicacao
 
 ```mermaid
 flowchart TD
-    A[Inicio multiply] --> B[i = 0]
-    B --> C{i menor que N?}
-    C -- Nao --> Z[Fim]
-    C -- Sim --> D[j = 0]
-    D --> E{j menor que N?}
-    E -- Nao --> F[i++]
+    A["Inicio multiply"] --> B["i = 0"]
+    B --> C{"i menor que N?"}
+    C -- nao --> Z["Fim"]
+    C -- sim --> D["j = 0"]
+    D --> E{"j menor que N?"}
+    E -- nao --> F["Incrementa i"]
     F --> C
-    E -- Sim --> G[sum = 0]
-    G --> H[k = 0]
-    H --> I{k menor que N?}
-    I -- Sim --> J["sum += mat1[i,k] * mat2[k,j]"]
-    J --> K[k++]
+    E -- sim --> G["sum = 0"]
+    G --> H["k = 0"]
+    H --> I{"k menor que N?"}
+    I -- sim --> J["sum recebe sum mais A i,k vezes B k,j"]
+    J --> K["Incrementa k"]
     K --> I
-    I -- Nao --> L["res[i,j] = sum"]
-    L --> M[j++]
+    I -- nao --> L["C i,j recebe sum"]
+    L --> M["Incrementa j"]
     M --> E
 ```
+
+A ordem logica dos lacos e `i, j, k` em todas as implementacoes do contrato comum.
 
 ## Fluxo de Dados e Artefatos
 
 ```mermaid
 flowchart LR
-    subgraph Inputs[Entradas]
-        Params[Parametros: B, Npts, M, escala]
-        Sources[src/matriz_*.c cpp java py]
-    end
-
-    subgraph Build[Artefatos de compilacao]
-        BLinux[build/linux/]
-        BWin[build/windows/]
-        BJava[build/java/]
-    end
-
-    subgraph Out["out/<run_id>/"]
-        Csv[resultado_c.csv<br/>resultado_c_O3.csv<br/>resultado_cpp.csv<br/>resultado_cpp_O3.csv<br/>resultado_java.csv<br/>resultado_python.csv<br/>+ resultado_rust/julia/elixir.csv se solicitados]
-        Sys[system_info.md<br/>system_info.json]
-        Manifest[run_manifest.json]
-        Graphs[grafico_*.png]
-    end
-
-    Params --> Build
-    Sources --> Build
-    Build --> Csv
-    Params --> Manifest
-    Csv --> Graphs
-    Csv --> Validate[validate_run.py]
-    Sys --> Validate
-    Manifest --> Validate
-    Graphs --> Validate
+    Params["Parametros B, Npts, M, escala"] --> Runner["Runner"]
+    Sources["src/matriz_*"] --> Runner
+    Runner --> Build["build/"]
+    Runner --> Staging["out/.running-run_id/"]
+    Build --> Exec["Benchmarks"]
+    Exec --> Csv["resultado_*.csv"]
+    Csv --> Staging
+    Runner --> Sys["system_info"]
+    Sys --> Staging
+    Runner --> Manifest["run_manifest.json"]
+    Manifest --> Staging
+    Staging --> Plot["plot_benchmarks.py"]
+    Plot --> Graphs["grafico_*.png"]
+    Graphs --> Staging
+    Staging --> Validate["validate_run.py"]
+    Validate -- sucesso --> Final["out/run_id/"]
 ```
 
 ## Geracao dos Graficos
 
 ```mermaid
 flowchart TD
-    A[plot_benchmarks.py out_dir] --> B[Prepara MPLCONFIGDIR]
-    B --> C[Carrega matplotlib com backend Agg]
-    C --> D[Mapeia CSVs esperados por linguagem]
-    D --> E[Aplica exclusoes via --exclude, se houver]
-    E --> F[Le CSVs existentes]
-    F --> G{Ha dados validos?}
-    G -- Nao --> X[Erro: nenhum CSV valido encontrado]
-    G -- Sim --> H[Para cada metrica: TCS, TAM, TDM]
-    H --> I[Grafico todas as linguagens]
-    H --> J[Grafico C vs C++ preferindo -O3 quando disponivel]
-    H --> K[Grafico C e C++ com e sem -O3]
-    H --> L[Grafico C vs C++ sem -O3]
-    H --> M[Grafico todas as linguagens exceto Python]
-    I --> N[Salva PNG em out_dir]
+    A["plot_benchmarks.py out_dir"] --> B["Prepara MPLCONFIGDIR"]
+    B --> C["Carrega matplotlib com backend Agg"]
+    C --> D["Mapeia CSVs conhecidos"]
+    D --> E["Aplica exclusoes solicitadas"]
+    E --> F["Le CSVs existentes"]
+    F --> G{"Ha dados validos?"}
+    G -- nao --> X["Erro"]
+    G -- sim --> H["Para cada metrica TCS, TAM e TDM"]
+    H --> I["Grafico com todas as series disponiveis"]
+    H --> J["Grafico C vs C++ preferindo -O3"]
+    H --> K["Grafico C e C++ com e sem -O3"]
+    H --> L["Grafico C vs C++ sem -O3"]
+    H --> M["Grafico sem Python"]
+    I --> N["Salva PNG"]
     J --> N
     K --> N
     L --> N
@@ -357,106 +364,118 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A["validate_run.py out/<run_id>"] --> B{Diretorio existe?}
-    B -- Nao --> X[Erro]
-    B -- Sim --> C[Le run_manifest.json e Npts esperado]
-    C --> D{"Os 6 CSVs centrais estao declarados no manifesto?"}
-    D -- Nao --> X
-    D -- Sim --> E{"Algum CSV opcional presente e nao declarado?"}
-    E -- Sim --> X
-    E -- Nao --> F[Valida cada CSV declarado: cabecalho, linhas numericas, N nao decrescente, tempos finitos e nao negativos, contagem igual a Npts]
-    F --> G{"Series de N identicas entre todos os CSVs?"}
-    G -- Nao --> X
-    G -- Sim --> H[Confere system_info.md nao vazio]
-    H --> I[Valida system_info.json com generated_at]
-    I --> J{Existe ao menos um grafico_*.png?}
-    J -- Nao --> X
-    J -- Sim --> K[Validacao concluida com sucesso]
+    A["validate_run.py out/run_id"] --> B{"Diretorio existe?"}
+    B -- nao --> X["Erro"]
+    B -- sim --> C["Le run_manifest.json"]
+    C --> D["Le Npts esperado"]
+    D --> E{"Os 6 CSVs centrais estao declarados?"}
+    E -- nao --> X
+    E -- sim --> F{"CSV opcional conhecido esta presente sem declaracao?"}
+    F -- sim --> X
+    F -- nao --> G["Valida cada CSV declarado"]
+    G --> H["Confere cabecalho, linhas, numeros, tempos e quantidade Npts"]
+    H --> I{"Series de N sao identicas?"}
+    I -- nao --> X
+    I -- sim --> J["Confere system_info.md e system_info.json"]
+    J --> K{"Existe ao menos um grafico PNG?"}
+    K -- nao --> X
+    K -- sim --> L["Validacao concluida com sucesso"]
 ```
 
-O manifesto é a fonte autoritativa para os seis CSVs centrais e os três opcionais reconhecidos: qualquer um deles presente no diretório mas ausente do manifesto invalida a execução, e uma saída declarada mas ausente também invalida. CSVs de nomes arbitrários ainda não são rejeitados pelo validador.
+O manifesto e a fonte autoritativa para os seis CSVs centrais e para Rust, Julia e Elixir quando solicitados. Um CSV opcional conhecido presente sem declaracao invalida a execucao.
 
 ## Estrutura do Diretorio de Saida
 
 ```mermaid
 flowchart TD
-    A["out/<run_id>/"] --> B[CSVs de resultado]
-    A --> C[Metadados]
-    A --> D[Graficos]
+    A["out/run_id/"] --> B["CSVs centrais"]
+    A --> C["CSVs opcionais quando solicitados"]
+    A --> D["Metadados"]
+    A --> E["Graficos"]
 
-    B --> B1[resultado_c.csv]
-    B --> B2[resultado_c_O3.csv]
-    B --> B3[resultado_cpp.csv]
-    B --> B4[resultado_cpp_O3.csv]
-    B --> B5[resultado_java.csv]
-    B --> B6[resultado_python.csv]
-    B -.-> B7["resultado_rust.csv (com --with-rust)"]
-    B -.-> B8["resultado_julia.csv (com --with-julia)"]
-    B -.-> B9["resultado_elixir.csv (com --with-elixir)"]
+    B --> B1["resultado_c.csv"]
+    B --> B2["resultado_c_O3.csv"]
+    B --> B3["resultado_cpp.csv"]
+    B --> B4["resultado_cpp_O3.csv"]
+    B --> B5["resultado_java.csv"]
+    B --> B6["resultado_python.csv"]
 
-    C --> C1[system_info.md]
-    C --> C2[system_info.json]
-    C --> C3[run_manifest.json]
+    C -.-> C1["resultado_rust.csv"]
+    C -.-> C2["resultado_julia.csv"]
+    C -.-> C3["resultado_elixir.csv"]
 
-    D --> D1[grafico_TCS_*.png]
-    D --> D2[grafico_TAM_*.png]
-    D --> D3[grafico_TDM_*.png]
+    D --> D1["system_info.md"]
+    D --> D2["system_info.json"]
+    D --> D3["run_manifest.json"]
+
+    E --> E1["grafico_TCS_*.png"]
+    E --> E2["grafico_TAM_*.png"]
+    E --> E3["grafico_TDM_*.png"]
 ```
 
 ## Manifest da Execucao
 
 ```mermaid
 flowchart TD
-    A[run_manifest.json] --> B[run_id]
-    A --> C[generated_at UTC]
-    A --> D[commit_hash]
-    A --> E[system]
-    A --> F[parameters]
-    A --> G[tools]
-    A --> H[languages]
+    A["run_manifest.json"] --> B["run_id"]
+    A --> C["generated_at UTC"]
+    A --> D["commit_hash"]
+    A --> E["system"]
+    A --> F["parameters"]
+    A --> G["tools"]
+    A --> H["languages"]
 
-    E --> E1[platform]
-    E --> E2[machine]
-    E --> E3[python]
+    E --> E1["platform"]
+    E --> E2["machine"]
+    E --> E3["python"]
 
-    F --> F1[B]
-    F --> F2[Npts]
-    F --> F3[M]
-    F --> F4[escala]
+    F --> F1["B"]
+    F --> F2["Npts"]
+    F --> F3["M"]
+    F --> F4["escala"]
 
-    G --> G1[gcc]
-    G --> G2[g++]
-    G --> G3[java]
-    G --> G4[javac]
-    G --> G5[python]
-    G -.-> G6["rustc (com --with-rust)"]
-    G -.-> G7["julia (com --with-julia)"]
-    G -.-> G8["elixir (com --with-elixir)"]
+    G --> G1["gcc"]
+    G --> G2["g++"]
+    G --> G3["java"]
+    G --> G4["java_gc"]
+    G --> G5["javac"]
+    G --> G6["python"]
+    G -. opcional .-> G7["rustc"]
+    G -. opcional .-> G8["julia"]
+    G -. opcional .-> G9["elixir"]
 
-    H --> H1[name]
-    H --> H2[flags]
-    H --> H3[output]
-    H -.-> H4["entrada Rust/Julia/Elixir somente se a flag foi usada e a execucao teve sucesso"]
+    H --> H1["name"]
+    H --> H2["flags"]
+    H --> H3["output"]
 ```
+
+As ferramentas extras e as respectivas linguagens entram no manifesto somente quando foram solicitadas e executadas com sucesso.
 
 ## Dependencias de Ambiente
 
 ```mermaid
 flowchart LR
-    Runner[run_all] --> GCC[gcc]
-    Runner --> GPP[g++]
-    Runner --> JDK[javac]
-    Runner --> JVM[java]
-    Runner --> Python[python3 ou python]
-    Python --> Matplotlib[matplotlib]
+    Runner["run_all"] --> GCC["gcc"]
+    Runner --> GPP["g++"]
+    Runner --> JDK["javac"]
+    Runner --> JVM["java"]
+    Runner --> Python["python"]
+    Python --> Matplotlib["matplotlib"]
 
-    GCC --> CBuild[C e C -O3]
-    GPP --> CppBuild[C++ e C++ -O3]
-    JDK --> JavaBuild[matriz_java.class]
-    JVM --> JavaRun[execucao Java]
-    Python --> PyRun[benchmark Python]
-    Python --> PlotRun[plot_benchmarks.py]
-    Python --> ValRun[validate_run.py]
+    Runner -. quando solicitado .-> Rustc["rustc"]
+    Runner -. quando solicitado .-> Julia["julia"]
+    Runner -. quando solicitado .-> Elixir["elixir"]
+
+    GCC --> CBuild["C e C -O3"]
+    GPP --> CppBuild["C++ e C++ -O3"]
+    JDK --> JavaBuild["matriz_java.class"]
+    JVM --> JavaRun["execucao Java"]
+    Python --> PyRun["benchmark Python"]
+    Python --> PlotRun["plot_benchmarks.py"]
+    Python --> ValRun["validate_run.py"]
+    Rustc --> RustRun["benchmark Rust"]
+    Julia --> JuliaRun["benchmark Julia"]
+    Elixir --> ElixirRun["benchmark Elixir"]
 ```
 
 ## Estados de uma Execucao
@@ -464,53 +483,65 @@ flowchart LR
 ```mermaid
 stateDiagram-v2
     [*] --> Configurando
-    Configurando --> EmStaging: parametros e dependencias centrais validos, cria out/.running-<run_id>/
-    Configurando --> Falha: parametro/dependencia central invalido, ou out/<run_id>/ ou out/.running-<run_id>/ ja existem
+    Configurando --> FalhaAntesStaging: parametro ou run_name invalido
+    Configurando --> FalhaAntesStaging: dependencia central ausente
+    Configurando --> FalhaAntesStaging: toolchain extra solicitada ausente
+    Configurando --> FalhaAntesStaging: destino final ou staging ja existe
+    Configurando --> EmStaging: preflight aprovado e staging criado
+
     EmStaging --> Compilando
     Compilando --> Executando: build concluido
     Compilando --> FalhaEmStaging: erro de compilacao
-    Executando --> ColetandoMetadados: CSVs gerados
-    Executando --> FalhaEmStaging: toolchain extra ausente, erro em benchmark ou verificacao
-    ColetandoMetadados --> GerandoGraficos: system_info e manifest gerados (inclui java_gc)
+
+    Executando --> ColetandoMetadados: benchmarks concluidos
+    Executando --> FalhaEmStaging: benchmark ou verificacao falhou
+
+    ColetandoMetadados --> GerandoGraficos: metadados concluidos
+    ColetandoMetadados --> FalhaEmStaging: erro de metadados
+
     GerandoGraficos --> Validando: PNGs gerados
-    GerandoGraficos --> FalhaEmStaging: erro no matplotlib ou CSV invalido
-    Validando --> Promovendo: validate_run.py aprovado
-    Validando --> FalhaEmStaging: artefato ausente ou invalido
-    Promovendo --> Concluida: mv/Move-Item out/.running-<run_id>/ para out/<run_id>/
+    GerandoGraficos --> FalhaEmStaging: erro de graficos
+
+    Validando --> Promovendo: validacao aprovada
+    Validando --> FalhaEmStaging: validacao rejeitada
+
+    Promovendo --> Concluida: staging promovido para out/run_id/
     Concluida --> [*]
-    FalhaEmStaging --> [*]: out/.running-<run_id>/ preservado para diagnostico; out/<run_id>/ nunca criado
-    Falha --> [*]
+    FalhaEmStaging --> [*]: staging preservado para diagnostico
+    FalhaAntesStaging --> [*]
 ```
 
 ## Integracao de Nova Linguagem ao Fluxo Principal
 
-Use este roteiro quando um experimento for promovido para `src/`. Rust, Julia e Elixir seguem este fluxo: sao **opcionais por flag**, nao obrigatorias -- nao entram em `EXPECTED_CSVS` (que permanece só com os 6 nomes centrais), so no manifesto quando a flag correspondente e usada e a execucao tem sucesso.
+Use este roteiro quando uma nova linguagem for promovida para `src/`. Rust, Julia e Elixir seguem esse modelo como linguagens opcionais por flag.
 
 ```mermaid
 flowchart TD
-    A[Novo benchmark em src/] --> B[Implementar contrato CLI comum]
-    B --> C[Gerar CSV com cabecalho N,TCS,TAM,TDM]
-    C --> D[Adicionar warm-up e M repeticoes]
-    D --> E[Adicionar verificacao do resultado]
-    E --> F["Adicionar flag opcional em run_all.sh (--with-X)"]
-    E --> G["Adicionar flag opcional em run_all.ps1 (-WithX)"]
-    F --> H["Se a flag for usada: detectar toolchain, compilar/executar, abortar tudo se falhar"]
-    G --> H
-    H --> I["Adicionar entrada em run_manifest.json (languages/tools) somente se a execucao teve sucesso"]
-    I --> J["Manter plot_benchmarks.py e validate_run.py compativeis com a serie opcional"]
-    J --> K["Executar smoke test com e sem a flag em out/<run_id>/"]
-    K --> L[Documentar diferencas metodologicas relevantes]
+    A["Novo benchmark em src/"] --> B["Implementa CLI B Npts M escala out_csv"]
+    B --> C["Gera CSV N,TCS,TAM,TDM"]
+    C --> D["Adiciona warm-up e M repeticoes medidas"]
+    D --> E["Adiciona verificacao do resultado"]
+    E --> F["Adiciona teste nao identidade"]
+    F --> G["Adiciona flag opcional ao runner Linux"]
+    F --> H["Adiciona flag opcional ao runner Windows"]
+    G --> I["Preflight da toolchain antes do staging"]
+    H --> I
+    I --> J["Compila e ou executa somente quando solicitado"]
+    J --> K["Registra tools e languages no manifesto apos sucesso"]
+    K --> L["Mantem plot e validador compativeis"]
+    L --> M["Executa harness e smoke tests com e sem a flag"]
+    M --> N["Documenta diferencas metodologicas"]
 ```
 
 ## Pontos de Atencao Metodologica
 
-Resumo rapido; o desenho experimental completo (variaveis, controles, JIT, GC, layout de memoria por linguagem, limitacoes e ameacas a validade) esta em [METHODOLOGY.md](METHODOLOGY.md):
+Resumo rapido. O desenho experimental completo esta em [METHODOLOGY.md](METHODOLOGY.md) e as ameacas a validade estao em [THREATS_TO_VALIDITY.md](THREATS_TO_VALIDITY.md).
 
-- `TAM` e a janela de alocacao/inicializacao, incluindo `res`, em C, C++, Java, Python, Rust e Julia. Elixir e a unica excecao: por imutabilidade, `res` so existe ao final da construcao.
-- `TCS` e a janela de calculo; em Elixir inclui tambem a construcao imutavel de `res` (excecao estrutural, nao de implementacao).
-- `TDM` mede uma liberacao provocada em C/C++/Rust; Java, Python, Julia e Elixir registram `0.0` porque o protocolo nao mede a liberacao automatica, nao porque ela seja instantanea.
-- O warm-up nao entra na media final.
-- `M` reduz ruido por media aritmetica simples; tempos individuais por repeticao nao sao preservados.
-- O algoritmo principal e algoritmicamente equivalente, O(N^3), com ordem logica `i,j,k`; representacao e operacoes internas variam por linguagem.
-- A matriz identidade como segundo operando torna a verificacao simples sem alterar a complexidade do calculo.
-- Comparacoes entre linguagens devem considerar layout de memoria, largura dos inteiros, otimizacoes do compilador, JIT de Java/Julia/BEAM, GC e imutabilidade.
+- `TAM` cobre alocacao e inicializacao de A, B e do resultado quando a representacao permite pre-alocacao.
+- Elixir e a excecao estrutural: o resultado imutavel e construido durante `TCS`.
+- `TCS` mede a multiplicacao manual O(N^3), com ordem logica `i, j, k`.
+- `TDM` mede liberacao explicita em C, C++ e Rust. Java, Python, Julia e Elixir registram `0.0`.
+- O warm-up e descartado e nao entra na media de `M` repeticoes.
+- A matriz identidade simplifica a verificacao amostral do benchmark, mas nao substitui os testes nao identidade.
+- C e C++ possuem variantes com e sem `-O3`, enquanto Rust e integrado com `opt-level=3`.
+- Comparacoes devem considerar layout de memoria, largura dos inteiros, JIT, GC, bounds-checks, imutabilidade e otimizacoes do compilador.
