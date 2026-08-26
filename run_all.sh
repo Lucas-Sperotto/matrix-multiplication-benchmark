@@ -40,57 +40,18 @@ EOF
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --batch)
-      BATCH=1
-      shift
-      ;;
-    --run-name)
-      RUN_NAME="${2:-}"
-      shift 2
-      ;;
-    --B|--b)
-      B="${2:-}"
-      shift 2
-      ;;
-    --Npts|--npts)
-      NPTS="${2:-}"
-      shift 2
-      ;;
-    --M|--m)
-      M_COUNT="${2:-}"
-      shift 2
-      ;;
-    --escala)
-      ESCALA="${2:-}"
-      shift 2
-      ;;
-    --with-rust)
-      WITH_RUST=1
-      shift
-      ;;
-    --with-julia)
-      WITH_JULIA=1
-      shift
-      ;;
-    --with-elixir)
-      WITH_ELIXIR=1
-      shift
-      ;;
-    --with-all-extras)
-      WITH_RUST=1
-      WITH_JULIA=1
-      WITH_ELIXIR=1
-      shift
-      ;;
-    -h|--help)
-      usage
-      exit 0
-      ;;
-    *)
-      echo "Argumento desconhecido: $1" >&2
-      usage
-      exit 1
-      ;;
+    --batch) BATCH=1; shift ;;
+    --run-name) RUN_NAME="${2:-}"; shift 2 ;;
+    --B|--b) B="${2:-}"; shift 2 ;;
+    --Npts|--npts) NPTS="${2:-}"; shift 2 ;;
+    --M|--m) M_COUNT="${2:-}"; shift 2 ;;
+    --escala) ESCALA="${2:-}"; shift 2 ;;
+    --with-rust) WITH_RUST=1; shift ;;
+    --with-julia) WITH_JULIA=1; shift ;;
+    --with-elixir) WITH_ELIXIR=1; shift ;;
+    --with-all-extras) WITH_RUST=1; WITH_JULIA=1; WITH_ELIXIR=1; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "Argumento desconhecido: $1" >&2; usage; exit 1 ;;
   esac
 done
 
@@ -104,13 +65,18 @@ need_cmd() {
 }
 
 validate_int() {
-  local name="$1"
-  local value="$2"
-  local min="$3"
-  local max="$4"
-
+  local name="$1" value="$2" min="$3" max="$4"
   if [[ ! "$value" =~ ^[0-9]+$ ]] || (( value < min || value > max )); then
     echo "Parametro invalido para $name: $value" >&2
+    exit 1
+  fi
+}
+
+validate_run_name() {
+  local value="$1"
+  if [[ ! "$value" =~ ^[A-Za-z0-9_.-]+$ ]] || [[ "$value" == *".."* ]]; then
+    echo "Nome de execucao invalido: $value" >&2
+    echo "Use apenas A-Z, a-z, 0-9, _, . e -, sem '..' nem separadores de caminho." >&2
     exit 1
   fi
 }
@@ -138,16 +104,12 @@ if [[ "$BATCH" -eq 0 ]]; then
   read -r -p "Digite a quantidade de repeticoes para media (M): " M_COUNT
 fi
 
-if [[ -z "$RUN_NAME" ]]; then
-  RUN_NAME="$(date '+%Y%m%d_%H%M%S')"
-fi
-
+if [[ -z "$RUN_NAME" ]]; then RUN_NAME="$(date '+%Y%m%d_%H%M%S')"; fi
 if [[ -z "$B" || -z "$NPTS" || -z "$M_COUNT" || -z "$ESCALA" ]]; then
-  echo "Parametros obrigatorios ausentes." >&2
-  usage
-  exit 1
+  echo "Parametros obrigatorios ausentes." >&2; usage; exit 1
 fi
 
+validate_run_name "$RUN_NAME"
 validate_int "B" "$B" 100 100000
 validate_int "Npts" "$NPTS" 2 10000
 validate_int "M" "$M_COUNT" 1 100000
@@ -160,22 +122,16 @@ need_cmd java
 need_cmd python3
 check_python_runtime
 
-# FINAL_DIR e' o destino publicavel; OUT_DIR passa a ser um diretorio de
-# trabalho temporario sob o mesmo out/, promovido (renomeado) para
-# FINAL_DIR somente apos toda a execucao E validate_run.py terem sucesso.
-# Isso evita que uma execucao abortada no meio (toolchain ausente, N muito
-# grande, falha de qualquer benchmark) apareça como um out/<run_id>
-# completo e indistinguivel de uma execucao valida. O rename ocorre dentro
-# de out/ (mesmo filesystem), entao e atomico no Linux; ver Tarefa 6 do
-# docs/FINAL_STABILIZATION_PLAN.md para as alternativas consideradas.
+# Preflight das extras solicitadas: falha antes de criar staging ou executar o nucleo.
+if [[ "$WITH_RUST" -eq 1 ]]; then need_cmd rustc; fi
+if [[ "$WITH_JULIA" -eq 1 ]]; then need_cmd julia; fi
+if [[ "$WITH_ELIXIR" -eq 1 ]]; then need_cmd elixir; fi
+
 FINAL_DIR="out/$RUN_NAME"
 OUT_DIR="out/.running-$RUN_NAME"
 BUILD_LINUX="build/linux"
 BUILD_JAVA="build/java"
 
-# O destino final precisa ser inteiramente inexistente. Permitir um diretorio
-# vazio mudaria a semantica de `mv`: o staging seria criado dentro dele em
-# vez de ser renomeado para ele, quebrando o contrato out/<run_id>/.
 if [[ -e "$FINAL_DIR" || -L "$FINAL_DIR" ]]; then
   echo "Caminho final de execucao ja existe: $FINAL_DIR" >&2
   echo "Use outro --run-name; o runner nunca reutiliza um destino final, mesmo vazio." >&2
@@ -207,19 +163,14 @@ javac -d "$BUILD_JAVA" src/matriz_java.java
 
 echo "Executando C..."
 "$BUILD_LINUX/matriz_c" "$B" "$NPTS" "$M_COUNT" "$ESCALA" "$OUT_DIR/resultado_c.csv"
-
 echo "Executando C -O3..."
 "$BUILD_LINUX/matriz_c_O3" "$B" "$NPTS" "$M_COUNT" "$ESCALA" "$OUT_DIR/resultado_c_O3.csv"
-
 echo "Executando C++..."
 "$BUILD_LINUX/matriz_cpp" "$B" "$NPTS" "$M_COUNT" "$ESCALA" "$OUT_DIR/resultado_cpp.csv"
-
 echo "Executando C++ -O3..."
 "$BUILD_LINUX/matriz_cpp_O3" "$B" "$NPTS" "$M_COUNT" "$ESCALA" "$OUT_DIR/resultado_cpp_O3.csv"
-
 echo "Executando Java..."
 java -cp "$BUILD_JAVA" matriz_java "$B" "$NPTS" "$M_COUNT" "$ESCALA" "$OUT_DIR/resultado_java.csv"
-
 echo "Executando Python..."
 python3 src/matriz_python.py "$B" "$NPTS" "$M_COUNT" "$ESCALA" "$OUT_DIR/resultado_python.csv"
 
@@ -228,42 +179,28 @@ JULIA_VERSION=""
 ELIXIR_VERSION=""
 
 if [[ "$WITH_RUST" -eq 1 ]]; then
-  need_cmd rustc
   echo "Compilando Rust..."
   rustc --edition=2021 -C opt-level=3 -D warnings src/matriz_rust.rs -o "$BUILD_LINUX/matriz_rust"
   echo "Executando Rust..."
   "$BUILD_LINUX/matriz_rust" "$B" "$NPTS" "$M_COUNT" "$ESCALA" "$OUT_DIR/resultado_rust.csv"
-  RUST_VERSION="$(rustc --version)"
-  [[ -n "$RUST_VERSION" ]] || RUST_VERSION="N/D"
+  RUST_VERSION="$(rustc --version)"; [[ -n "$RUST_VERSION" ]] || RUST_VERSION="N/D"
 fi
-
 if [[ "$WITH_JULIA" -eq 1 ]]; then
-  need_cmd julia
   echo "Executando Julia..."
   julia src/matriz_Julia.jl "$B" "$NPTS" "$M_COUNT" "$ESCALA" "$OUT_DIR/resultado_julia.csv"
-  JULIA_VERSION="$(julia --version)"
-  [[ -n "$JULIA_VERSION" ]] || JULIA_VERSION="N/D"
+  JULIA_VERSION="$(julia --version)"; [[ -n "$JULIA_VERSION" ]] || JULIA_VERSION="N/D"
 fi
-
 if [[ "$WITH_ELIXIR" -eq 1 ]]; then
-  need_cmd elixir
   echo "Executando Elixir..."
   elixir src/matriz_multiplication.exs "$B" "$NPTS" "$M_COUNT" "$ESCALA" "$OUT_DIR/resultado_elixir.csv"
-  ELIXIR_VERSION="$(elixir --version | awk '/^Elixir/')"
-  [[ -n "$ELIXIR_VERSION" ]] || ELIXIR_VERSION="N/D"
+  ELIXIR_VERSION="$(elixir --version | awk '/^Elixir/')"; [[ -n "$ELIXIR_VERSION" ]] || ELIXIR_VERSION="N/D"
 fi
 
 echo "Capturando informacoes de sistema..."
 bash scripts/gen_sysinfo_md.sh "$OUT_DIR/system_info.md" "$OUT_DIR/system_info.json"
 
-export RUN_ID="$RUN_NAME"
-export PARAM_B="$B"
-export PARAM_NPTS="$NPTS"
-export PARAM_M="$M_COUNT"
-export PARAM_ESCALA="$ESCALA"
-export MANIFEST_PATH="$OUT_DIR/run_manifest.json"
-export WITH_RUST WITH_JULIA WITH_ELIXIR
-export RUST_VERSION JULIA_VERSION ELIXIR_VERSION
+export RUN_ID="$RUN_NAME" PARAM_B="$B" PARAM_NPTS="$NPTS" PARAM_M="$M_COUNT" PARAM_ESCALA="$ESCALA"
+export MANIFEST_PATH="$OUT_DIR/run_manifest.json" WITH_RUST WITH_JULIA WITH_ELIXIR RUST_VERSION JULIA_VERSION ELIXIR_VERSION
 
 python3 - <<'PY'
 import json
@@ -278,45 +215,16 @@ def run(cmd):
     except Exception:
         return "N/D"
 
-# Nomes das flags booleanas do HotSpot que selecionam o coletor ativo
-# (JDK 17-21+). Usar uma lista fechada evita falsos positivos: varias
-# outras flags "Use...GC" existem (ex.: UseMaximumCompactionOnSystemGC)
-# e tambem podem estar "= true" sem indicar qual coletor esta em uso.
-KNOWN_JAVA_GC_FLAGS = {
-    "UseG1GC",
-    "UseParallelGC",
-    "UseSerialGC",
-    "UseShenandoahGC",
-    "UseZGC",
-    "UseEpsilonGC",
-}
+KNOWN_JAVA_GC_FLAGS = {"UseG1GC", "UseParallelGC", "UseSerialGC", "UseShenandoahGC", "UseZGC", "UseEpsilonGC"}
 
 def detect_java_gc():
-    # Sondagem best-effort para registrar o coletor de lixo efetivamente
-    # configurado, sem fixar nem alterar nenhum parametro de GC usado pelo
-    # benchmark (a JVM roda com as flags padrao do ambiente em todo o
-    # restante do script). -XX:+PrintFlagsFinal e um flag de diagnostico
-    # HotSpot; pode nao existir ou se comportar diferente em outras JVMs
-    # (OpenJ9, GraalVM native), por isso qualquer falha cai em "N/D" sem
-    # abortar a execucao.
     try:
-        output = subprocess.check_output(
-            ["java", "-XX:+PrintFlagsFinal", "-version"],
-            stderr=subprocess.STDOUT,
-            text=True,
-        )
+        output = subprocess.check_output(["java", "-XX:+PrintFlagsFinal", "-version"], stderr=subprocess.STDOUT, text=True)
     except Exception:
         return "N/D"
-
     for line in output.splitlines():
         parts = line.split()
-        if (
-            len(parts) >= 4
-            and parts[0] == "bool"
-            and parts[1] in KNOWN_JAVA_GC_FLAGS
-            and parts[2] == "="
-            and parts[3] == "true"
-        ):
+        if len(parts) >= 4 and parts[0] == "bool" and parts[1] in KNOWN_JAVA_GC_FLAGS and parts[2] == "=" and parts[3] == "true":
             return parts[1]
     return "N/D"
 
@@ -324,23 +232,11 @@ data = {
     "run_id": os.environ["RUN_ID"],
     "generated_at": datetime.now(timezone.utc).isoformat(),
     "commit_hash": run(["git", "rev-parse", "HEAD"]),
-    "system": {
-        "platform": platform.platform(),
-        "machine": platform.machine(),
-        "python": platform.python_version(),
-    },
-    "parameters": {
-        "B": int(os.environ["PARAM_B"]),
-        "Npts": int(os.environ["PARAM_NPTS"]),
-        "M": int(os.environ["PARAM_M"]),
-        "escala": int(os.environ["PARAM_ESCALA"]),
-    },
+    "system": {"platform": platform.platform(), "machine": platform.machine(), "python": platform.python_version()},
+    "parameters": {"B": int(os.environ["PARAM_B"]), "Npts": int(os.environ["PARAM_NPTS"]), "M": int(os.environ["PARAM_M"]), "escala": int(os.environ["PARAM_ESCALA"])},
     "tools": {
         "gcc": run(["gcc", "--version"]).splitlines()[0],
         "g++": run(["g++", "--version"]).splitlines()[0],
-        # Saida completa (nao so a primeira linha): a 2a/3a linha de
-        # `java -version` normalmente identifica a VM/vendor (ex.: "OpenJDK
-        # 64-Bit Server VM..."), relevante para proveniencia experimental.
         "java": run(["java", "-version"]),
         "java_gc": detect_java_gc(),
         "javac": run(["javac", "-version"]),
@@ -355,43 +251,24 @@ data = {
         {"name": "Python", "flags": "", "output": "resultado_python.csv"},
     ],
 }
-
-rust_enabled = os.environ["WITH_RUST"] == "1"
-rust_version = os.environ.get("RUST_VERSION", "") or "N/D"
-if rust_enabled:
-    data["languages"].append(
-        {"name": "Rust", "flags": "--edition=2021 -C opt-level=3 -D warnings", "output": "resultado_rust.csv"}
-    )
-    data["tools"]["rustc"] = rust_version
-
-julia_enabled = os.environ["WITH_JULIA"] == "1"
-julia_version = os.environ.get("JULIA_VERSION", "") or "N/D"
-if julia_enabled:
+if os.environ["WITH_RUST"] == "1":
+    data["languages"].append({"name": "Rust", "flags": "--edition=2021 -C opt-level=3 -D warnings", "output": "resultado_rust.csv"})
+    data["tools"]["rustc"] = os.environ.get("RUST_VERSION", "") or "N/D"
+if os.environ["WITH_JULIA"] == "1":
     data["languages"].append({"name": "Julia", "flags": "", "output": "resultado_julia.csv"})
-    data["tools"]["julia"] = julia_version
-
-elixir_enabled = os.environ["WITH_ELIXIR"] == "1"
-elixir_version = os.environ.get("ELIXIR_VERSION", "") or "N/D"
-if elixir_enabled:
+    data["tools"]["julia"] = os.environ.get("JULIA_VERSION", "") or "N/D"
+if os.environ["WITH_ELIXIR"] == "1":
     data["languages"].append({"name": "Elixir", "flags": "", "output": "resultado_elixir.csv"})
-    data["tools"]["elixir"] = elixir_version
-
+    data["tools"]["elixir"] = os.environ.get("ELIXIR_VERSION", "") or "N/D"
 with open(os.environ["MANIFEST_PATH"], "w", encoding="utf-8") as f:
-    json.dump(data, f, ensure_ascii=False, indent=2)
-    f.write("\n")
+    json.dump(data, f, ensure_ascii=False, indent=2); f.write("\n")
 PY
 
 echo "Gerando graficos..."
 python3 src/plot_benchmarks.py "$OUT_DIR"
-
 echo "Validando execucao..."
 python3 scripts/validate_run.py "$OUT_DIR"
-
-# Promocao: so alcancada se tudo acima teve sucesso (set -e aborta o script
-# em qualquer falha anterior, inclusive uma falha de validate_run.py).
-# Rename dentro do mesmo diretorio out/, portanto no mesmo filesystem.
 echo "Promovendo execucao para o diretorio final..."
 mv "$OUT_DIR" "$FINAL_DIR"
-
 echo "-----------------------------------"
 echo "Finalizado. Arquivos em: $FINAL_DIR"

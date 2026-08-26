@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Testa o contrato de linha de comando e CSV de uma linguagem extra.
+"""Testa o contrato de linha de comando e CSV de uma implementação do benchmark.
 
 O comando informado deve aceitar, nessa ordem, os argumentos
 ``B Npts M escala out_csv``. O harness acrescenta esses argumentos ao
@@ -18,7 +18,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Sequence
 
-
 EXPECTED_HEADER = ["N", "TCS", "TAM", "TDM"]
 TIMEOUT_SECONDS = 120
 
@@ -36,7 +35,7 @@ class ProcessResult:
 
 def parse_cli(argv: Sequence[str]) -> tuple[str, list[str]]:
     parser = argparse.ArgumentParser(
-        description="Valida uma implementacao extra do benchmark.",
+        description="Valida uma implementacao do benchmark.",
         usage="%(prog)s --language NOME -- COMANDO [ARGUMENTOS_DO_COMANDO...]",
     )
     parser.add_argument("--language", required=True, help="nome exibido nos resultados")
@@ -53,13 +52,11 @@ def parse_cli(argv: Sequence[str]) -> tuple[str, list[str]]:
 
     options = parser.parse_args(list(argv[:separator]))
     command = list(argv[separator + 1 :])
-
     language = options.language.strip()
     if not language:
         raise ContractError("--language nao pode ser vazio")
     if not command:
         raise ContractError("informe um comando depois de '--'")
-
     return language, command
 
 
@@ -123,7 +120,6 @@ def assert_error_case(
 def validate_csv(path: Path, expected_points: Sequence[int]) -> None:
     if not path.is_file():
         raise ContractError(f"CSV nao foi criado: {path}")
-
     try:
         with path.open("r", encoding="utf-8", newline="") as csv_file:
             rows = list(csv.reader(csv_file))
@@ -149,26 +145,22 @@ def validate_csv(path: Path, expected_points: Sequence[int]) -> None:
             raise ContractError(
                 f"linha {line_number} de {path} tem {len(row)} colunas; esperado 4"
             )
-
         try:
             n = int(row[0])
         except ValueError as exc:
             raise ContractError(
                 f"N nao inteiro na linha {line_number} de {path}: {row[0]!r}"
             ) from exc
-
         try:
             times = [float(value) for value in row[1:]]
         except ValueError as exc:
             raise ContractError(
                 f"tempo nao numerico na linha {line_number} de {path}: {row[1:]!r}"
             ) from exc
-
         if not all(math.isfinite(value) for value in times):
             raise ContractError(f"NaN ou infinito na linha {line_number} de {path}: {times!r}")
         if any(value < 0.0 for value in times):
             raise ContractError(f"tempo negativo na linha {line_number} de {path}: {times!r}")
-
         actual_points.append(n)
 
     if actual_points != list(expected_points):
@@ -180,6 +172,7 @@ def validate_csv(path: Path, expected_points: Sequence[int]) -> None:
 def assert_success_case(
     command: Sequence[str], case_name: str, scale: int, expected_points: Sequence[int], case_dir: Path
 ) -> None:
+    case_dir.mkdir(parents=True, exist_ok=True)
     output_path = case_dir / "resultado.csv"
     result = run_command(command, ["144", "3", "1", str(scale), str(output_path)])
     if result.returncode != 0:
@@ -189,8 +182,24 @@ def assert_success_case(
     validate_csv(output_path, expected_points)
 
 
+def assert_parent_creation_case(command: Sequence[str], root: Path) -> None:
+    """Confirma que a implementacao cria diretorios pais ausentes de out_csv."""
+    output_path = root / "criacao de diretorio pai" / "nivel 1" / "nivel 2" / "resultado.csv"
+    if output_path.parent.exists():
+        raise ContractError("fixture invalido: o diretorio pai deveria iniciar inexistente")
+
+    result = run_command(command, ["100", "2", "1", "1", str(output_path)])
+    if result.returncode != 0:
+        raise ContractError(
+            "caso 'criacao de diretorio pai' falhou inesperadamente\n"
+            f"{process_details(result)}"
+        )
+    validate_csv(output_path, [100, 100])
+
+
 def assert_overwrite_case(command: Sequence[str], case_dir: Path) -> None:
     """Confirma que uma segunda execucao substitui, em vez de anexar, o CSV."""
+    case_dir.mkdir(parents=True, exist_ok=True)
     output_path = case_dir / "resultado.csv"
     arguments = ["100", "2", "1", "1", str(output_path)]
 
@@ -200,21 +209,18 @@ def assert_overwrite_case(command: Sequence[str], case_dir: Path) -> None:
             "caso 'sobrescrita do CSV' falhou na primeira execucao\n"
             f"{process_details(first)}"
         )
-
     second = run_command(command, arguments)
     if second.returncode != 0:
         raise ContractError(
             "caso 'sobrescrita do CSV' falhou na segunda execucao\n"
             f"{process_details(second)}"
         )
-
     validate_csv(output_path, [100, 100])
 
 
 def run_contract(language: str, command: Sequence[str]) -> None:
-    with tempfile.TemporaryDirectory(prefix="benchmark extra language ") as temporary:
+    with tempfile.TemporaryDirectory(prefix="benchmark contract ") as temporary:
         root = Path(temporary)
-
         assert_error_case(command, "argumentos ausentes", [], None)
 
         invalid_cases = (
@@ -249,6 +255,7 @@ def run_contract(language: str, command: Sequence[str]) -> None:
 
         assert_success_case(command, "escala linear", 1, [100, 122, 144], root / "escala linear")
         assert_success_case(command, "escala logaritmica", 0, [100, 120, 144], root / "escala logaritmica")
+        assert_parent_creation_case(command, root)
         assert_overwrite_case(command, root / "sobrescrita do CSV")
 
     print(f"Contrato de {language} validado com sucesso.")

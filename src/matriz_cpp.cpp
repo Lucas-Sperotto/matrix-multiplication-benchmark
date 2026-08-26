@@ -24,16 +24,17 @@
  *    contendo os resultados para diferentes valores de N.
  **********************************************************************/
 
-
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <limits>
 #include <stdexcept>
 #include <string>
+#include <system_error>
 #include <vector>
 
 using Clock = std::chrono::steady_clock;
@@ -189,8 +190,21 @@ int main(int argc, char **argv)
         const int m_count = parse_int(argv[3], "M", 1, 100000);
         const int escala = parse_int(argv[4], "Escala", 0, 1);
         const std::string out_csv = argv[5];
+        const std::filesystem::path out_path(out_csv);
 
-        std::ofstream file(out_csv);
+        if (out_path.has_parent_path())
+        {
+            std::error_code ec;
+            std::filesystem::create_directories(out_path.parent_path(), ec);
+            if (ec)
+            {
+                std::cerr << "Erro ao criar diretorio de saida: "
+                          << out_path.parent_path().string() << " (" << ec.message() << ")\n";
+                return 1;
+            }
+        }
+
+        std::ofstream file(out_path);
         if (!file.is_open())
         {
             std::cerr << "Erro ao abrir arquivo de saida: " << out_csv << "\n";

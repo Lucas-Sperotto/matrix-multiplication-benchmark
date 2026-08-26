@@ -31,12 +31,97 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #ifdef _WIN32
+#include <direct.h>
 #include <windows.h>
 #else
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <time.h>
 #endif
+
+static int is_path_separator(char ch)
+{
+#ifdef _WIN32
+    return ch == '/' || ch == '\\';
+#else
+    return ch == '/';
+#endif
+}
+
+static int create_directory_if_needed(const char *path)
+{
+#ifdef _WIN32
+    if (_mkdir(path) == 0 || errno == EEXIST)
+#else
+    if (mkdir(path, 0777) == 0 || errno == EEXIST)
+#endif
+    {
+        return 1;
+    }
+
+    fprintf(stderr, "Erro ao criar diretorio de saida: %s\n", path);
+    return 0;
+}
+
+static int create_parent_directories(const char *file_path)
+{
+    size_t length = strlen(file_path);
+    char *path;
+    size_t start = 1;
+
+    if (length == 0)
+    {
+        fprintf(stderr, "Caminho de saida vazio.\n");
+        return 0;
+    }
+
+    path = (char *)malloc(length + 1);
+    if (path == NULL)
+    {
+        fprintf(stderr, "Falha de memoria ao preparar diretorio de saida.\n");
+        return 0;
+    }
+    memcpy(path, file_path, length + 1);
+
+#ifdef _WIN32
+    /* Em caminhos absolutos como C:\\dir\\arquivo.csv, "C:" nao e'
+     * um diretorio a ser criado. Caminhos UNC nao fazem parte do contrato
+     * do benchmark; caminhos relativos e caminhos com drive sao suportados. */
+    if (length >= 3 && path[1] == ':' && is_path_separator(path[2]))
+    {
+        start = 3;
+    }
+#endif
+
+    for (size_t i = start; i < length; i++)
+    {
+        if (!is_path_separator(path[i]))
+        {
+            continue;
+        }
+
+        char saved = path[i];
+        path[i] = '\0';
+
+        if (path[0] != '\0' && !create_directory_if_needed(path))
+        {
+            free(path);
+            return 0;
+        }
+
+        path[i] = saved;
+        while (i + 1 < length && is_path_separator(path[i + 1]))
+        {
+            i++;
+        }
+    }
+
+    free(path);
+    return 1;
+}
 
 static double now_seconds(void)
 {
@@ -239,6 +324,12 @@ int main(int argc, char **argv)
     if (ns == NULL)
     {
         fprintf(stderr, "Erro ao gerar escala.\n");
+        return 1;
+    }
+
+    if (!create_parent_directories(out_csv))
+    {
+        free(ns);
         return 1;
     }
 
