@@ -29,7 +29,7 @@ def fail(message: str) -> None:
     raise SystemExit(1)
 
 
-def validate_csv(path: Path) -> None:
+def validate_csv(path: Path, expected_rows: int | None = None) -> list[int]:
     if not path.exists():
         fail(f"CSV ausente: {path}")
 
@@ -44,7 +44,7 @@ def validate_csv(path: Path) -> None:
         if header != EXPECTED_HEADER:
             fail(f"Cabecalho invalido em {path}: {header}. Esperado: {EXPECTED_HEADER}")
 
-        rows = 0
+        n_values: list[int] = []
         previous_n: int | None = None
         for line_number, row in enumerate(reader, start=2):
             if not row or all(not cell.strip() for cell in row):
@@ -70,10 +70,24 @@ def validate_csv(path: Path) -> None:
                 fail(f"Linha {line_number} de {path} contem NaN ou Inf")
 
             previous_n = n
-            rows += 1
+            n_values.append(n)
 
-    if rows == 0:
+    if not n_values:
         fail(f"CSV sem dados: {path}")
+    if expected_rows is not None and len(n_values) != expected_rows:
+        fail(
+            f"{path} tem {len(n_values)} linhas de dados; esperado {expected_rows} "
+            "(Npts declarado em run_manifest.json) -- execucao pode ter sido interrompida no meio"
+        )
+
+    return n_values
+
+
+def expected_point_count(manifest: dict[str, object]) -> int:
+    parameters = manifest.get("parameters")
+    if not isinstance(parameters, dict) or not isinstance(parameters.get("Npts"), int):
+        fail("run_manifest.json: parameters.Npts deve ser um inteiro")
+    return parameters["Npts"]  # type: ignore[index]
 
 
 def validate_json(path: Path, required_keys: list[str]) -> dict[str, object]:
@@ -171,15 +185,27 @@ def main(argv: list[str]) -> int:
         run_dir / "run_manifest.json",
         ["run_id", "generated_at", "parameters", "languages", "tools"],
     )
+    expected_npts = expected_point_count(manifest)
     csv_paths.extend(manifest_csvs(run_dir, manifest))
     csv_paths.extend(run_dir / filename for filename in OPTIONAL_CSVS if (run_dir / filename).exists())
 
     validated: set[str] = set()
+    n_series: dict[str, list[int]] = {}
     for path in csv_paths:
         path_key = str(path.resolve()).casefold()
         if path_key not in validated:
-            validate_csv(path)
+            n_series[str(path.relative_to(run_dir))] = validate_csv(path, expected_npts)
             validated.add(path_key)
+
+    if n_series:
+        reference_name, reference_values = next(iter(n_series.items()))
+        mismatched = {name: values for name, values in n_series.items() if values != reference_values}
+        if mismatched:
+            details = "; ".join(f"{name}={values}" for name, values in mismatched.items())
+            fail(
+                "series de N divergem entre CSVs da mesma execucao "
+                f"(referencia {reference_name}={reference_values}): {details}"
+            )
 
     pngs = list(run_dir.glob("grafico_*.png"))
     if not pngs:
