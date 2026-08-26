@@ -1,40 +1,61 @@
 ## Resumo
 
-<!-- Explique objetivamente o que mudou e por que. -->
+<!-- Explique objetivamente o que está sendo proposto e por quê. -->
+
+## Tipo de Pull Request
+
+- [ ] Desenvolvimento/correção com base em `tcc-lic-thassio`
+- [ ] Promoção final do TCC de `tcc-lic-thassio` para `main`
+- [ ] Outro (explique abaixo)
+
+**Branch base:**  
+**Branch de origem/head:**  
+**SHA validado:**  
 
 ## Escopo
 
-- Linguagem: <!-- Rust, Julia, Elixir ou N/A -->
-- Branch de origem: <!-- feat/rust-benchmark, feat/julia-benchmark ou feat/elixir-benchmark -->
-- Branch de destino: `tcc-lic-thassio`
+<!-- Linguagens, runners, documentação ou outro escopo afetado. -->
 
-## Validacao executada
+## Validação executada
 
 ```text
-# Cole os comandos e o resultado resumido.
+# Cole os comandos relevantes e o resultado resumido.
 ```
 
-Versoes das ferramentas:
+### Ambiente/toolchains
 
 ```text
-# rustc --version, elixir --version ou julia --version
+# Sistema operacional, CPU e versões de gcc/g++, Java/JVM, Python,
+# Rust, Julia, Elixir/OTP conforme aplicável.
 ```
 
-## Checklist
+## Checklist técnico
 
-- [ ] Este PR trata de uma unica linguagem ou de um unico objetivo bem delimitado.
-- [ ] A base do PR e `tcc-lic-thassio`, nao `main`.
-- [ ] A CLI segue `B Npts M escala out_csv`.
-- [ ] O CSV usa exatamente `N,TCS,TAM,TDM`.
-- [ ] Ha um warm-up descartado e a media de exatamente `M` repeticoes.
-- [ ] A multiplicacao e manual, com validacao das nove posicoes amostrais.
-- [ ] Argumentos invalidos falham em `stderr` com codigo diferente de zero.
-- [ ] Executei `tests/test_extra_language.py` para a linguagem deste PR.
-- [ ] Revisor: li o codigo de `verify_sample`/equivalente e confirmo que ele calcula e compara os 9 valores esperados corretamente. O harness automatizado nao consegue detectar multiplicacao aritmeticamente incorreta (o CSV nao carrega valores de matriz), entao essa checagem e manual e obrigatoria.
-- [ ] Nao inclui binarios, caches nem resultados locais.
-- [ ] O codigo permanece em `experiments/`, salvo aceite explicito para promove-lo a `src/`.
-- [ ] Atualizei a documentacao quando houve mudanca de contrato ou de uso.
+- [ ] Li o diff completo do PR e confirmei que a branch base está correta.
+- [ ] `git diff --check` não reporta problemas.
+- [ ] O contrato CLI permanece `B Npts M escala out_csv`.
+- [ ] O CSV permanece exatamente `N,TCS,TAM,TDM`.
+- [ ] Argumentos inválidos falham com código diferente de zero e mensagem em `stderr`.
+- [ ] O caminho `out_csv` cria diretórios pais quando necessário.
+- [ ] A multiplicação permanece manual O(N³), sem BLAS/paralelismo no fluxo principal.
+- [ ] Os testes de corretude não identidade aplicáveis passaram.
+- [ ] `tests/test_point_generation.py` e `tests/test_validate_run.py` passaram.
+- [ ] Os smoke tests aplicáveis terminaram com `scripts/validate_run.py` aprovado.
+- [ ] Não incluí binários, caches nem resultados locais acidentais.
+- [ ] Atualizei a documentação se o contrato, uso ou metodologia mudou.
 
-## Observacoes para revisao
+## Checklist adicional para promoção final a `main`
 
-<!-- Registre decisoes de representacao de matriz, limitacoes conhecidas e pontos que merecem atencao. -->
+Preencha somente quando este PR promover a versão final do TCC.
+
+- [ ] Segui `docs/STUDENT_VALIDATION.md` em um fork/checkout limpo.
+- [ ] Registrei o SHA exato testado.
+- [ ] Validei C, C++, Java, Python, Rust, Julia e Elixir, ou documentei explicitamente qualquer impedimento antes de solicitar merge.
+- [ ] Executei o runner Linux/WSL com núcleo e com todas as extras.
+- [ ] Executei `run_all.ps1` ponta a ponta em Windows nativo ou registrei a limitação para decisão do orientador.
+- [ ] O PR tem `main` como base e `tcc-lic-thassio` validada como origem.
+- [ ] Não fiz otimização isolada de linguagem durante a fase de validação final.
+
+## Limitações / observações
+
+<!-- Registre diferenças de ambiente, testes não executados e decisões que o revisor precisa conhecer. -->

@@ -1,151 +1,135 @@
 # Contribuindo
 
-Uma proposta central deste projeto é reunir resultados de máquinas diferentes em uma base comparável.
+Este projeto separa dois tipos de contribuição:
 
-Há dois fluxos distintos:
+1. resultados de benchmark;
+2. mudanças de código/documentação.
 
-- resultados do benchmark, descritos abaixo;
-- mudanças de código, descritas nesta página; mudanças que afetem o desenho experimental (métricas, controles, validação) devem atualizar [METHODOLOGY.md](docs/METHODOLOGY.md); mudanças específicas de Rust, Julia ou Elixir seguem [EXTRA_LANGUAGES.md](docs/EXTRA_LANGUAGES.md).
+Mudanças que afetem desenho experimental devem atualizar `docs/METHODOLOGY.md`; limitações relevantes devem ser refletidas em `docs/THREATS_TO_VALIDITY.md`.
 
-## Como Gerar Resultados
+## Gerar resultados
 
-Siga [EXECUTION.md](docs/EXECUTION.md).
-
-Use um nome de execução descritivo:
+Siga [docs/EXECUTION.md](docs/EXECUTION.md). Use um `run-name` descritivo e seguro, sem espaços ou separadores de caminho, por exemplo:
 
 ```text
-out/<autor-ou-id>-<maquina>-<os>-<B>-<data>/
+lucas-ryzen7-linux-B3000-20260826
 ```
 
-Exemplos:
+O runner gera e valida `out/<run_id>/`. Não misture arquivos de execuções distintas.
 
-```text
-out/marcos-ryzen7-5700u-linux-3000-2026-04-25/
-out/ana-i5-1135g7-win11-1000-2026-04-25/
-```
-
-## Checklist Antes do Pull Request
-
-Rode:
+Antes de versionar um resultado:
 
 ```bash
 python3 scripts/validate_run.py out/<run_id>
+git status --short
 ```
 
-Confirme que a pasta contém:
+Não versione executáveis, caches, `build/` ou diretórios `.running-*`.
 
-- `resultado_c.csv`
-- `resultado_c_O3.csv`
-- `resultado_cpp.csv`
-- `resultado_cpp_O3.csv`
-- `resultado_java.csv`
-- `resultado_python.csv`
-- `system_info.md`
-- `system_info.json`
-- `run_manifest.json`
-- gráficos `grafico_*.png`
+## Mudanças de código
 
-Se alguma flag extra foi usada, confirme também o CSV correspondente (`resultado_rust.csv`, `resultado_julia.csv` e/ou `resultado_elixir.csv`) e sua entrada em `run_manifest.json`. Não reutilize um `run_id`: os runners rejeitam qualquer caminho final já existente, inclusive um diretório vazio, para impedir mistura ou aninhamento acidental de resultados.
-
-Confirme também que a raiz do projeto não recebeu arquivos gerados como:
-
-- `resultado_*.csv`
-- `matriz_c`
-- `matriz_cpp`
-- `*.class`
-
-## Enviando Resultados
-
-```bash
-git add out/<run_id>
-git commit -m "Adiciona resultados <maquina/os/B>"
-git push
-```
-
-Abra um Pull Request descrevendo:
-
-- máquina/processador
-- sistema operacional
-- valor de `B`
-- observações relevantes, se houver
-
-## Contribuindo com Código
-
-Para mudanças de código, preserve o contrato publicável:
+Preserve o contrato:
 
 ```text
 B Npts M escala out_csv
 ```
 
-E preserve o cabeçalho CSV:
+e o cabeçalho:
 
 ```csv
 N,TCS,TAM,TDM
 ```
 
-Mudanças em Rust, Julia, Elixir, BLAS, paralelismo ou análise estatística são bem-vindas, mas devem ser integradas ao fluxo principal apenas quando seguirem o mesmo contrato e passarem no validador.
+A multiplicação principal permanece manual O(N³), sem BLAS ou paralelismo, salvo em experimentos explicitamente fora do fluxo principal.
 
-## Fork e mudanças em Rust, Julia e Elixir
+Antes de abrir um PR de desenvolvimento:
 
-As três implementações já foram aceitas em `src/` e integradas aos runners como opções por flag. Para novas mudanças, o fork do aluno é o remoto `origin` e o repositório original é o remoto `upstream`:
+```bash
+git status
+git diff --check
+python3 tests/test_point_generation.py
+python3 tests/test_validate_run.py
+```
+
+Rode também o harness e os testes de corretude das linguagens afetadas.
+
+## Fork e remotos
+
+No fork do colaborador:
 
 ```bash
 git clone https://github.com/SEU_USUARIO/matrix-multiplication-benchmark.git
 cd matrix-multiplication-benchmark
 git remote add upstream https://github.com/Lucas-Sperotto/matrix-multiplication-benchmark.git
-git fetch upstream tcc-lic-thassio
-git switch --create tcc-lic-thassio --track upstream/tcc-lic-thassio
-git push --set-upstream origin tcc-lic-thassio
+git fetch upstream
 ```
 
-Se a branch já tiver sido copiada pelo GitHub, apenas troque para ela e configure o rastreamento:
+`origin` deve apontar para o fork; `upstream`, para o repositório original.
+
+## PRs de desenvolvimento
+
+Durante desenvolvimento/correções do TCC, use `tcc-lic-thassio` como base:
 
 ```bash
 git switch tcc-lic-thassio
-git branch --set-upstream-to=upstream/tcc-lic-thassio
+git merge --ff-only upstream/tcc-lic-thassio
+git switch -c fix/descricao-curta
 ```
 
-Antes de criar uma branch, atualize `tcc-lic-thassio` a partir de `upstream/tcc-lic-thassio`. Use uma branch focada por mudança, sempre com base em `tcc-lic-thassio`. As branches abaixo registram a sequência histórica da implementação inicial:
+Não reutilize as branches históricas `feat/rust-benchmark`, `feat/julia-benchmark` e `feat/elixir-benchmark` para novos trabalhos; elas registram a sequência inicial já encerrada.
 
-```text
-feat/rust-benchmark
-feat/julia-benchmark
-feat/elixir-benchmark
-```
+No PR, informe:
 
-Novos PRs não devem reabrir essa sequência: nomeie a branch pelo escopo real (`fix/rust-...`, `docs/methodology-...`, por exemplo), não reúna assuntos independentes e confirme explicitamente a branch-base antes de enviar.
+- base e head;
+- objetivo;
+- toolchains afetadas;
+- comandos de teste;
+- resultados;
+- limitações conhecidas.
 
-## Critérios para os PRs de linguagens extras
+## Critérios de contrato por implementação
 
-Além do contrato `B Npts M escala out_csv` e do cabeçalho `N,TCS,TAM,TDM`, cada implementação deve:
+Cada implementação deve:
 
-- gerar pontos lineares e logarítmicos entre `100` e `B`;
-- executar um warm-up descartado para cada `N`;
-- registrar a média de exatamente `M` repetições;
+- aceitar exatamente `B Npts M escala out_csv`;
+- gerar `Npts` pontos entre `100` e `B`;
+- usar arredondamento metade-para-cima conforme o contrato;
+- criar diretórios pais de `out_csv` quando necessário;
+- sobrescrever o CSV;
+- executar um warm-up descartado por `N`;
+- medir exatamente `M` repetições;
 - usar relógio monotônico de alta resolução;
-- multiplicar manualmente, sem biblioteca numérica ou paralelismo;
-- validar as nove combinações dos índices inicial, central e final;
-- rejeitar entrada inválida em `stderr` com código diferente de zero;
-- aceitar um caminho de saída cujo diretório contenha espaços;
-- passar pelo harness da linguagem.
+- multiplicar manualmente;
+- validar as nove posições amostrais;
+- falhar em `stderr` com código diferente de zero para entrada inválida.
 
-Exemplo para Rust:
+O harness pode ser executado para qualquer uma das sete linguagens. Exemplo:
 
 ```bash
-rustc --edition=2021 -C opt-level=3 -D warnings src/matriz_rust.rs -o build/linux/matriz_rust
 python3 tests/test_extra_language.py --language Rust -- ./build/linux/matriz_rust
 ```
 
-Os comandos e critérios específicos de Julia e Elixir estão em [EXTRA_LANGUAGES.md](docs/EXTRA_LANGUAGES.md); o desenho experimental e suas limitações estão em [METHODOLOGY.md](docs/METHODOLOGY.md).
+Os testes 2×2 não identidade complementam o harness porque o benchmark principal usa matriz identidade como segundo operando.
 
-Os arquivos publicáveis atuais são `src/matriz_rust.rs`, `src/matriz_Julia.jl` e `src/matriz_multiplication.exs`. Os runners só os executam quando a flag correspondente é informada; sem flags, nenhuma toolchain extra é exigida. CSVs extras devem aparecer no manifesto exatamente quando forem executados.
+## Promoção final do TCC para `main`
 
-## Checklist de código antes do Pull Request
+Este fluxo é uma **exceção deliberada** à regra anterior.
 
-```bash
-git status
-git diff --check
-python3 tests/test_extra_language.py --language LINGUAGEM -- COMANDO_BASE
-```
+Depois que `tcc-lic-thassio` estiver estabilizada, o aluno deve:
 
-No PR, informe a versão da toolchain, os comandos executados e o resultado dos testes. Não versione executáveis, caches, arquivos `.beam` nem CSVs locais. O template em `.github/pull_request_template.md` reúne o checklist de revisão.
+1. criar/sincronizar um fork limpo;
+2. executar integralmente [docs/STUDENT_VALIDATION.md](docs/STUDENT_VALIDATION.md);
+3. registrar SHA, ambiente e resultados;
+4. abrir um Pull Request com:
+   - base: `main`;
+   - head: `tcc-lic-thassio` do fork.
+
+O template de PR possui uma seção específica para essa promoção.
+
+Não faça otimizações ou mudanças metodológicas oportunistas durante a etapa final de validação. Se um defeito real for encontrado, corrija-o em commit separado, repita os testes afetados e descreva o desvio no PR.
+
+## Revisão
+
+O revisor deve verificar tanto o código quanto o escopo científico. Passar no harness não substitui a leitura das rotinas de multiplicação e verificação.
+
+Para a promoção final, um teste obrigatório falhando é motivo para não fazer merge até que a causa seja compreendida e corrigida ou formalmente retirada do critério pelo orientador.

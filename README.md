@@ -1,10 +1,10 @@
 # Matrix Multiplication Benchmark
 
-Benchmark reprodutível de multiplicação de matrizes quadradas. O núcleo publicável executa C, C++, Java e Python; Rust, Julia e Elixir podem ser incluídas explicitamente como linguagens opcionais.
+Benchmark reprodutível de multiplicação de matrizes quadradas. O núcleo executa C, C++, Java e Python; Rust, Julia e Elixir podem ser incluídas explicitamente como linguagens opcionais.
 
-O objetivo é comparar tempos de execução entre linguagens usando o mesmo contrato de entrada e o mesmo formato de saída, permitindo que colaboradores rodem os testes localmente e compartilhem seus resultados em `out/<run_id>/`.
+O objetivo é comparar implementações funcional e algoritmicamente equivalentes de multiplicação matricial manual O(N³) sob um contrato comum de entrada/saída, preservando características relevantes de compiladores, runtimes e representações de dados de cada ecossistema.
 
-## Execução Rápida
+## Execução rápida
 
 Linux/WSL:
 
@@ -20,74 +20,49 @@ python -m pip install -r requirements.txt
 .\run_all.ps1 -Batch -RunName meu_teste-win-100 -B 100 -Npts 2 -M 1 -Escala 1
 ```
 
-Também é possível rodar `./run_all.sh` ou `.\run_all.ps1` sem parâmetros para usar o modo interativo.
+Também é possível rodar os runners sem parâmetros para usar o modo interativo.
 
-## Rust, Julia e Elixir (opcionais)
+`run-name`/`RunName` aceita apenas letras, números, `_`, `.`, `-` e não pode conter `..` nem separadores de caminho. Isso mantém todas as execuções confinadas a `out/`.
 
-Rust, Julia e Elixir foram aceitas em `src/` e podem ser incluídas na execução via flags — sem elas, o fluxo continua igual ao de sempre (C, C++, Java, Python), sem exigir nenhuma toolchain extra:
+## Rust, Julia e Elixir
+
+Sem flags extras, nenhuma dessas toolchains é exigida. Para incluí-las:
 
 ```bash
-./run_all.sh --batch --run-name meu_teste-linux-100 --B 100 --Npts 2 --M 1 --escala 1 --with-rust --with-julia --with-elixir
-# ou, equivalente:
-./run_all.sh --batch --run-name meu_teste-linux-100 --B 100 --Npts 2 --M 1 --escala 1 --with-all-extras
+./run_all.sh --batch --run-name meu_teste-all-100 --B 100 --Npts 2 --M 1 --escala 1 --with-all-extras
 ```
 
 ```powershell
-.\run_all.ps1 -Batch -RunName meu_teste-win-100 -B 100 -Npts 2 -M 1 -Escala 1 -WithAllExtras
+.\run_all.ps1 -Batch -RunName meu_teste-all-100 -B 100 -Npts 2 -M 1 -Escala 1 -WithAllExtras
 ```
 
-Cada flag exige a toolchain correspondente no `PATH` (`rustc`, `julia`, `elixir`). Se uma linguagem for pedida explicitamente e a toolchain estiver ausente ou a execução falhar, o script inteiro aborta com erro claro — pedir algo explicitamente e não entregá-lo é tratado como falha, não como omissão silenciosa. Sem a flag correspondente, a ausência da toolchain é irrelevante: ela nunca é verificada. Detalhes da arquitetura de integração em [INTEGRATION_PLAN.md](docs/INTEGRATION_PLAN.md) e do contrato de cada linguagem em [EXTRA_LANGUAGES.md](docs/EXTRA_LANGUAGES.md).
+Também existem flags individuais: `--with-rust`, `--with-julia`, `--with-elixir` e, no PowerShell, `-WithRust`, `-WithJulia`, `-WithElixir`.
+
+Quando uma linguagem extra é solicitada, sua toolchain é verificada **antes** da criação do staging e antes da execução do núcleo. Dependência solicitada e ausente é erro, nunca omissão silenciosa.
 
 ## Saídas
 
-Cada execução gera uma pasta em `out/<run_id>/` com:
+Uma execução bem-sucedida termina em `out/<run_id>/` com:
 
-- `resultado_c.csv`
-- `resultado_c_O3.csv`
-- `resultado_cpp.csv`
-- `resultado_cpp_O3.csv`
-- `resultado_java.csv`
-- `resultado_python.csv`
-- `system_info.md`
-- `system_info.json`
-- `run_manifest.json`
-- `grafico_*.png`
+- seis CSVs centrais (`C`, `C -O3`, `C++`, `C++ -O3`, `Java`, `Python`);
+- CSVs opcionais das extras solicitadas;
+- `system_info.md`;
+- `system_info.json`;
+- `run_manifest.json`;
+- `grafico_*.png`.
 
-Com `--with-rust`/`--with-julia`/`--with-elixir`/`--with-all-extras`, a pasta também recebe `resultado_rust.csv`, `resultado_julia.csv` e/ou `resultado_elixir.csv`, e `run_manifest.json` lista exatamente as linguagens que rodaram (nunca uma linguagem opcional não solicitada).
+Enquanto está em andamento, a execução usa `out/.running-<run_id>/`. O nome final só é promovido depois que benchmarks, metadados, gráficos e validação terminarem com sucesso.
 
-A pasta `out/<run_id>/` só é criada com esse nome final depois que toda a execução termina com sucesso (benchmarks, validação e gráficos); uma execução abortada no meio nunca aparece com o nome de uma execução completa. O identificador não pode ser reutilizado, mesmo que o destino existente esteja vazio. Detalhes em [EXECUTION.md](docs/EXECUTION.md).
-
-Todos os CSVs seguem o mesmo cabeçalho:
+Todos os CSVs usam exatamente:
 
 ```csv
 N,TCS,TAM,TDM
 ```
 
-Onde:
-
-- `N`: dimensão da matriz `N x N`
-- `TCS`: tempo de cálculo da multiplicação
-- `TAM`: tempo de alocação e inicialização das matrizes
-- `TDM`: tempo de desalocação; em Java, Python, Julia e Elixir é registrado como `0.0`
-
-## Metodologia
-
-Cada `N` é medido com uma rodada de warm-up descartada seguida da média de `M` repetições. O desenho experimental completo — variáveis, controles, JIT, GC, layout de memória por linguagem, limitações e ameaças à validade — está em [METHODOLOGY.md](docs/METHODOLOGY.md).
-
-## Estrutura
-
-```text
-.
-├─ src/          # código-fonte dos benchmarks e gerador de gráficos
-├─ experiments/  # versões ainda fora do fluxo publicável
-├─ scripts/      # coleta de sistema e validador operacional
-├─ tests/        # regressões de contrato e corretude
-├─ docs/         # guias, metodologia, diagramas e registros técnicos
-├─ build/        # artefatos de compilação ignorados pelo Git
-├─ out/          # resultados versionáveis por execução
-├─ run_all.sh    # execução Linux/WSL
-└─ run_all.ps1   # execução Windows PowerShell
-```
+- `N`: dimensão da matriz `N x N`;
+- `TCS`: tempo de cálculo;
+- `TAM`: tempo de alocação/inicialização;
+- `TDM`: tempo de desalocação explícita; é `0.0` nos runtimes gerenciados definidos pela metodologia.
 
 ## Validação
 
@@ -97,18 +72,40 @@ Depois de uma execução:
 python3 scripts/validate_run.py out/<run_id>
 ```
 
-O validador confere CSVs esperados, cabeçalhos, valores numéricos, metadados e gráficos.
+Para testes de contrato e corretude, consulte `tests/` e o roteiro de validação final.
+
+## Estrutura
+
+```text
+.
+├─ src/          # implementações e gerador de gráficos
+├─ experiments/  # protótipos fora do fluxo principal
+├─ scripts/      # coleta de sistema, diagnóstico e validação operacional
+├─ tests/        # regressões de contrato e corretude
+├─ docs/         # execução, metodologia, auditorias e guias
+├─ build/        # artefatos de compilação ignorados pelo Git
+├─ out/          # resultados aceitos/versionáveis
+├─ run_all.sh
+└─ run_all.ps1
+```
 
 ## Documentação
 
-- [EXECUTION.md](docs/EXECUTION.md): guia completo de execução.
-- [METHODOLOGY.md](docs/METHODOLOGY.md): desenho experimental, métricas, limitações e ameaças à validade.
-- [CONTRIBUTING.md](CONTRIBUTING.md): como contribuir com resultados ou código.
-- [EXTRA_LANGUAGES.md](docs/EXTRA_LANGUAGES.md): contrato, validação e histórico de integração de Rust, Julia e Elixir.
+- [EXECUTION.md](docs/EXECUTION.md): instalação, execução e problemas comuns.
+- [METHODOLOGY.md](docs/METHODOLOGY.md): desenho experimental, métricas e decisões.
+- [THREATS_TO_VALIDITY.md](docs/THREATS_TO_VALIDITY.md): limitações e ameaças à validade.
+- [EXTRA_LANGUAGES.md](docs/EXTRA_LANGUAGES.md): Rust, Julia e Elixir.
 - [OPERATIONS.md](docs/OPERATIONS.md): fundamentação matemática do número de operações.
-- [DIAGRAMS.md](docs/DIAGRAMS.md): diagramas de arquitetura e fluxo.
-- [TODO.md](TODO.md): tarefas pendentes.
+- [DIAGRAMS.md](docs/DIAGRAMS.md): arquitetura e fluxo.
+- [PRE_RELEASE_AUDIT.md](docs/PRE_RELEASE_AUDIT.md): auditoria independente de pré-entrega.
+- [STUDENT_VALIDATION.md](docs/STUDENT_VALIDATION.md): roteiro obrigatório do aluno antes do PR final.
+- [CONTRIBUTING.md](CONTRIBUTING.md): contribuição e Pull Requests.
+- [TODO.md](TODO.md): somente itens ainda abertos.
+
+## Estado da branch de TCC
+
+A branch `tcc-lic-thassio` é a linha de integração e validação do TCC. Antes de promovê-la para `main`, execute integralmente [STUDENT_VALIDATION.md](docs/STUDENT_VALIDATION.md) em um fork/checkout limpo e registre os resultados no Pull Request.
 
 ## Licença
 
-Este projeto está licenciado sob a licença MIT. Veja [LICENSE](LICENSE).
+MIT. Veja [LICENSE](LICENSE).
