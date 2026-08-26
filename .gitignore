@@ -44,6 +44,8 @@ venv/
 Thumbs.db
 
 # Local benchmark smoke runs; accepted results under out/ remain versionable.
+# Staging de execucoes incompletas nunca deve ser versionado.
+out/.running-*/
 out/tmp*/
 out/*-tmp*/
 out/*_tmp*/

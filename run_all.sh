@@ -98,7 +98,7 @@ need_cmd() {
   local cmd="$1"
   if ! command -v "$cmd" >/dev/null 2>&1; then
     echo "Dependencia ausente: $cmd" >&2
-    echo "Instale as dependencias conforme EXECUTION.md e tente novamente." >&2
+    echo "Instale as dependencias conforme docs/EXECUTION.md e tente novamente." >&2
     exit 1
   fi
 }
@@ -160,22 +160,37 @@ need_cmd java
 need_cmd python3
 check_python_runtime
 
-OUT_DIR="out/$RUN_NAME"
+# FINAL_DIR e' o destino publicavel; OUT_DIR passa a ser um diretorio de
+# trabalho temporario sob o mesmo out/, promovido (renomeado) para
+# FINAL_DIR somente apos toda a execucao E validate_run.py terem sucesso.
+# Isso evita que uma execucao abortada no meio (toolchain ausente, N muito
+# grande, falha de qualquer benchmark) apareça como um out/<run_id>
+# completo e indistinguivel de uma execucao valida. O rename ocorre dentro
+# de out/ (mesmo filesystem), entao e atomico no Linux; ver Tarefa 6 do
+# docs/FINAL_STABILIZATION_PLAN.md para as alternativas consideradas.
+FINAL_DIR="out/$RUN_NAME"
+OUT_DIR="out/.running-$RUN_NAME"
 BUILD_LINUX="build/linux"
 BUILD_JAVA="build/java"
 
-if [[ -e "$OUT_DIR" && ! -d "$OUT_DIR" ]]; then
-  echo "Caminho de saida existe e nao e um diretorio: $OUT_DIR" >&2
+# O destino final precisa ser inteiramente inexistente. Permitir um diretorio
+# vazio mudaria a semantica de `mv`: o staging seria criado dentro dele em
+# vez de ser renomeado para ele, quebrando o contrato out/<run_id>/.
+if [[ -e "$FINAL_DIR" || -L "$FINAL_DIR" ]]; then
+  echo "Caminho final de execucao ja existe: $FINAL_DIR" >&2
+  echo "Use outro --run-name; o runner nunca reutiliza um destino final, mesmo vazio." >&2
   exit 1
 fi
-if [[ -d "$OUT_DIR" ]] && [[ -n "$(find "$OUT_DIR" -mindepth 1 -maxdepth 1 -print -quit)" ]]; then
-  echo "Diretorio de execucao nao esta vazio: $OUT_DIR" >&2
-  echo "Use outro --run-name para evitar misturar artefatos de execucoes diferentes." >&2
+if [[ -e "$OUT_DIR" || -L "$OUT_DIR" ]]; then
+  echo "Diretorio de trabalho temporario ja existe: $OUT_DIR" >&2
+  echo "Isso indica uma execucao anterior incompleta com o mesmo --run-name (nunca foi promovida a $FINAL_DIR)." >&2
+  echo "Inspecione o conteudo para diagnostico e remova-o manualmente antes de tentar novamente." >&2
   exit 1
 fi
 mkdir -p "$OUT_DIR" "$BUILD_LINUX" "$BUILD_JAVA"
 
-echo "Resultados serao salvos em $OUT_DIR"
+echo "Resultados serao salvos em $FINAL_DIR"
+echo "Diretorio de trabalho temporario (ate a validacao final): $OUT_DIR"
 echo "Artefatos de compilacao em build/"
 echo "-----------------------------------"
 
@@ -263,6 +278,48 @@ def run(cmd):
     except Exception:
         return "N/D"
 
+# Nomes das flags booleanas do HotSpot que selecionam o coletor ativo
+# (JDK 17-21+). Usar uma lista fechada evita falsos positivos: varias
+# outras flags "Use...GC" existem (ex.: UseMaximumCompactionOnSystemGC)
+# e tambem podem estar "= true" sem indicar qual coletor esta em uso.
+KNOWN_JAVA_GC_FLAGS = {
+    "UseG1GC",
+    "UseParallelGC",
+    "UseSerialGC",
+    "UseShenandoahGC",
+    "UseZGC",
+    "UseEpsilonGC",
+}
+
+def detect_java_gc():
+    # Sondagem best-effort para registrar o coletor de lixo efetivamente
+    # configurado, sem fixar nem alterar nenhum parametro de GC usado pelo
+    # benchmark (a JVM roda com as flags padrao do ambiente em todo o
+    # restante do script). -XX:+PrintFlagsFinal e um flag de diagnostico
+    # HotSpot; pode nao existir ou se comportar diferente em outras JVMs
+    # (OpenJ9, GraalVM native), por isso qualquer falha cai em "N/D" sem
+    # abortar a execucao.
+    try:
+        output = subprocess.check_output(
+            ["java", "-XX:+PrintFlagsFinal", "-version"],
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+    except Exception:
+        return "N/D"
+
+    for line in output.splitlines():
+        parts = line.split()
+        if (
+            len(parts) >= 4
+            and parts[0] == "bool"
+            and parts[1] in KNOWN_JAVA_GC_FLAGS
+            and parts[2] == "="
+            and parts[3] == "true"
+        ):
+            return parts[1]
+    return "N/D"
+
 data = {
     "run_id": os.environ["RUN_ID"],
     "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -281,7 +338,11 @@ data = {
     "tools": {
         "gcc": run(["gcc", "--version"]).splitlines()[0],
         "g++": run(["g++", "--version"]).splitlines()[0],
-        "java": run(["java", "-version"]).splitlines()[0],
+        # Saida completa (nao so a primeira linha): a 2a/3a linha de
+        # `java -version` normalmente identifica a VM/vendor (ex.: "OpenJDK
+        # 64-Bit Server VM..."), relevante para proveniencia experimental.
+        "java": run(["java", "-version"]),
+        "java_gc": detect_java_gc(),
         "javac": run(["javac", "-version"]),
         "python": run(["python3", "--version"]),
     },
@@ -326,5 +387,11 @@ python3 src/plot_benchmarks.py "$OUT_DIR"
 echo "Validando execucao..."
 python3 scripts/validate_run.py "$OUT_DIR"
 
+# Promocao: so alcancada se tudo acima teve sucesso (set -e aborta o script
+# em qualquer falha anterior, inclusive uma falha de validate_run.py).
+# Rename dentro do mesmo diretorio out/, portanto no mesmo filesystem.
+echo "Promovendo execucao para o diretorio final..."
+mv "$OUT_DIR" "$FINAL_DIR"
+
 echo "-----------------------------------"
-echo "Finalizado. Arquivos em: $OUT_DIR"
+echo "Finalizado. Arquivos em: $FINAL_DIR"

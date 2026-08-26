@@ -30,7 +30,7 @@ function Have([string]$Cmd) {
 
 function Require-Command([string]$Cmd) {
     if (-not (Have $Cmd)) {
-        throw "Dependencia ausente: $Cmd. Instale conforme EXECUTION.md e tente novamente."
+        throw "Dependencia ausente: $Cmd. Instale conforme docs/EXECUTION.md e tente novamente."
     }
 }
 
@@ -61,6 +61,45 @@ function First-Line([scriptblock]$Command) {
     } catch {
         return "N/D"
     }
+}
+
+# Como First-Line, mas preserva todas as linhas (unidas por \n) em vez de
+# só a primeira. Usado para `java -version`, cuja 2a/3a linha normalmente
+# identifica a VM/vendor (ex.: "OpenJDK 64-Bit Server VM..."), relevante
+# para proveniencia experimental.
+function AllLines([scriptblock]$Command) {
+    try {
+        $result = & $Command 2>&1 | ForEach-Object { $_.ToString() }
+        if ($null -eq $result -or $result.Count -eq 0) { return "N/D" }
+        return ($result -join "`n")
+    } catch {
+        return "N/D"
+    }
+}
+
+# Sondagem best-effort do coletor de lixo efetivamente configurado, sem
+# fixar nem alterar nenhum parametro de GC usado pelo benchmark (a JVM roda
+# com as flags padrao do ambiente em todo o restante do script).
+# -XX:+PrintFlagsFinal e um flag de diagnostico HotSpot; pode nao existir ou
+# se comportar diferente em outras JVMs (OpenJ9, GraalVM native), por isso
+# qualquer falha cai em "N/D" sem abortar a execucao. Lista fechada de
+# flags (nao um casamento generico "Use...GC"): varias outras flags
+# "Use...GC" existem (ex.: UseMaximumCompactionOnSystemGC) e tambem podem
+# estar "= true" sem indicar qual coletor esta em uso.
+function Get-JavaGC() {
+    $knownGcFlags = @("UseG1GC", "UseParallelGC", "UseSerialGC", "UseShenandoahGC", "UseZGC", "UseEpsilonGC")
+    try {
+        $output = & java -XX:+PrintFlagsFinal -version 2>&1 | ForEach-Object { $_.ToString() }
+    } catch {
+        return "N/D"
+    }
+    foreach ($line in $output) {
+        $parts = $line.Trim() -split '\s+'
+        if ($parts.Count -ge 4 -and $parts[0] -eq "bool" -and $knownGcFlags -contains $parts[1] -and $parts[2] -eq "=" -and $parts[3] -eq "true") {
+            return $parts[1]
+        }
+    }
+    return "N/D"
 }
 
 # PowerShell nao trata automaticamente um codigo de saida != 0 de um
@@ -101,23 +140,33 @@ New-Dir $MplCache
 $env:MPLCONFIGDIR = $MplCache
 Require-PythonPackage "matplotlib"
 
-$OutDir = Join-Path "out" $RunName
+# $FinalDir e' o destino publicavel; $OutDir passa a ser um diretorio de
+# trabalho temporario sob o mesmo out/, promovido (movido) para $FinalDir
+# somente apos toda a execucao E scripts\validate_run.py terem sucesso.
+# Isso evita que uma execucao abortada no meio apareça como um out/<run_id>
+# completo e indistinguivel de uma execucao valida. Move-Item dentro de
+# out/ fica no mesmo volume/drive na esmagadora maioria dos casos (ver
+# Tarefa 6 do docs/FINAL_STABILIZATION_PLAN.md para as alternativas
+# consideradas).
+$FinalDir = Join-Path "out" $RunName
+$OutDir = Join-Path "out" ".running-$RunName"
 $BuildWin = Join-Path "build" "windows"
 $BuildJava = Join-Path "build" "java"
+# O destino final precisa ser inteiramente inexistente. Permitir um diretorio
+# vazio faria Move-Item colocar o staging dentro dele, em vez de promove-lo
+# para o caminho final esperado.
+if (Test-Path -LiteralPath $FinalDir) {
+    throw "Caminho final de execucao ja existe: $FinalDir. Use outro -RunName; o runner nunca reutiliza um destino final, mesmo vazio."
+}
 if (Test-Path -LiteralPath $OutDir) {
-    if (-not (Test-Path -LiteralPath $OutDir -PathType Container)) {
-        throw "Caminho de saida existe e nao e um diretorio: $OutDir"
-    }
-    $ExistingEntry = Get-ChildItem -LiteralPath $OutDir -Force | Select-Object -First 1
-    if ($null -ne $ExistingEntry) {
-        throw "Diretorio de execucao nao esta vazio: $OutDir. Use outro -RunName para evitar misturar artefatos de execucoes diferentes."
-    }
+    throw "Diretorio de trabalho temporario ja existe: $OutDir. Isso indica uma execucao anterior incompleta com o mesmo -RunName (nunca foi promovida a $FinalDir). Inspecione o conteudo para diagnostico e remova-o manualmente antes de tentar novamente."
 }
 New-Dir $OutDir
 New-Dir $BuildWin
 New-Dir $BuildJava
 
-Write-Host "Resultados serao salvos em $OutDir"
+Write-Host "Resultados serao salvos em $FinalDir"
+Write-Host "Diretorio de trabalho temporario (ate a validacao final): $OutDir"
 Write-Host "Artefatos de compilacao em build/"
 Write-Host "-----------------------------------"
 
@@ -250,7 +299,8 @@ $sysInfo | ConvertTo-Json -Depth 8 | Set-Content -Encoding utf8 $SysJson
 $ManifestTools = [ordered]@{
     gcc = First-Line { gcc --version }
     "g++" = First-Line { g++ --version }
-    java = First-Line { java -version }
+    java = AllLines { java -version }
+    java_gc = Get-JavaGC
     javac = First-Line { javac -version }
     python = First-Line { python --version }
 }
@@ -306,5 +356,11 @@ Write-Host "Validando execucao..."
 python scripts\validate_run.py $OutDir
 Assert-LastExitCode "Validacao da execucao"
 
+# Promocao: so alcancada se tudo acima teve sucesso ($ErrorActionPreference
+# = "Stop" mais Assert-LastExitCode abortam o script em qualquer falha
+# anterior, inclusive uma falha de validate_run.py).
+Write-Host "Promovendo execucao para o diretorio final..."
+Move-Item -LiteralPath $OutDir -Destination $FinalDir
+
 Write-Host "-----------------------------------"
-Write-Host "Finalizado. Arquivos em: $OutDir"
+Write-Host "Finalizado. Arquivos em: $FinalDir"
