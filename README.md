@@ -36,7 +36,7 @@ Rust, Julia e Elixir foram aceitas em `src/` e podem ser incluídas na execuçã
 .\run_all.ps1 -Batch -RunName meu_teste-win-100 -B 100 -Npts 2 -M 1 -Escala 1 -WithAllExtras
 ```
 
-Cada flag exige a toolchain correspondente no `PATH` (`rustc`, `julia`, `elixir`). Se uma linguagem for pedida explicitamente e a toolchain estiver ausente ou a execução falhar, o script inteiro aborta com erro claro — pedir algo explicitamente e não entregá-lo é tratado como falha, não como omissão silenciosa. Sem a flag correspondente, a ausência da toolchain é irrelevante: ela nunca é verificada. Detalhes da arquitetura de integração em [INTEGRATION_PLAN.md](INTEGRATION_PLAN.md) e do contrato de cada linguagem em [EXTRA_LANGUAGES.md](EXTRA_LANGUAGES.md).
+Cada flag exige a toolchain correspondente no `PATH` (`rustc`, `julia`, `elixir`). Se uma linguagem for pedida explicitamente e a toolchain estiver ausente ou a execução falhar, o script inteiro aborta com erro claro — pedir algo explicitamente e não entregá-lo é tratado como falha, não como omissão silenciosa. Sem a flag correspondente, a ausência da toolchain é irrelevante: ela nunca é verificada. Detalhes da arquitetura de integração em [INTEGRATION_PLAN.md](docs/INTEGRATION_PLAN.md) e do contrato de cada linguagem em [EXTRA_LANGUAGES.md](docs/EXTRA_LANGUAGES.md).
 
 ## Saídas
 
@@ -55,6 +55,8 @@ Cada execução gera uma pasta em `out/<run_id>/` com:
 
 Com `--with-rust`/`--with-julia`/`--with-elixir`/`--with-all-extras`, a pasta também recebe `resultado_rust.csv`, `resultado_julia.csv` e/ou `resultado_elixir.csv`, e `run_manifest.json` lista exatamente as linguagens que rodaram (nunca uma linguagem opcional não solicitada).
 
+A pasta `out/<run_id>/` só é criada com esse nome final depois que toda a execução termina com sucesso (benchmarks, validação e gráficos); uma execução abortada no meio nunca aparece com o nome de uma execução completa. O identificador não pode ser reutilizado, mesmo que o destino existente esteja vazio. Detalhes em [EXECUTION.md](docs/EXECUTION.md).
+
 Todos os CSVs seguem o mesmo cabeçalho:
 
 ```csv
@@ -70,9 +72,7 @@ Onde:
 
 ## Metodologia
 
-Para cada valor de `N`, os benchmarks executam uma rodada de warm-up não cronometrada e depois calculam a média de `M` repetições cronometradas. O warm-up reduz efeitos da primeira execução, especialmente no Java por causa do JIT, e `M` suaviza variações pontuais do sistema.
-
-`TAM` inclui alocação e inicialização das matrizes, `TCS` mede apenas a multiplicação, e `TDM` mede a liberação quando a linguagem permite controle explícito. A versão Java usa `int[][]`, que é um array de arrays e não um buffer contíguo; isso é comportamento padrão da implementação Java deste benchmark e deve ser considerado ao comparar cache locality com C/C++.
+Cada `N` é medido com uma rodada de warm-up descartada seguida da média de `M` repetições. O desenho experimental completo — variáveis, controles, JIT, GC, layout de memória por linguagem, limitações e ameaças à validade — está em [METHODOLOGY.md](docs/METHODOLOGY.md).
 
 ## Estrutura
 
@@ -80,7 +80,9 @@ Para cada valor de `N`, os benchmarks executam uma rodada de warm-up não cronom
 .
 ├─ src/          # código-fonte dos benchmarks e gerador de gráficos
 ├─ experiments/  # versões ainda fora do fluxo publicável
-├─ scripts/      # coleta de sistema e validação de execuções
+├─ scripts/      # coleta de sistema e validador operacional
+├─ tests/        # regressões de contrato e corretude
+├─ docs/         # guias, metodologia, diagramas e registros técnicos
 ├─ build/        # artefatos de compilação ignorados pelo Git
 ├─ out/          # resultados versionáveis por execução
 ├─ run_all.sh    # execução Linux/WSL
@@ -99,11 +101,13 @@ O validador confere CSVs esperados, cabeçalhos, valores numéricos, metadados e
 
 ## Documentação
 
-- [EXECUTION.md](EXECUTION.md): guia completo de execução.
+- [EXECUTION.md](docs/EXECUTION.md): guia completo de execução.
+- [METHODOLOGY.md](docs/METHODOLOGY.md): desenho experimental, métricas, limitações e ameaças à validade.
 - [CONTRIBUTING.md](CONTRIBUTING.md): como contribuir com resultados ou código.
-- [EXTRA_LANGUAGES.md](EXTRA_LANGUAGES.md): contrato, validação e histórico de integração de Rust, Julia e Elixir.
-- [OPERATIONS.md](OPERATIONS.md): análise teórica de operações.
-- [TODO.md](TODO.md): plano de melhorias e próximas fases.
+- [EXTRA_LANGUAGES.md](docs/EXTRA_LANGUAGES.md): contrato, validação e histórico de integração de Rust, Julia e Elixir.
+- [OPERATIONS.md](docs/OPERATIONS.md): fundamentação matemática do número de operações.
+- [DIAGRAMS.md](docs/DIAGRAMS.md): diagramas de arquitetura e fluxo.
+- [TODO.md](TODO.md): tarefas pendentes.
 
 ## Licença
 

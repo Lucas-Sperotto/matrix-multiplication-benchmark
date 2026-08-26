@@ -5,11 +5,11 @@ Uma proposta central deste projeto é reunir resultados de máquinas diferentes 
 Há dois fluxos distintos:
 
 - resultados do benchmark, descritos abaixo;
-- mudanças de código e metodologia, inclusive Rust, Julia e Elixir, descritas em [EXTRA_LANGUAGES.md](EXTRA_LANGUAGES.md).
+- mudanças de código, descritas nesta página; mudanças que afetem o desenho experimental (métricas, controles, validação) devem atualizar [METHODOLOGY.md](docs/METHODOLOGY.md); mudanças específicas de Rust, Julia ou Elixir seguem [EXTRA_LANGUAGES.md](docs/EXTRA_LANGUAGES.md).
 
 ## Como Gerar Resultados
 
-Siga [EXECUTION.md](EXECUTION.md).
+Siga [EXECUTION.md](docs/EXECUTION.md).
 
 Use um nome de execução descritivo:
 
@@ -45,7 +45,7 @@ Confirme que a pasta contém:
 - `run_manifest.json`
 - gráficos `grafico_*.png`
 
-Se alguma flag extra foi usada, confirme também o CSV correspondente (`resultado_rust.csv`, `resultado_julia.csv` e/ou `resultado_elixir.csv`) e sua entrada em `run_manifest.json`. Não reutilize um `run_id`: os runners rejeitam diretórios não vazios para impedir mistura de resultados.
+Se alguma flag extra foi usada, confirme também o CSV correspondente (`resultado_rust.csv`, `resultado_julia.csv` e/ou `resultado_elixir.csv`) e sua entrada em `run_manifest.json`. Não reutilize um `run_id`: os runners rejeitam qualquer caminho final já existente, inclusive um diretório vazio, para impedir mistura ou aninhamento acidental de resultados.
 
 Confirme também que a raiz do projeto não recebeu arquivos gerados como:
 
@@ -133,10 +133,10 @@ Exemplo para Rust:
 
 ```bash
 rustc --edition=2021 -C opt-level=3 -D warnings src/matriz_rust.rs -o build/linux/matriz_rust
-python3 scripts/test_extra_language.py --language Rust -- ./build/linux/matriz_rust
+python3 tests/test_extra_language.py --language Rust -- ./build/linux/matriz_rust
 ```
 
-Os comandos equivalentes para Julia e Elixir, a metodologia completa e as instalações oficiais estão em [EXTRA_LANGUAGES.md](EXTRA_LANGUAGES.md).
+Os comandos e critérios específicos de Julia e Elixir estão em [EXTRA_LANGUAGES.md](docs/EXTRA_LANGUAGES.md); o desenho experimental e suas limitações estão em [METHODOLOGY.md](docs/METHODOLOGY.md).
 
 Os arquivos publicáveis atuais são `src/matriz_rust.rs`, `src/matriz_Julia.jl` e `src/matriz_multiplication.exs`. Os runners só os executam quando a flag correspondente é informada; sem flags, nenhuma toolchain extra é exigida. CSVs extras devem aparecer no manifesto exatamente quando forem executados.
 
@@ -145,7 +145,7 @@ Os arquivos publicáveis atuais são `src/matriz_rust.rs`, `src/matriz_Julia.jl`
 ```bash
 git status
 git diff --check
-python3 scripts/test_extra_language.py --language LINGUAGEM -- COMANDO_BASE
+python3 tests/test_extra_language.py --language LINGUAGEM -- COMANDO_BASE
 ```
 
 No PR, informe a versão da toolchain, os comandos executados e o resultado dos testes. Não versione executáveis, caches, arquivos `.beam` nem CSVs locais. O template em `.github/pull_request_template.md` reúne o checklist de revisão.

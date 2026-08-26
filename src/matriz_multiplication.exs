@@ -19,21 +19,22 @@
 # Representação da matriz — comparação feita antes de implementar:
 #  1. Listas encadeadas: acesso a um índice arbitrário é O(N); indexar uma
 #     matriz N x N como lista-de-listas via `Enum.at/2` tornaria o próprio
-#     `multiply` O(N^5), não O(N^3) — mudaria a complexidade do algoritmo,
+#     `multiply` O(N^4), não O(N^3) — cada acesso a uma célula custa O(N)
+#     no pior caso, dentro dos três laços — e mudaria a complexidade,
 #     não apenas o estilo. Descartada para o acesso aleatório do laço quente.
 #  2. Tuplas aninhadas (tupla de tuplas-linha): leitura O(1) via `elem/2`
-#     (tuplas Erlang são blocos contíguos, como um array), mas `put_elem/3`
-#     copia a tupla inteira a cada atualização — inicializar célula a célula
-#     custaria O(N) por célula, ou seja, O(N^3) só para inicializar uma
-#     matriz N x N (deveria ser O(N^2)). Descartada para inicialização.
+#     segundo o contrato do runtime; a disposição física permanece detalhe
+#     de implementação do BEAM. `put_elem/3` copia a tupla a cada atualização,
+#     então inicializar célula a célula custaria O(N) por célula, ou O(N^3)
+#     para uma matriz N x N (deveria ser O(N^2)). Descartada para inicialização.
 #  3. `:array` do Erlang: apesar do nome, é uma árvore (não um bloco
 #     contíguo); leitura/escrita são O(log N), não O(1). Menos comparável a
 #     C/C++/Java/Python/Rust/Julia (todos O(1) por acesso) que uma tupla.
 #  4. Tupla plana única de N*N elementos, indexada por `i*N+j` (o mesmo
 #     esquema de indexação exigido para o Rust em docs/EXTRA_LANGUAGES.md),
-#     construída UMA VEZ a partir de uma lista (construção O(N) por
-#     comprehension, sem custo de append) e congelada com
-#     `List.to_tuple/1` (O(N) para converter). Dá leitura O(1) (igual às
+#     construída UMA VEZ a partir de uma lista (O(N^2) para percorrer as
+#     N^2 células, sem custo de append) e congelada com `List.to_tuple/1`
+#     (também O(N^2) em relação à dimensão). Dá leitura O(1) (igual às
 #     demais linguagens) e construção O(N^2) total (igual às demais
 #     linguagens), sem nunca mutar uma tupla já construída.
 #

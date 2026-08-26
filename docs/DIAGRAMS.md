@@ -10,6 +10,7 @@ Os diagramas usam Mermaid. No GitHub, eles sao renderizados automaticamente em a
 - Codigo-fonte principal: `src/`
 - Orquestradores: `run_all.sh` e `run_all.ps1`
 - Scripts auxiliares: `scripts/`
+- Testes de contrato e corretude: `tests/`
 - Saida padrao de cada execucao: `out/<run_id>/`
 - Experimentos que permanecem em `experiments/`, como BLAS, ainda nao fazem parte do fluxo publicavel.
 
@@ -39,10 +40,13 @@ flowchart LR
     Plot --> Pngs[(grafico_*.png)]
     Val --> Status[Execucao aprovada ou erro detalhado]
 
-    Csvs --> OutDir["out/<run_id>/"]
-    SysInfo --> OutDir
-    Manifest --> OutDir
-    Pngs --> OutDir
+    Csvs --> Staging["out/.running-<run_id>/"]
+    SysInfo --> Staging
+    Manifest --> Staging
+    Pngs --> Staging
+    Status -- Aprovada --> Promote[Promocao]
+    Staging --> Promote
+    Promote --> OutDir["out/<run_id>/"]
 ```
 
 ## Componentes e Responsabilidades
@@ -61,6 +65,7 @@ flowchart LR
 | `src/plot_benchmarks.py` | Le CSVs de uma execucao e gera graficos PNG para TCS, TAM e TDM. |
 | `scripts/gen_sysinfo_md.sh` | Gera `system_info.md` e `system_info.json` em Linux/WSL. |
 | `scripts/validate_run.py` | Valida CSVs, metadados JSON/MD e existencia dos graficos. |
+| `tests/` | Reune regressões de contrato e testes pequenos de corretude nao identidade. |
 
 ## Sequencia Ponta a Ponta
 
@@ -73,21 +78,26 @@ sequenceDiagram
     participant S as Sistema
     participant P as plot_benchmarks.py
     participant V as validate_run.py
-    participant O as out/run_id/
+    participant O as out/.running-run_id/ (staging)
 
     U->>R: Informa parametros ou usa modo interativo
     R->>R: Normaliza run_name e valida B, Npts, M, escala
     R->>R: Confere gcc, g++, Java, Python e matplotlib
-    opt Flags de linguagens extras
-        R->>R: Confere rustc, julia e/ou elixir solicitados
-    end
+    R->>O: Confere colisoes e cria staging
     R->>B: Compila C, C -O3, C++, C++ -O3 e Java
 
-    loop Para cada variante central ou extra solicitada
+    loop Para cada variante central
         R->>C: Executa com B Npts M escala out_csv
         C->>C: Warm-up por N
         C->>C: M repeticoes cronometradas por N
         C->>O: Grava resultado_*.csv
+    end
+
+    opt Flags de linguagens extras
+        R->>R: Confere rustc, julia e/ou elixir no ponto de uso
+        R->>B: Compila Rust, se solicitado
+        R->>C: Executa cada extra solicitada
+        C->>O: Grava o respectivo resultado_*.csv
     end
 
     R->>S: Coleta informacoes de sistema
@@ -95,10 +105,15 @@ sequenceDiagram
     R->>O: Grava run_manifest.json
     R->>P: Gera graficos a partir dos CSVs
     P->>O: Grava grafico_*.png
-    R->>V: Valida out/run_id/
+    R->>V: Valida out/.running-run_id/
     V->>O: Le CSVs, JSONs, MD e PNGs
     V-->>R: Sucesso ou erro
-    R-->>U: Caminho final da execucao
+    alt Sucesso
+        R->>O: Promove (rename) para out/run_id/
+        R-->>U: Caminho final: out/run_id/
+    else Erro depois da criacao do staging
+        R-->>U: Aborta; out/.running-run_id/ preservado, out/run_id/ nunca criado
+    end
 ```
 
 ## Fluxo do Orquestrador Linux/WSL
@@ -114,21 +129,24 @@ flowchart TD
     F -- Nao --> F1[Mostra uso e encerra]
     F -- Sim --> G[Valida intervalos: B, Npts, M, escala]
     G --> H[Checa gcc, g++, javac, java e python3]
-    H --> H1{Ha flags de extras?}
-    H1 -- Sim --> H2[Checa rustc, julia e/ou elixir solicitados]
-    H1 -- Nao --> I[Checa matplotlib com MPLCONFIGDIR em .cache/matplotlib]
-    H2 --> I
-    I --> J["Cria out/<run_id>/, build/linux/ e build/java/"]
+    H --> I[Checa matplotlib com MPLCONFIGDIR em .cache/matplotlib]
+    I --> I1{"out/<run_id>/ ja existe, mesmo vazio, ou out/.running-<run_id>/ ja existe?"}
+    I1 -- Sim --> I2[Aborta: nao sobrescreve execucao completa nem staging incompleto]
+    I1 -- Nao --> J["Cria out/.running-<run_id>/ (staging), build/linux/ e build/java/"]
     J --> K[Compila C e C -O3]
     K --> L[Compila C++ e C++ -O3]
     L --> M[Compila Java]
     M --> N[Executa 6 benchmarks centrais]
-    N --> N1[Compila/executa extras solicitadas]
-    N1 --> O[Coleta system_info.md e system_info.json]
-    O --> P[Gera run_manifest.json]
+    N --> N1{Ha flags de extras?}
+    N1 -- Sim --> N2[Checa toolchains no ponto de uso e compila/executa extras]
+    N1 -- Nao --> O[Coleta system_info.md e system_info.json]
+    N2 --> O
+    O --> P["Gera run_manifest.json (inclui java_gc)"]
     P --> Q[Gera graficos PNG]
     Q --> R[Valida execucao]
-    R --> S["Finaliza com caminho de out/<run_id>/"]
+    R -- Falha --> R1["Aborta; se ja criado, staging e preservado para diagnostico; destino final nunca e criado"]
+    R -- Sucesso --> T["Promove: mv out/.running-<run_id>/ para out/<run_id>/"]
+    T --> S["Finaliza com caminho de out/<run_id>/"]
 ```
 
 ## Fluxo do Orquestrador Windows PowerShell
@@ -143,21 +161,24 @@ flowchart TD
     E --> F
     F --> G[Valida B, Npts, M e Escala]
     G --> H[Checa gcc, g++, java, javac e python]
-    H --> H1{Ha switches de extras?}
-    H1 -- Sim --> H2[Checa rustc, julia e/ou elixir solicitados]
-    H1 -- Nao --> I[Checa matplotlib]
-    H2 --> I
-    I --> J["Cria out/<run_id>/, build/windows/ e build/java/"]
+    H --> I[Checa matplotlib]
+    I --> I1{"out/<run_id>/ ja existe, mesmo vazio, ou out/.running-<run_id>/ ja existe?"}
+    I1 -- Sim --> I2[Aborta: nao sobrescreve execucao completa nem staging incompleto]
+    I1 -- Nao --> J["Cria out/.running-<run_id>/ (staging), build/windows/ e build/java/"]
     J --> K[Compila C e C -O3 para .exe]
     K --> L[Compila C++ e C++ -O3 para .exe]
     L --> M[Compila Java]
     M --> N[Executa C, C -O3, C++, C++ -O3, Java e Python]
-    N --> N1[Compila/executa extras solicitadas]
-    N1 --> O[Gera system_info.md e system_info.json via PowerShell]
-    O --> P[Gera run_manifest.json]
+    N --> N1{Ha switches de extras?}
+    N1 -- Sim --> N2[Checa toolchains no ponto de uso e compila/executa extras]
+    N1 -- Nao --> O[Gera system_info.md e system_info.json via PowerShell]
+    N2 --> O
+    O --> P["Gera run_manifest.json (inclui java_gc)"]
     P --> Q[Executa plot_benchmarks.py]
     Q --> R[Executa validate_run.py]
-    R --> S["Finaliza com caminho de out/<run_id>/"]
+    R -- Falha --> R1["Aborta; se ja criado, staging e preservado para diagnostico; destino final nunca e criado"]
+    R -- Sucesso --> T["Promove: Move-Item out/.running-<run_id>/ para out/<run_id>/"]
+    T --> S["Finaliza com caminho de out/<run_id>/"]
 ```
 
 ## Contrato dos Benchmarks
@@ -217,7 +238,7 @@ flowchart TD
 flowchart TD
     A[run_once N] --> B[Checa tamanho da matriz]
     B --> C[TAM inicio]
-    C --> D[Aloca mat1, mat2 e res]
+    C --> D[Aloca entradas e, quando aplicavel, res]
     D --> E[Inicializa mat1 com i + j]
     E --> F[Inicializa mat2 como identidade]
     F --> G[TAM fim]
@@ -291,7 +312,7 @@ flowchart LR
     end
 
     subgraph Out["out/<run_id>/"]
-        Csv[resultado_c.csv<br/>resultado_c_O3.csv<br/>resultado_cpp.csv<br/>resultado_cpp_O3.csv<br/>resultado_java.csv<br/>resultado_python.csv]
+        Csv[resultado_c.csv<br/>resultado_c_O3.csv<br/>resultado_cpp.csv<br/>resultado_cpp_O3.csv<br/>resultado_java.csv<br/>resultado_python.csv<br/>+ resultado_rust/julia/elixir.csv se solicitados]
         Sys[system_info.md<br/>system_info.json]
         Manifest[run_manifest.json]
         Graphs[grafico_*.png]
@@ -338,18 +359,22 @@ flowchart TD
 flowchart TD
     A["validate_run.py out/<run_id>"] --> B{Diretorio existe?}
     B -- Nao --> X[Erro]
-    B -- Sim --> C[Valida CSVs esperados]
-    C --> D[Confere cabecalho N,TCS,TAM,TDM]
-    D --> E[Confere linhas numericas]
-    E --> F[Confere N positivo e monotonicamente nao decrescente]
-    F --> G[Confere tempos nao negativos e finitos]
-    G --> H[Confere system_info.md nao vazio]
+    B -- Sim --> C[Le run_manifest.json e Npts esperado]
+    C --> D{"Os 6 CSVs centrais estao declarados no manifesto?"}
+    D -- Nao --> X
+    D -- Sim --> E{"Algum CSV opcional presente e nao declarado?"}
+    E -- Sim --> X
+    E -- Nao --> F[Valida cada CSV declarado: cabecalho, linhas numericas, N nao decrescente, tempos finitos e nao negativos, contagem igual a Npts]
+    F --> G{"Series de N identicas entre todos os CSVs?"}
+    G -- Nao --> X
+    G -- Sim --> H[Confere system_info.md nao vazio]
     H --> I[Valida system_info.json com generated_at]
-    I --> J[Valida run_manifest.json com chaves obrigatorias]
-    J --> K{Existe ao menos um grafico_*.png?}
-    K -- Nao --> X
-    K -- Sim --> L[Validacao concluida com sucesso]
+    I --> J{Existe ao menos um grafico_*.png?}
+    J -- Nao --> X
+    J -- Sim --> K[Validacao concluida com sucesso]
 ```
+
+O manifesto é a fonte autoritativa para os seis CSVs centrais e os três opcionais reconhecidos: qualquer um deles presente no diretório mas ausente do manifesto invalida a execução, e uma saída declarada mas ausente também invalida. CSVs de nomes arbitrários ainda não são rejeitados pelo validador.
 
 ## Estrutura do Diretorio de Saida
 
@@ -365,6 +390,9 @@ flowchart TD
     B --> B4[resultado_cpp_O3.csv]
     B --> B5[resultado_java.csv]
     B --> B6[resultado_python.csv]
+    B -.-> B7["resultado_rust.csv (com --with-rust)"]
+    B -.-> B8["resultado_julia.csv (com --with-julia)"]
+    B -.-> B9["resultado_elixir.csv (com --with-elixir)"]
 
     C --> C1[system_info.md]
     C --> C2[system_info.json]
@@ -401,10 +429,14 @@ flowchart TD
     G --> G3[java]
     G --> G4[javac]
     G --> G5[python]
+    G -.-> G6["rustc (com --with-rust)"]
+    G -.-> G7["julia (com --with-julia)"]
+    G -.-> G8["elixir (com --with-elixir)"]
 
     H --> H1[name]
     H --> H2[flags]
     H --> H3[output]
+    H -.-> H4["entrada Rust/Julia/Elixir somente se a flag foi usada e a execucao teve sucesso"]
 ```
 
 ## Dependencias de Ambiente
@@ -432,18 +464,21 @@ flowchart LR
 ```mermaid
 stateDiagram-v2
     [*] --> Configurando
-    Configurando --> Compilando: parametros e dependencias validos
-    Configurando --> Falha: parametro/dependencia invalido
+    Configurando --> EmStaging: parametros e dependencias centrais validos, cria out/.running-<run_id>/
+    Configurando --> Falha: parametro/dependencia central invalido, ou out/<run_id>/ ou out/.running-<run_id>/ ja existem
+    EmStaging --> Compilando
     Compilando --> Executando: build concluido
-    Compilando --> Falha: erro de compilacao
+    Compilando --> FalhaEmStaging: erro de compilacao
     Executando --> ColetandoMetadados: CSVs gerados
-    Executando --> Falha: erro em benchmark ou verificacao
-    ColetandoMetadados --> GerandoGraficos: system_info e manifest gerados
+    Executando --> FalhaEmStaging: toolchain extra ausente, erro em benchmark ou verificacao
+    ColetandoMetadados --> GerandoGraficos: system_info e manifest gerados (inclui java_gc)
     GerandoGraficos --> Validando: PNGs gerados
-    GerandoGraficos --> Falha: erro no matplotlib ou CSV invalido
-    Validando --> Concluida: validate_run.py aprovado
-    Validando --> Falha: artefato ausente ou invalido
+    GerandoGraficos --> FalhaEmStaging: erro no matplotlib ou CSV invalido
+    Validando --> Promovendo: validate_run.py aprovado
+    Validando --> FalhaEmStaging: artefato ausente ou invalido
+    Promovendo --> Concluida: mv/Move-Item out/.running-<run_id>/ para out/<run_id>/
     Concluida --> [*]
+    FalhaEmStaging --> [*]: out/.running-<run_id>/ preservado para diagnostico; out/<run_id>/ nunca criado
     Falha --> [*]
 ```
 
@@ -469,11 +504,13 @@ flowchart TD
 
 ## Pontos de Atencao Metodologica
 
-- `TAM` mede alocacao e inicializacao juntas.
-- `TCS` mede apenas a multiplicacao.
-- `TDM` mede liberacao explicita quando a linguagem permite; Java, Python, Julia e Elixir registram `0.0`.
+Resumo rapido; o desenho experimental completo (variaveis, controles, JIT, GC, layout de memoria por linguagem, limitacoes e ameacas a validade) esta em [METHODOLOGY.md](METHODOLOGY.md):
+
+- `TAM` e a janela de alocacao/inicializacao, incluindo `res`, em C, C++, Java, Python, Rust e Julia. Elixir e a unica excecao: por imutabilidade, `res` so existe ao final da construcao.
+- `TCS` e a janela de calculo; em Elixir inclui tambem a construcao imutavel de `res` (excecao estrutural, nao de implementacao).
+- `TDM` mede uma liberacao provocada em C/C++/Rust; Java, Python, Julia e Elixir registram `0.0` porque o protocolo nao mede a liberacao automatica, nao porque ela seja instantanea.
 - O warm-up nao entra na media final.
-- `M` reduz ruido por media aritmetica simples.
-- O algoritmo principal e cubico, com tres lacos aninhados.
+- `M` reduz ruido por media aritmetica simples; tempos individuais por repeticao nao sao preservados.
+- O algoritmo principal e algoritmicamente equivalente, O(N^3), com ordem logica `i,j,k`; representacao e operacoes internas variam por linguagem.
 - A matriz identidade como segundo operando torna a verificacao simples sem alterar a complexidade do calculo.
 - Comparacoes entre linguagens devem considerar layout de memoria, largura dos inteiros, otimizacoes do compilador, JIT de Java/Julia/BEAM, GC e imutabilidade.

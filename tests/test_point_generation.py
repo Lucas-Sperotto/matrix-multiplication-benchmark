@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Regressao: confirma que a geracao de pontos N da referencia Python usa
 arredondamento metade-para-cima (floor(x + 0.5)), a mesma regra documentada
-em EXTRA_LANGUAGES.md e usada por C/C++/Java, inclusive em pontos x.5
+em docs/EXTRA_LANGUAGES.md e usada por C/C++/Java, inclusive em pontos x.5
 exatos onde o round() nativo do Python (metade-para-par) divergiria.
 """
 
@@ -26,7 +26,7 @@ CASES = [
 
 
 def expected_points(b: int, npts: int, escala: int, a: float = 100.0) -> list[int]:
-    """Formula canonica de EXTRA_LANGUAGES.md: metade-para-cima."""
+    """Formula canonica de docs/EXTRA_LANGUAGES.md: metade-para-cima."""
     if escala == 1:
         step = (b - a) / (npts - 1)
         return [math.floor(a + step * i + 0.5) for i in range(npts)]

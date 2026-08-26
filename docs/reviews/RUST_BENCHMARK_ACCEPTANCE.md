@@ -29,7 +29,7 @@ Este documento registra o aceite técnico da etapa Rust sem reescrever históric
 
 - `rustfmt --check`;
 - `rustc --edition=2021 -C opt-level=3 -D warnings`;
-- `scripts/test_extra_language.py`;
+- `tests/test_extra_language.py`;
 - testes manuais do contrato e sobrescrita de CSV;
 - caso regressivo `B=101 Npts=3 escala=1`, com `N=[100,101,101]`;
 - comparação com C/Python para a série de N;
@@ -41,7 +41,7 @@ O laço cúbico utiliza acesso sem bounds-check por meio de `get_unchecked`/`get
 
 ## Pendências para a integração/metodologia
 
-- registrar `unsafe/get_unchecked` em `METHODOLOGY.md` e nas ameaças à validade;
+- registrar `unsafe/get_unchecked` em `docs/METHODOLOGY.md` e nas ameaças à validade;
 - preservar no runner as mesmas flags de compilação usadas na validação;
 - manter o harness como gate da implementação;
 - documentar diferenças de layout, runtime e gerenciamento de memória nas comparações cruzadas;

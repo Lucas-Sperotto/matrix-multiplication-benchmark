@@ -158,7 +158,7 @@ def main() -> int:
         )
 
     if failures:
-        print("FALHA em scripts/test_validate_run.py:", file=sys.stderr)
+        print("FALHA em tests/test_validate_run.py:", file=sys.stderr)
         for failure in failures:
             print(f"  - {failure}", file=sys.stderr)
         return 1

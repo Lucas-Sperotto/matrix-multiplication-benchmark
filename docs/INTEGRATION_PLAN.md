@@ -46,7 +46,7 @@ Ambos já reconheciam as séries extras, mas o smoke test revelou um ajuste nece
 - `validate_run.py`: `EXPECTED_CSVS` (6 obrigatórios) permanece intocado e `manifest_csvs()` continua iterando toda a lista `languages`. `run_dir` passou a ser resolvido uma vez para não misturar caminhos relativos e absolutos; além disso, o manifesto tornou-se autoritativo, então um CSV extra presente mas não declarado é rejeitado.
 - `plot_benchmarks.py`: `FILES` já contém `"Rust"`, `"Julia"`, `"Elixir"` apontando para os nomes de arquivo corretos; `load_data()` já filtra por `path.exists()`, então só entram no gráfico séries realmente presentes. **Nenhuma alteração necessária.**
 
-O runner também passou a rejeitar diretórios de execução não vazios, impedindo que um CSV antigo seja incorporado aos gráficos de uma nova coleta com o mesmo `run_id`.
+O runner também passou a rejeitar caminhos finais de execução já existentes, inclusive diretórios vazios, impedindo que um CSV antigo seja incorporado aos gráficos ou que a promoção aninhe o staging em uma pasta preexistente com o mesmo `run_id`.
 
 ---
 
@@ -72,7 +72,7 @@ O runner também passou a rejeitar diretórios de execução não vazios, impedi
 
 ## 3. Compatibilidade
 
-- **Invocação sem flags novas e com `run_id` novo**: produz os mesmos 6 CSVs, manifesto e gráficos do núcleo. Um diretório não vazio agora é rejeitado para impedir contaminação entre execuções.
+- **Invocação sem flags novas e com `run_id` novo**: produz os mesmos 6 CSVs, manifesto e gráficos do núcleo. Qualquer caminho final já existente agora é rejeitado para impedir contaminação ou aninhamento entre execuções.
 - **`out/<run_id>/` de execuções antigas**: continua válido quando o manifesto declara todos os CSVs presentes; um CSV extra órfão passa a ser rejeitado explicitamente.
 - **Toolchains extras ausentes, sem flag**: nenhum impacto — nunca são sequer verificadas.
 - **Toolchains extras ausentes, com flag**: comportamento novo e intencional — aborta com erro claro, código de saída 1. Não é uma quebra de compatibilidade porque não existia comportamento anterior para essas flags (elas não existiam).
@@ -86,7 +86,7 @@ O runner também passou a rejeitar diretórios de execução não vazios, impedi
 2. **Todas as extras juntas**: aprovada com 9 CSVs, 9 entradas em `languages`, 8 ferramentas e gráficos contendo as séries extras.
 3. **Toolchain ausente com flag explícita**: `PATH` restrito com `--with-rust` abortou com código 1 e mensagem `Dependencia ausente: rustc`; os 6 CSVs centrais permaneceram na pasta parcial.
 4. **Reutilização de `run_id`**: rejeitada antes de compilar ou sobrescrever artefatos.
-5. **Regressões**: `scripts/test_point_generation.py`, `scripts/test_validate_run.py`, lint Python, `bash -n` e parser do Windows PowerShell aprovados.
+5. **Regressões**: `tests/test_point_generation.py`, `tests/test_validate_run.py`, lint Python, `bash -n` e parser do Windows PowerShell aprovados.
 6. **Windows nativo**: execução ponta a ponta ainda pendente e registrada em `TODO.md`.
 
 ---
@@ -97,7 +97,7 @@ O runner também passou a rejeitar diretórios de execução não vazios, impedi
 |---|---|
 | Quebrar o fluxo padrão para quem não usa as flags novas | Extras ficam num bloco condicional adicionado *depois* do fluxo de 6 linguagens existente; nenhuma linha do fluxo atual é reordenada ou removida — só adição. Teste de regressão #1 cobre isso diretamente. |
 | `run_all.ps1` não abortar de fato numa falha nativa (lacuna do `$LASTEXITCODE`) | Checagem explícita após todas as compilações, benchmarks, plotador e validador. |
-| Reutilização de um `run_id` incorporar CSV extra antigo | Runners rejeitam diretório não vazio; validador rejeita CSV extra ausente do manifesto. |
+| Reutilização de um `run_id` incorporar CSV extra antigo | Runners rejeitam qualquer destino final já existente; validador rejeita CSV extra ausente do manifesto. |
 | Divergência futura de arredondamento entre uma extra e o núcleo passar despercebida | Já coberta pela checagem de série de N consistente em `validate_run.py`, que já se aplica a qualquer CSV incluído no manifesto — nenhuma proteção nova necessária, só confirmar que continua ativa (teste #3). |
 | Tempo de execução do fluxo completo aumentar muito com `--with-all-extras` (Elixir é sensivelmente mais lento para N grande, conforme medido na revisão da implementação) | Documentar isso explicitamente em `EXECUTION.md`; não é um bug, é uma característica real da linguagem que o usuário deve conhecer antes de usar `--with-all-extras` com `B` grande. |
 | Falha de compilação do Rust silenciosamente ignorada | `set -e` já garante abort; `rustc ... -D warnings` já transforma warnings em erro, preservando a mesma rigidez usada na validação do PR. |
@@ -108,5 +108,5 @@ O runner também passou a rejeitar diretórios de execução não vazios, impedi
 ## 6. Plano de rollback
 
 - Toda a mudança fica isolada em `feat/extra-languages-integration`, que não é `tcc-lic-thassio` nem `main`. Se algo se mostrar problemático após revisão, basta não mesclar a branch — nenhum efeito no restante do projeto.
-- Caso já mesclada e um problema apareça depois, os commits separados de runner, documentação e rastreamento permitem `git revert` por responsabilidade. A rejeição de diretório não vazio e as checagens de código de saída devem ser avaliadas explicitamente antes de qualquer rollback, pois protegem também o núcleo.
+- Caso já mesclada e um problema apareça depois, os commits separados de runner, documentação e rastreamento permitem `git revert` por responsabilidade. A rejeição de destino final já existente e as checagens de código de saída devem ser avaliadas explicitamente antes de qualquer rollback, pois protegem também o núcleo.
 - Nenhuma mudança de schema em `run_manifest.json` foi introduzida (só cardinalidade), então execuções já coletadas com o formato novo continuam válidas mesmo se o rollback remover a capacidade de *gerar* novas entradas — `validate_run.py` não differencia execuções "antigas" (6 linguagens) de "novas" (7-9 linguagens).

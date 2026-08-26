@@ -37,7 +37,7 @@ rustc --version
 cargo --version
 ```
 
-Elixir deve usar exatamente Elixir 1.20.3 com Erlang/OTP 28.4. Execute o [`install.sh` oficial](https://elixir-lang.org/install/) e ajuste o `PATH`:
+O ambiente de referência recomendado é Elixir 1.20.3 com Erlang/OTP 28.4. Os runners ainda não impõem essas versões, por isso confira o ambiente efetivamente usado e ajuste o `PATH`:
 
 ```bash
 cd /tmp
@@ -75,7 +75,7 @@ Por fim, na raiz do repositorio:
 
 ```bash
 ./scripts/check_extra_toolchains.sh
-python3 scripts/test_extra_language.py --language Python -- python3 src/matriz_python.py
+python3 tests/test_extra_language.py --language Python -- python3 src/matriz_python.py
 ```
 
 O segundo comando testa o harness contra a implementacao Python de referencia. Os comandos específicos das três linguagens estão na seção 5.
@@ -121,9 +121,12 @@ O ajuste de `$env:PATH` acima vale para a sessao atual. Torne os dois diretorios
 
 ```powershell
 rustc --version
+erl -version
 elixir --version
 julia --version
 ```
+
+`scripts/check_extra_toolchains.sh` é um script Bash e não roda em PowerShell puro; os quatro comandos acima cobrem os runtimes essenciais verificados pelo diagnóstico em Windows nativo. Não existe um script `.ps1` correspondente.
 
 ## 2. Criar o fork a partir da branch correta
 
@@ -218,15 +221,17 @@ N,TCS,TAM,TDM
 
 Ele deve conter exatamente `Npts` linhas de dados. Os tempos sao segundos, com ponto decimal, finitos e nao negativos:
 
-- `TAM`: alocacao e inicializacao das duas entradas e do resultado;
-- `TCS`: somente a multiplicacao manual;
+- `TAM`: janela destinada à alocacao e inicializacao das duas entradas e do resultado;
+- `TCS`: janela destinada à multiplicacao manual;
 - `TDM`: liberacao explicita em Rust; `0.0` em Julia e Elixir por causa do gerenciamento automatico de memoria.
+
+Rust e Julia alocam o resultado em TAM. Na representação Elixir aceita, imutável, o resultado só é construído durante a multiplicação e seu custo fica em TCS. Essa exceção operacional deve permanecer explícita e não transforma as duas janelas em fases internamente idênticas entre linguagens; veja [METHODOLOGY.md](METHODOLOGY.md).
 
 ## 4. Metodologia comum
 
 Para cada `N`:
 
-1. aloque `A`, `B` e `C` e inicialize `A[i,j] = i + j`, considerando indices logicos iniciados em zero;
+1. aloque `A`, `B` e, quando a representação permitir pré-alocação, `C`; inicialize `A[i,j] = i + j`, considerando indices logicos iniciados em zero;
 2. inicialize `B` como identidade;
 3. multiplique manualmente com tres lacos, sem BLAS, `matmul`, pacotes numericos, paralelismo ou uma operacao pronta de multiplicacao;
 4. valide nove posicoes de `C`, combinando os indices logicos `0`, `N/2` e `N-1` em linhas e colunas;
@@ -253,7 +258,7 @@ rustfmt --check src/matriz_rust.rs
 rustc --edition=2021 -C opt-level=3 -D warnings src/matriz_rust.rs -o build/linux/matriz_rust
 
 ./build/linux/matriz_rust 144 3 1 1 "out/tmp-extra-rust/resultado_rust.csv"
-python3 scripts/test_extra_language.py --language Rust -- ./build/linux/matriz_rust
+python3 tests/test_extra_language.py --language Rust -- ./build/linux/matriz_rust
 ```
 
 ### Julia
@@ -262,13 +267,14 @@ python3 scripts/test_extra_language.py --language Rust -- ./build/linux/matriz_r
 - use `time_ns()` para medir intervalos e converta nanossegundos para segundos;
 - considere a indexacao nativa iniciada em 1 ao gerar os mesmos valores logicos das outras linguagens;
 - mantenha `TDM=0.0` e nao inclua uma coleta forcada do GC na metrica;
+- elementos das matrizes em `Int32` (alinhado a C/C++/Java/Rust); indices, dimensao e contadores continuam `Int` nativo — nao estreite indices para `Int32`;
 - use apenas a biblioteca padrao.
 
 O código aceito está em `src/matriz_Julia.jl`:
 
 ```bash
 julia src/matriz_Julia.jl 144 3 1 1 "out/tmp-extra-julia/resultado_julia.csv"
-python3 scripts/test_extra_language.py --language Julia -- julia src/matriz_Julia.jl
+python3 tests/test_extra_language.py --language Julia -- julia src/matriz_Julia.jl
 ```
 
 ### Elixir
@@ -284,16 +290,16 @@ Scripts `.exs` não exigem uma etapa separada de build. O código aceito está e
 ```bash
 mix format --check-formatted src/matriz_multiplication.exs
 elixir src/matriz_multiplication.exs 144 3 1 1 "out/tmp-extra-elixir/resultado_elixir.csv"
-python3 scripts/test_extra_language.py --language Elixir -- elixir src/matriz_multiplication.exs
+python3 tests/test_extra_language.py --language Elixir -- elixir src/matriz_multiplication.exs
 ```
 
 ## 6. O que o teste automatizado cobre
 
-O separador `--` e obrigatorio. Tudo depois dele e o comando-base da implementacao; o harness acrescenta os cinco argumentos do contrato. Ele exercita argumentos invalidos e casos pequenos nas escalas linear e logaritmica, valida o codigo de saida e inspeciona o CSV.
+O separador `--` e obrigatorio. Tudo depois dele e o comando-base da implementacao; o harness acrescenta os cinco argumentos do contrato. Ele exercita argumentos invalidos (incluindo limites inferiores, superiores e valores negativos), casos pequenos nas escalas linear e logaritmica, uma segunda execucao com os mesmos argumentos para confirmar que o CSV e sobrescrito em vez de anexado, valida o codigo de saida e inspeciona o CSV. Cada comando testado tem um limite de 120 segundos; se exceder, o harness reporta timeout como falha.
 
 O harness e a verificacao manual de codigo sao os criterios desta fase. `scripts/validate_run.py` valida uma execucao completa do fluxo principal e, por isso, nao substitui `test_extra_language.py` durante o desenvolvimento isolado.
 
-**Limite conhecido do harness:** o CSV de saida carrega apenas tempos, nunca valores de matriz, entao `test_extra_language.py` nao tem como detectar uma multiplicacao aritmeticamente incorreta — uma implementacao com `verify_sample` (ou equivalente) quebrado, incompleto ou nunca chamado pode passar em todos os testes automatizados desde que produza um CSV bem formado. A corretude aritmetica depende inteiramente da revisao manual do codigo de verificacao amostral durante o PR (ver checklist em `.github/pull_request_template.md`).
+**Limite conhecido do harness:** o CSV de saida carrega apenas tempos, nunca valores de matriz, entao `test_extra_language.py` nao tem como detectar uma multiplicacao aritmeticamente incorreta — uma implementacao com `verify_sample` (ou equivalente) quebrado, incompleto ou nunca chamado pode passar em todos os testes automatizados desde que produza um CSV bem formado. Isso e agravado pelo fato de o benchmark principal usar `B` como matriz identidade, o que nao distingue multiplicacao correta de copia do primeiro operando. `tests/` cobre parcialmente essa lacuna com um teste de corretude por linguagem, usando um caso pequeno e conhecido **nao identidade** contra a funcao de multiplicacao de producao (ver `METHODOLOGY.md`, "Validacao matematica"); ainda assim, a revisao manual de codigo durante o PR continua sendo a defesa principal (ver checklist em `.github/pull_request_template.md`).
 
 ## 7. Estado atual e integração nos runners
 
@@ -302,7 +308,7 @@ Antes de enviar qualquer alteração:
 ```bash
 git status
 git diff --check
-python3 scripts/test_extra_language.py --language LINGUAGEM -- COMANDO_BASE
+python3 tests/test_extra_language.py --language LINGUAGEM -- COMANDO_BASE
 git add src/ARQUIVO_DA_LINGUAGEM
 git commit -m "tipo(linguagem): descreve a alteracao"
 git push --set-upstream origin BRANCH_FEAT

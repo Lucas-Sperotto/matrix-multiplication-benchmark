@@ -1,5 +1,7 @@
 # Como Executar
 
+Este guia é operacional: como instalar, rodar e validar. Para o desenho experimental (métricas, controles, limitações, ameaças à validade), veja [METHODOLOGY.md](METHODOLOGY.md).
+
 Este guia cobre o fluxo principal: C, C++, Java e Python, sempre executados, e Rust, Julia e Elixir, opcionais via flag.
 
 BLAS existe como experimento em `experiments/` e ainda não faz parte do fluxo publicável.
@@ -43,7 +45,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 rustup default stable
 ```
 
-Instale Elixir 1.20.3 e Erlang/OTP 28.4 com o script oficial:
+Instale o ambiente de referência recomendado, Elixir 1.20.3 e Erlang/OTP 28.4, com o script oficial. Os runners registram a versão encontrada, mas ainda não impõem esse par:
 
 ```bash
 cd /tmp
@@ -66,7 +68,7 @@ Abra um novo terminal quando o instalador solicitar e diagnostique o ambiente:
 ./scripts/check_extra_toolchains.sh
 ```
 
-Os comandos de macOS e Windows, inclusive o `PATH` persistente de Elixir/OTP, estão em [EXTRA_LANGUAGES.md](EXTRA_LANGUAGES.md).
+`check_extra_toolchains.sh` é um script Bash: em Windows nativo (fora de WSL/Git Bash), não há como executá-lo diretamente; confira `rustc --version`, `erl -version`, `elixir --version` e `julia --version` manualmente. Os comandos de macOS e Windows, inclusive o `PATH` persistente de Elixir/OTP, estão em [EXTRA_LANGUAGES.md](EXTRA_LANGUAGES.md).
 
 ## Execução Linux/WSL
 
@@ -84,7 +86,7 @@ Modo batch:
 
 Parâmetros:
 
-- `--run-name`: nome da pasta em `out/`; o diretório deve ser novo ou estar vazio para impedir mistura de execuções
+- `--run-name`: nome da pasta em `out/`; o caminho final (`out/<run-name>/`) deve ser inteiramente inexistente — até um diretório vazio é rejeitado, pois a promoção poderia aninhar o staging dentro dele. A execução escreve primeiro em um diretório de trabalho temporário (`out/.running-<run-name>/`) e só o promove ao nome final depois que todos os benchmarks, a validação e a geração de gráficos terminarem com sucesso — ver "Execuções incompletas" abaixo
 - `--B`: maior valor de `N`
 - `--Npts`: quantidade de pontos entre `100` e `B`
 - `--M`: repetições para média
@@ -130,13 +132,11 @@ N,TCS,TAM,TDM
 
 Campos:
 
-- `TCS`: tempo de cálculo da multiplicação
-- `TAM`: tempo de alocação e inicialização das matrizes
+- `TCS`: janela de cálculo da multiplicação
+- `TAM`: janela de alocação e inicialização das matrizes
 - `TDM`: tempo de desalocação; em Java, Python, Julia e Elixir é registrado como `0.0`
 
-Para cada valor de `N`, cada benchmark faz 1 rodada de warm-up não cronometrada e depois registra a média de `M` repetições. O warm-up ajuda a reduzir efeitos da primeira execução, especialmente no Java por causa do JIT.
-
-A implementação Java usa `int[][]`, que é um array de arrays e não um buffer contíguo. Esse desenho é intencional para a versão Java atual e deve ser levado em conta na interpretação dos resultados.
+As fronteiras não são idênticas em todas as implementações: C, C++, Java, Python, Rust e Julia alocam e inicializam/zeram o resultado em TAM; **apenas o Elixir** constrói o resultado dentro de TCS, por imutabilidade da linguagem. Para cada valor de `N`, cada benchmark faz 1 rodada de warm-up cujos tempos são descartados e depois registra a média de `M` repetições. O desenho completo, incluindo JIT/GC, layout e ameaças à validade, está em [METHODOLOGY.md](METHODOLOGY.md).
 
 ## Executar Rust, Julia e Elixir isoladamente (desenvolvimento)
 
@@ -146,22 +146,22 @@ Fora do runner, os comandos abaixo continuam úteis para testar uma implementaç
 mkdir -p build/linux
 rustfmt --check src/matriz_rust.rs
 rustc --edition=2021 -C opt-level=3 -D warnings src/matriz_rust.rs -o build/linux/matriz_rust
-python3 scripts/test_extra_language.py --language Rust -- ./build/linux/matriz_rust
+python3 tests/test_extra_language.py --language Rust -- ./build/linux/matriz_rust
 
-python3 scripts/test_extra_language.py --language Julia -- julia src/matriz_Julia.jl
+python3 tests/test_extra_language.py --language Julia -- julia src/matriz_Julia.jl
 
-python3 scripts/test_extra_language.py --language Elixir -- elixir src/matriz_multiplication.exs
+python3 tests/test_extra_language.py --language Elixir -- elixir src/matriz_multiplication.exs
 ```
 
 O separador `--` informa ao harness onde começa o comando-base; ele próprio acrescenta `B Npts M escala out_csv`. Use a implementação Python como teste de referência do harness:
 
 ```bash
-python3 scripts/test_extra_language.py --language Python -- python3 src/matriz_python.py
+python3 tests/test_extra_language.py --language Python -- python3 src/matriz_python.py
 ```
 
-Cada implementação faz um warm-up por `N`, calcula a média de exatamente `M` repetições, usa multiplicação manual com três laços e valida as nove combinações dos índices inicial, central e final. Rust mede `TDM` ao executar `drop`; Julia e Elixir registram `TDM=0.0`. Veja a metodologia completa em [EXTRA_LANGUAGES.md](EXTRA_LANGUAGES.md) e a arquitetura de integração ao runner em [INTEGRATION_PLAN.md](INTEGRATION_PLAN.md).
+Cada implementação faz um warm-up por `N`, calcula a média de exatamente `M` repetições, usa multiplicação manual com três iterações aninhadas e valida as nove combinações dos índices inicial, central e final. Rust mede `TDM` ao executar `drop`; Julia e Elixir registram `TDM=0.0`. Veja o desenho experimental em [METHODOLOGY.md](METHODOLOGY.md), os critérios específicos em [EXTRA_LANGUAGES.md](EXTRA_LANGUAGES.md) e a arquitetura de integração em [INTEGRATION_PLAN.md](INTEGRATION_PLAN.md).
 
-**Atenção ao tempo de execução do Elixir**: a multiplicação manual em Elixir é ordens de magnitude mais lenta que C/Rust/Julia para o mesmo `N` (aritmética genérica do BEAM em vez de inteiros nativos). Evite `--with-elixir`/`--with-all-extras` com `B` grande sem testar antes com um `B` pequeno.
+**Atenção ao tempo de execução do Elixir**: validações exploratórias locais foram consideravelmente mais lentas que as demais implementações, mas não constituem uma coleta formal preservada. Evite `--with-elixir`/`--with-all-extras` com `B` grande sem testar antes com um `B` pequeno no seu ambiente.
 
 ## Artefatos
 
@@ -180,6 +180,18 @@ out/<run_id>/
 ```
 
 Nenhum `resultado_*.csv`, executável ou `.class` deve ser criado na raiz do projeto.
+
+## Execuções incompletas
+
+`run_all.sh`/`run_all.ps1` escrevem toda a execução em `out/.running-<run-name>/` e só a promovem (renomeiam) para `out/<run-name>/` depois que **todos** os benchmarks solicitados, `system_info`, os gráficos e `validate_run.py` terminarem com sucesso. Parâmetros inválidos, dependências centrais ausentes, falha do matplotlib ou colisão de nome são detectados antes de criar o staging. Depois que o staging existe, qualquer falha — compilação, toolchain extra ausente, benchmark, metadados, gráficos ou validação — aborta com código diferente de zero, e:
+
+- `out/<run-name>/` (o nome final) **não é criado**; uma execução parcial nunca aparece com o nome de uma execução completa;
+- `out/.running-<run-name>/` permanece no disco com o que já tinha sido gerado até a falha, útil para diagnóstico; falhas detectadas antes da criação do staging naturalmente não deixam esse diretório;
+- rodar novamente com o mesmo `--run-name`/`-RunName` falha explicitamente enquanto esse diretório de trabalho existir — o script não sobrescreve nem reaproveita silenciosamente uma tentativa anterior incompleta. Remova o diretório manualmente (ou use outro nome) depois de inspecioná-lo.
+
+Um caminho final `out/<run-name>/` já existente também é sempre rejeitado, mesmo vazio. Escolha outro identificador ou remova manualmente apenas um diretório que você tenha confirmado que não contém resultados a preservar.
+
+Este mecanismo não depende de rename entre sistemas de arquivos diferentes: a promoção move o diretório dentro do próprio `out/`.
 
 ## Validação
 

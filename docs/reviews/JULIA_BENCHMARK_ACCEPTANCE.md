@@ -27,7 +27,7 @@ Este documento registra o aceite técnico da etapa Julia de forma auditável, se
 ## Validação realizada
 
 - execução manual `144 3 1 1`;
-- `scripts/test_extra_language.py` completo;
+- `tests/test_extra_language.py` completo;
 - repetição do harness com `julia --check-bounds=yes`;
 - caso regressivo `B=101 Npts=3 escala=1` com `N=[100,101,101]`;
 - comparação da série N com C/Python;
