@@ -1,5 +1,8 @@
 # Build artifacts
 build/
+target/
+_build/
+deps/
 *.o
 *.out
 *.exe
@@ -9,6 +12,10 @@ build/
 *.ear
 matriz_c
 matriz_cpp
+*.rlib
+*.rmeta
+*.beam
+erl_crash.dump
 
 # Python
 __pycache__/
@@ -19,6 +26,11 @@ __pycache__/
 .ruff_cache/
 .venv/
 venv/
+
+# Local language/tooling state
+.elixir_ls/
+.julia/
+*.ji
 
 # Matplotlib/runtime caches
 .cache/
@@ -38,6 +50,10 @@ out/*_tmp*/
 out/smoke*/
 out/*-smoke*/
 out/*_smoke*/
+
+# Legacy/local outputs produced by standalone prototypes in the repository root.
+/resultado_*.csv
+/resultado_*.dat
 
 # IDEs/editors
 .vscode/

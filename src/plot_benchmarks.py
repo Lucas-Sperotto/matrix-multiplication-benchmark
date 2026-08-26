@@ -23,7 +23,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         action="append",
         default=[],
         metavar="LINGUAGEM",
-        help="Excluir uma serie pelo rotulo, por exemplo: Python, C_O3 ou 'C++ -O3'",
+        help="Excluir uma serie pelo rotulo, por exemplo: Python, Rust, C_O3 ou 'C++ -O3'",
     )
     return parser.parse_args(argv[1:])
 
@@ -59,6 +59,9 @@ FILES = {
     "C++_O3": out_dir / "resultado_cpp_O3.csv",
     "Java": out_dir / "resultado_java.csv",
     "Python": out_dir / "resultado_python.csv",
+    "Rust": out_dir / "resultado_rust.csv",
+    "Julia": out_dir / "resultado_julia.csv",
+    "Elixir": out_dir / "resultado_elixir.csv",
 }
 
 METRICS = ["TCS", "TAM", "TDM"]
