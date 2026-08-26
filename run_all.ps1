@@ -4,8 +4,18 @@ param(
     [int]$B = 0,
     [int]$Npts = 0,
     [int]$M = 0,
-    [int]$Escala = -1
+    [int]$Escala = -1,
+    [switch]$WithRust,
+    [switch]$WithJulia,
+    [switch]$WithElixir,
+    [switch]$WithAllExtras
 )
+
+if ($WithAllExtras) {
+    $WithRust = $true
+    $WithJulia = $true
+    $WithElixir = $true
+}
 
 chcp 65001 > $null
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -53,6 +63,17 @@ function First-Line([scriptblock]$Command) {
     }
 }
 
+# PowerShell nao trata automaticamente um codigo de saida != 0 de um
+# executavel nativo como erro terminante, mesmo com $ErrorActionPreference
+# = "Stop". Toda compilacao, benchmark e validacao nativa e conferida
+# explicitamente para impedir que um binario antigo ou uma saida invalida
+# sejam tratados como sucesso.
+function Assert-LastExitCode([string]$Description) {
+    if ($LASTEXITCODE -ne 0) {
+        throw "$Description falhou com codigo de saida $LASTEXITCODE."
+    }
+}
+
 if (-not $Batch) {
     $RunName = Read-Host "Digite o nome da execucao (ENTER para timestamp)"
     $B = [int](Read-Host "Digite o tamanho maximo de matriz (B)")
@@ -83,6 +104,15 @@ Require-PythonPackage "matplotlib"
 $OutDir = Join-Path "out" $RunName
 $BuildWin = Join-Path "build" "windows"
 $BuildJava = Join-Path "build" "java"
+if (Test-Path -LiteralPath $OutDir) {
+    if (-not (Test-Path -LiteralPath $OutDir -PathType Container)) {
+        throw "Caminho de saida existe e nao e um diretorio: $OutDir"
+    }
+    $ExistingEntry = Get-ChildItem -LiteralPath $OutDir -Force | Select-Object -First 1
+    if ($null -ne $ExistingEntry) {
+        throw "Diretorio de execucao nao esta vazio: $OutDir. Use outro -RunName para evitar misturar artefatos de execucoes diferentes."
+    }
+}
 New-Dir $OutDir
 New-Dir $BuildWin
 New-Dir $BuildJava
@@ -98,32 +128,76 @@ $CppO3Exe = Join-Path $BuildWin "matriz_cpp_O3.exe"
 
 Write-Host "Compilando C..."
 gcc -std=c11 -Wall -Wextra src\matriz_c.c -o $CExe -lm
+Assert-LastExitCode "Compilacao do C"
 gcc -std=c11 -Wall -Wextra src\matriz_c.c -o $CO3Exe -lm -O3
+Assert-LastExitCode "Compilacao do C -O3"
 
 Write-Host "Compilando C++..."
 g++ -std=c++17 -Wall -Wextra src\matriz_cpp.cpp -o $CppExe
+Assert-LastExitCode "Compilacao do C++"
 g++ -std=c++17 -Wall -Wextra src\matriz_cpp.cpp -o $CppO3Exe -O3
+Assert-LastExitCode "Compilacao do C++ -O3"
 
 Write-Host "Compilando Java..."
 javac -d $BuildJava src\matriz_java.java
+Assert-LastExitCode "Compilacao do Java"
 
 Write-Host "Executando C..."
 & $CExe $B $Npts $M $Escala (Join-Path $OutDir "resultado_c.csv")
+Assert-LastExitCode "Execucao do C"
 
 Write-Host "Executando C -O3..."
 & $CO3Exe $B $Npts $M $Escala (Join-Path $OutDir "resultado_c_O3.csv")
+Assert-LastExitCode "Execucao do C -O3"
 
 Write-Host "Executando C++..."
 & $CppExe $B $Npts $M $Escala (Join-Path $OutDir "resultado_cpp.csv")
+Assert-LastExitCode "Execucao do C++"
 
 Write-Host "Executando C++ -O3..."
 & $CppO3Exe $B $Npts $M $Escala (Join-Path $OutDir "resultado_cpp_O3.csv")
+Assert-LastExitCode "Execucao do C++ -O3"
 
 Write-Host "Executando Java..."
 java -cp $BuildJava matriz_java $B $Npts $M $Escala (Join-Path $OutDir "resultado_java.csv")
+Assert-LastExitCode "Execucao do Java"
 
 Write-Host "Executando Python..."
 python src\matriz_python.py $B $Npts $M $Escala (Join-Path $OutDir "resultado_python.csv")
+Assert-LastExitCode "Execucao do Python"
+
+$RustVersion = ""
+$JuliaVersion = ""
+$ElixirVersion = ""
+
+if ($WithRust) {
+    Require-Command "rustc"
+    $RustExe = Join-Path $BuildWin "matriz_rust.exe"
+    Write-Host "Compilando Rust..."
+    rustc --edition=2021 -C opt-level=3 -D warnings src\matriz_rust.rs -o $RustExe
+    Assert-LastExitCode "Compilacao do Rust"
+    Write-Host "Executando Rust..."
+    & $RustExe $B $Npts $M $Escala (Join-Path $OutDir "resultado_rust.csv")
+    Assert-LastExitCode "Execucao do Rust"
+    $RustVersion = First-Line { rustc --version }
+}
+
+if ($WithJulia) {
+    Require-Command "julia"
+    Write-Host "Executando Julia..."
+    julia src\matriz_Julia.jl $B $Npts $M $Escala (Join-Path $OutDir "resultado_julia.csv")
+    Assert-LastExitCode "Execucao do Julia"
+    $JuliaVersion = First-Line { julia --version }
+}
+
+if ($WithElixir) {
+    Require-Command "elixir"
+    Write-Host "Executando Elixir..."
+    elixir src\matriz_multiplication.exs $B $Npts $M $Escala (Join-Path $OutDir "resultado_elixir.csv")
+    Assert-LastExitCode "Execucao do Elixir"
+    $ElixirVersion = (elixir --version | Where-Object { $_ -match '^Elixir' } | Select-Object -First 1)
+    if (-not $ElixirVersion) { $ElixirVersion = "N/D" }
+}
 
 Write-Host "Gerando system_info.md e system_info.json..."
 $Os = Get-CimInstance Win32_OperatingSystem
@@ -173,6 +247,37 @@ $sysInfo = [ordered]@{
 }
 $sysInfo | ConvertTo-Json -Depth 8 | Set-Content -Encoding utf8 $SysJson
 
+$ManifestTools = [ordered]@{
+    gcc = First-Line { gcc --version }
+    "g++" = First-Line { g++ --version }
+    java = First-Line { java -version }
+    javac = First-Line { javac -version }
+    python = First-Line { python --version }
+}
+$ManifestLanguages = [System.Collections.Generic.List[object]]::new()
+$ManifestLanguages.Add([ordered]@{ name = "C"; flags = "-std=c11 -Wall -Wextra"; output = "resultado_c.csv" })
+$ManifestLanguages.Add([ordered]@{ name = "C"; flags = "-std=c11 -Wall -Wextra -O3"; output = "resultado_c_O3.csv" })
+$ManifestLanguages.Add([ordered]@{ name = "C++"; flags = "-std=c++17 -Wall -Wextra"; output = "resultado_cpp.csv" })
+$ManifestLanguages.Add([ordered]@{ name = "C++"; flags = "-std=c++17 -Wall -Wextra -O3"; output = "resultado_cpp_O3.csv" })
+$ManifestLanguages.Add([ordered]@{ name = "Java"; flags = ""; output = "resultado_java.csv" })
+$ManifestLanguages.Add([ordered]@{ name = "Python"; flags = ""; output = "resultado_python.csv" })
+
+# So entram no manifesto as linguagens solicitadas e executadas com sucesso.
+# A versao e metadado: se a sondagem nao produzir texto, usa N/D sem omitir
+# uma linguagem que comprovadamente terminou a execucao.
+if ($WithRust) {
+    $ManifestLanguages.Add([ordered]@{ name = "Rust"; flags = "--edition=2021 -C opt-level=3 -D warnings"; output = "resultado_rust.csv" })
+    $ManifestTools["rustc"] = $(if ($RustVersion) { $RustVersion } else { "N/D" })
+}
+if ($WithJulia) {
+    $ManifestLanguages.Add([ordered]@{ name = "Julia"; flags = ""; output = "resultado_julia.csv" })
+    $ManifestTools["julia"] = $(if ($JuliaVersion) { $JuliaVersion } else { "N/D" })
+}
+if ($WithElixir) {
+    $ManifestLanguages.Add([ordered]@{ name = "Elixir"; flags = ""; output = "resultado_elixir.csv" })
+    $ManifestTools["elixir"] = $(if ($ElixirVersion) { $ElixirVersion } else { "N/D" })
+}
+
 $Manifest = [ordered]@{
     run_id = $RunName
     generated_at = (Get-Date).ToUniversalTime().ToString("o")
@@ -188,29 +293,18 @@ $Manifest = [ordered]@{
         M = $M
         escala = $Escala
     }
-    tools = [ordered]@{
-        gcc = First-Line { gcc --version }
-        "g++" = First-Line { g++ --version }
-        java = First-Line { java -version }
-        javac = First-Line { javac -version }
-        python = First-Line { python --version }
-    }
-    languages = @(
-        [ordered]@{ name = "C"; flags = "-std=c11 -Wall -Wextra"; output = "resultado_c.csv" },
-        [ordered]@{ name = "C"; flags = "-std=c11 -Wall -Wextra -O3"; output = "resultado_c_O3.csv" },
-        [ordered]@{ name = "C++"; flags = "-std=c++17 -Wall -Wextra"; output = "resultado_cpp.csv" },
-        [ordered]@{ name = "C++"; flags = "-std=c++17 -Wall -Wextra -O3"; output = "resultado_cpp_O3.csv" },
-        [ordered]@{ name = "Java"; flags = ""; output = "resultado_java.csv" },
-        [ordered]@{ name = "Python"; flags = ""; output = "resultado_python.csv" }
-    )
+    tools = $ManifestTools
+    languages = $ManifestLanguages
 }
 $Manifest | ConvertTo-Json -Depth 8 | Set-Content -Encoding utf8 (Join-Path $OutDir "run_manifest.json")
 
 Write-Host "Gerando graficos..."
 python src\plot_benchmarks.py $OutDir
+Assert-LastExitCode "Geracao dos graficos"
 
 Write-Host "Validando execucao..."
 python scripts\validate_run.py $OutDir
+Assert-LastExitCode "Validacao da execucao"
 
 Write-Host "-----------------------------------"
 Write-Host "Finalizado. Arquivos em: $OutDir"

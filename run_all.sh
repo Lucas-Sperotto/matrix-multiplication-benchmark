@@ -10,16 +10,31 @@ B=""
 NPTS=""
 M_COUNT=""
 ESCALA=""
+WITH_RUST=0
+WITH_JULIA=0
+WITH_ELIXIR=0
 
 usage() {
   cat <<'EOF'
 Uso:
   ./run_all.sh
-  ./run_all.sh --batch --run-name <id> --B <max> --Npts <pontos> --M <repeticoes> --escala <0|1>
+  ./run_all.sh --batch --run-name <id> --B <max> --Npts <pontos> --M <repeticoes> --escala <0|1> [--with-rust] [--with-julia] [--with-elixir]
 
 Escala:
   0 = logaritmica
   1 = linear
+
+Linguagens extras opcionais (exigem a toolchain correspondente no PATH;
+se pedidas e a toolchain estiver ausente ou a execucao falhar, o script
+inteiro aborta -- pedir uma linguagem explicitamente e nao entrega-la e
+tratado como erro, nao como omissao silenciosa):
+  --with-rust        compila e executa src/matriz_rust.rs (requer rustc)
+  --with-julia       executa src/matriz_Julia.jl (requer julia)
+  --with-elixir      executa src/matriz_multiplication.exs (requer elixir)
+  --with-all-extras  equivalente a --with-rust --with-julia --with-elixir
+
+Sem essas flags o comportamento e identico ao fluxo publicavel atual:
+apenas C, C++, Java e Python, sem exigir nenhuma toolchain extra.
 EOF
 }
 
@@ -48,6 +63,24 @@ while [[ $# -gt 0 ]]; do
     --escala)
       ESCALA="${2:-}"
       shift 2
+      ;;
+    --with-rust)
+      WITH_RUST=1
+      shift
+      ;;
+    --with-julia)
+      WITH_JULIA=1
+      shift
+      ;;
+    --with-elixir)
+      WITH_ELIXIR=1
+      shift
+      ;;
+    --with-all-extras)
+      WITH_RUST=1
+      WITH_JULIA=1
+      WITH_ELIXIR=1
+      shift
       ;;
     -h|--help)
       usage
@@ -130,6 +163,16 @@ check_python_runtime
 OUT_DIR="out/$RUN_NAME"
 BUILD_LINUX="build/linux"
 BUILD_JAVA="build/java"
+
+if [[ -e "$OUT_DIR" && ! -d "$OUT_DIR" ]]; then
+  echo "Caminho de saida existe e nao e um diretorio: $OUT_DIR" >&2
+  exit 1
+fi
+if [[ -d "$OUT_DIR" ]] && [[ -n "$(find "$OUT_DIR" -mindepth 1 -maxdepth 1 -print -quit)" ]]; then
+  echo "Diretorio de execucao nao esta vazio: $OUT_DIR" >&2
+  echo "Use outro --run-name para evitar misturar artefatos de execucoes diferentes." >&2
+  exit 1
+fi
 mkdir -p "$OUT_DIR" "$BUILD_LINUX" "$BUILD_JAVA"
 
 echo "Resultados serao salvos em $OUT_DIR"
@@ -165,6 +208,36 @@ java -cp "$BUILD_JAVA" matriz_java "$B" "$NPTS" "$M_COUNT" "$ESCALA" "$OUT_DIR/r
 echo "Executando Python..."
 python3 src/matriz_python.py "$B" "$NPTS" "$M_COUNT" "$ESCALA" "$OUT_DIR/resultado_python.csv"
 
+RUST_VERSION=""
+JULIA_VERSION=""
+ELIXIR_VERSION=""
+
+if [[ "$WITH_RUST" -eq 1 ]]; then
+  need_cmd rustc
+  echo "Compilando Rust..."
+  rustc --edition=2021 -C opt-level=3 -D warnings src/matriz_rust.rs -o "$BUILD_LINUX/matriz_rust"
+  echo "Executando Rust..."
+  "$BUILD_LINUX/matriz_rust" "$B" "$NPTS" "$M_COUNT" "$ESCALA" "$OUT_DIR/resultado_rust.csv"
+  RUST_VERSION="$(rustc --version)"
+  [[ -n "$RUST_VERSION" ]] || RUST_VERSION="N/D"
+fi
+
+if [[ "$WITH_JULIA" -eq 1 ]]; then
+  need_cmd julia
+  echo "Executando Julia..."
+  julia src/matriz_Julia.jl "$B" "$NPTS" "$M_COUNT" "$ESCALA" "$OUT_DIR/resultado_julia.csv"
+  JULIA_VERSION="$(julia --version)"
+  [[ -n "$JULIA_VERSION" ]] || JULIA_VERSION="N/D"
+fi
+
+if [[ "$WITH_ELIXIR" -eq 1 ]]; then
+  need_cmd elixir
+  echo "Executando Elixir..."
+  elixir src/matriz_multiplication.exs "$B" "$NPTS" "$M_COUNT" "$ESCALA" "$OUT_DIR/resultado_elixir.csv"
+  ELIXIR_VERSION="$(elixir --version | awk '/^Elixir/')"
+  [[ -n "$ELIXIR_VERSION" ]] || ELIXIR_VERSION="N/D"
+fi
+
 echo "Capturando informacoes de sistema..."
 bash scripts/gen_sysinfo_md.sh "$OUT_DIR/system_info.md" "$OUT_DIR/system_info.json"
 
@@ -174,6 +247,8 @@ export PARAM_NPTS="$NPTS"
 export PARAM_M="$M_COUNT"
 export PARAM_ESCALA="$ESCALA"
 export MANIFEST_PATH="$OUT_DIR/run_manifest.json"
+export WITH_RUST WITH_JULIA WITH_ELIXIR
+export RUST_VERSION JULIA_VERSION ELIXIR_VERSION
 
 python3 - <<'PY'
 import json
@@ -219,6 +294,26 @@ data = {
         {"name": "Python", "flags": "", "output": "resultado_python.csv"},
     ],
 }
+
+rust_enabled = os.environ["WITH_RUST"] == "1"
+rust_version = os.environ.get("RUST_VERSION", "") or "N/D"
+if rust_enabled:
+    data["languages"].append(
+        {"name": "Rust", "flags": "--edition=2021 -C opt-level=3 -D warnings", "output": "resultado_rust.csv"}
+    )
+    data["tools"]["rustc"] = rust_version
+
+julia_enabled = os.environ["WITH_JULIA"] == "1"
+julia_version = os.environ.get("JULIA_VERSION", "") or "N/D"
+if julia_enabled:
+    data["languages"].append({"name": "Julia", "flags": "", "output": "resultado_julia.csv"})
+    data["tools"]["julia"] = julia_version
+
+elixir_enabled = os.environ["WITH_ELIXIR"] == "1"
+elixir_version = os.environ.get("ELIXIR_VERSION", "") or "N/D"
+if elixir_enabled:
+    data["languages"].append({"name": "Elixir", "flags": "", "output": "resultado_elixir.csv"})
+    data["tools"]["elixir"] = elixir_version
 
 with open(os.environ["MANIFEST_PATH"], "w", encoding="utf-8") as f:
     json.dump(data, f, ensure_ascii=False, indent=2)
