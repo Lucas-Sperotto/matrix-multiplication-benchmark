@@ -182,6 +182,20 @@ def assert_success_case(
     validate_csv(output_path, expected_points)
 
 
+def assert_half_up_rounding_case(command: Sequence[str], root: Path) -> None:
+    """Regressao cruzada para o ponto linear exato 100.5."""
+    case_dir = root / "arredondamento metade para cima"
+    case_dir.mkdir(parents=True, exist_ok=True)
+    output_path = case_dir / "resultado.csv"
+    result = run_command(command, ["101", "3", "1", "1", str(output_path)])
+    if result.returncode != 0:
+        raise ContractError(
+            "caso 'arredondamento metade para cima' falhou inesperadamente\n"
+            f"{process_details(result)}"
+        )
+    validate_csv(output_path, [100, 101, 101])
+
+
 def assert_parent_creation_case(command: Sequence[str], root: Path) -> None:
     """Confirma que a implementacao cria diretorios pais ausentes de out_csv."""
     output_path = root / "criacao de diretorio pai" / "nivel 1" / "nivel 2" / "resultado.csv"
@@ -255,6 +269,7 @@ def run_contract(language: str, command: Sequence[str]) -> None:
 
         assert_success_case(command, "escala linear", 1, [100, 122, 144], root / "escala linear")
         assert_success_case(command, "escala logaritmica", 0, [100, 120, 144], root / "escala logaritmica")
+        assert_half_up_rounding_case(command, root)
         assert_parent_creation_case(command, root)
         assert_overwrite_case(command, root / "sobrescrita do CSV")
 

@@ -43,11 +43,17 @@ Uma extra explicitamente solicitada só era checada depois de compilar/executar 
 
 **Correção:** preflight de `rustc`, `julia` e `elixir` antes de criar `out/.running-*` quando a flag correspondente é solicitada. Falhas durante o benchmark continuam preservando staging para diagnóstico.
 
+### P2 — regressões de contrato não cobriam explicitamente todo o risco
+
+A regra metade-para-cima tinha regressão dedicada apenas na referência Python, embora todas as implementações devam produzir a mesma série. O harness genérico também dependia da criação de diretório pai de forma implícita.
+
+**Correção:** o harness agora exige explicitamente `B=101`, `Npts=3`, escala linear, com série `[100, 101, 101]`, além de um caso nomeado de criação de diretórios aninhados inexistentes.
+
 ### P2 — teste de criação de diretório pai era implícito
 
 O harness acabava dependendo desse comportamento em alguns casos, mas não havia um teste nomeado com diagnóstico específico.
 
-**Correção:** regressão explícita com diretórios aninhados inexistentes; casos de sucesso e sobrescrita agora testam somente suas responsabilidades.
+**Correção:** regressão explícita com diretórios aninhados inexistentes; casos de sucesso e sobrescrita agora testam somente suas responsabilidades. O teste de arredondamento x.5 também passa pelo mesmo harness.
 
 ### P2 — ausência de roteiro único para o aluno
 
@@ -73,14 +79,18 @@ A leitura direta confirmou:
 Em ambiente local isolado, usando exatamente o conteúdo proposto para C, C++ e o harness:
 
 ```text
-gcc -std=c11 -Wall -Wextra src/matriz_c.c
-g++ -std=c++17 -Wall -Wextra src/matriz_cpp.cpp
+gcc -std=c11 -Wall -Wextra src/matriz_c.c -o build/matriz_c -lm
+gcc -std=c11 -Wall -Wextra -O3 src/matriz_c.c -o build/matriz_c_O3 -lm
+g++ -std=c++17 -Wall -Wextra src/matriz_cpp.cpp -o build/matriz_cpp
+g++ -std=c++17 -Wall -Wextra -O3 src/matriz_cpp.cpp -o build/matriz_cpp_O3
 python3 -m py_compile tests/test_extra_language.py
 python3 tests/test_extra_language.py --language C -- ./build/matriz_c
+python3 tests/test_extra_language.py --language C-O3 -- ./build/matriz_c_O3
 python3 tests/test_extra_language.py --language C++ -- ./build/matriz_cpp
+python3 tests/test_extra_language.py --language C++-O3 -- ./build/matriz_cpp_O3
 ```
 
-Resultado: contrato aprovado para C e C++, incluindo criação de diretórios aninhados e caminho com espaços.
+Resultado: contrato aprovado para C/C++ com e sem `-O3`, incluindo o caso x.5 `[100,101,101]`, criação de diretórios aninhados e caminho com espaços.
 
 Também foram executados:
 
