@@ -70,6 +70,8 @@ fn make_points(b: i64, npts: i64, escala: i64) -> Vec<usize> {
 /// Aloca um buffer plano de N*N elementos zerados sem risco de aborto por
 /// falta de memoria: `try_reserve_exact` retorna `Err` em vez de abortar o
 /// processo quando a alocacao falha ou o tamanho em bytes estoura `usize`.
+/// Uso: apenas para `res`, que precisa nascer zerado (contrato) e so e
+/// reescrito depois, na janela de TCS, por `multiply`.
 fn allocate_zeroed(len: usize) -> Result<Vec<i32>, String> {
     let mut buffer: Vec<i32> = Vec::new();
     buffer
@@ -79,14 +81,49 @@ fn allocate_zeroed(len: usize) -> Result<Vec<i32>, String> {
     Ok(buffer)
 }
 
+/// Aloca e inicializa um buffer plano de N*N elementos em uma unica
+/// passagem, sem zerar antes: `mat1`/`mat2` tem todo elemento sobrescrito
+/// de qualquer forma, entao zerar primeiro (como `allocate_zeroed` faz)
+/// duplicaria o trabalho de escrita dentro da janela de TAM (achado M2 da
+/// revisao de codigo). `try_reserve_exact` mantem a alocacao falivel.
+fn allocate_with(
+    len: usize,
+    n: usize,
+    mut value_at: impl FnMut(usize, usize) -> i32,
+) -> Result<Vec<i32>, String> {
+    let mut buffer: Vec<i32> = Vec::new();
+    buffer
+        .try_reserve_exact(len)
+        .map_err(|err| format!("Falha de alocacao para {len} elementos: {err}"))?;
+    for i in 0..n {
+        for j in 0..n {
+            buffer.push(value_at(i, j));
+        }
+    }
+    Ok(buffer)
+}
+
 fn multiply(mat1: &[i32], mat2: &[i32], res: &mut [i32], n: usize) {
+    // SAFETY: mat1, mat2 e res sao sempre buffers de exatamente n*n
+    // elementos (alocados com essa mesma contagem em run_once), e i, j, k
+    // percorrem 0..n, logo i*n+k, k*n+j e i*n+j nunca excedem n*n-1. O
+    // bounds-check do Rust nesse laco custa ~40% de TCS sem equivalente em
+    // C/C++ (achado M1 da revisao de codigo, medido empiricamente); os
+    // acessos abaixo sao comprovadamente seguros por construcao.
     for i in 0..n {
         for j in 0..n {
             let mut sum: i32 = 0;
             for k in 0..n {
-                sum = sum.wrapping_add(mat1[i * n + k].wrapping_mul(mat2[k * n + j]));
+                unsafe {
+                    sum = sum.wrapping_add(
+                        mat1.get_unchecked(i * n + k)
+                            .wrapping_mul(*mat2.get_unchecked(k * n + j)),
+                    );
+                }
             }
-            res[i * n + j] = sum;
+            unsafe {
+                *res.get_unchecked_mut(i * n + j) = sum;
+            }
         }
     }
 }
@@ -111,28 +148,22 @@ fn run_once(n: usize) -> Result<Times, String> {
         .ok_or_else(|| format!("N muito grande: overflow ao calcular N*N para N={n}"))?;
 
     let start_alloc = Instant::now();
-    let mut mat1 = allocate_zeroed(n2)?;
-    let mut mat2 = allocate_zeroed(n2)?;
+    let mat1 = allocate_with(n2, n, |i, j| (i + j) as i32)?;
+    let mat2 = allocate_with(n2, n, |i, j| if i == j { 1 } else { 0 })?;
     let mut res = allocate_zeroed(n2)?;
-
-    for i in 0..n {
-        for j in 0..n {
-            mat1[i * n + j] = (i + j) as i32;
-            mat2[i * n + j] = if i == j { 1 } else { 0 };
-        }
-    }
     let alloc_time = start_alloc.elapsed().as_secs_f64();
 
     let start_calc = Instant::now();
     multiply(&mat1, &mat2, &mut res, n);
-    // Barreira de otimizacao: verify_sample so le 9 das N*N posicoes de `res`.
-    // Sem isso, um otimizador suficientemente agressivo em -O3 poderia provar
-    // que apenas essas 9 posicoes sao observaveis e eliminar parte do calculo
-    // O(N^3), inflando artificialmente o desempenho medido. black_box forca o
-    // compilador a tratar o buffer inteiro como usado externamente, sem custo
-    // de execucao mensuravel (ver revisao empirica no PR).
-    let res = black_box(res);
     let calc_time = start_calc.elapsed().as_secs_f64();
+    // Barreira de otimizacao, fora da janela cronometrada: verify_sample so le
+    // 9 das N*N posicoes de `res`. Sem isso, um otimizador suficientemente
+    // agressivo em -O3 poderia provar que apenas essas 9 posicoes sao
+    // observaveis e eliminar parte do calculo O(N^3), inflando artificialmente
+    // o desempenho medido. black_box so precisa ocorrer em algum ponto apos a
+    // chamada para ter efeito em tempo de compilacao; nao precisa estar dentro
+    // da regiao medida em tempo de execucao (achado N1 da revisao de codigo).
+    let res = black_box(res);
 
     verify_sample(&res, n)?;
 
