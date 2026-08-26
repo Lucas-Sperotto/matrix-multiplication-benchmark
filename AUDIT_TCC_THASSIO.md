@@ -21,7 +21,7 @@ Além disso, `scripts/validate_run.py` e `scripts/test_extra_language.py` (ambos
 
 Na auditoria original, nenhuma alteração de código foi feita. A rodada de correção posterior resolveu ou mitigou os achados P0/P1 conforme os status registrados abaixo.
 
-**Nota operacional (fora do escopo técnico, mas relevante):** durante esta sessão, 17 arquivos rastreados pelo Git (16 diagramas PNG e `diagramas_word_index.txt`) desapareceram do diretório de trabalho por uma causa que não foi possível determinar com certeza (não há comando executado nesta sessão que os visasse, e os logs do kernel não mostram OOM-kill nem erro de I/O nesse caminho). Os arquivos eram idênticos ao commit `HEAD` e foram restaurados com `git checkout -- <arquivos>`; nenhum conteúdo foi perdido. Isso está registrado para transparência, não é um achado técnico da branch.
+**Nota operacional (fora do escopo técnico, mas relevante):** durante esta sessão, 17 arquivos rastreados pelo Git (16 diagramas PNG e `diagramas_word_index.txt`) apareceram como removidos. A exclusão foi inicialmente interpretada como acidental e os arquivos foram restaurados; depois, o mantenedor confirmou que a remoção era intencional. Eles foram então excluídos novamente em um commit separado e permanecem recuperáveis pelo histórico Git. Isso está registrado para transparência, não é um achado técnico da branch.
 
 ---
 
