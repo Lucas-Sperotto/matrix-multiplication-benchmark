@@ -219,10 +219,17 @@ def run_contract(language: str, command: Sequence[str]) -> None:
 
         invalid_cases = (
             ("B abaixo do minimo", ["99", "3", "1", "1"]),
+            ("B acima do maximo", ["100001", "3", "1", "1"]),
+            ("B negativo", ["-1", "3", "1", "1"]),
             ("Npts abaixo do minimo", ["144", "1", "1", "1"]),
+            ("Npts acima do maximo", ["144", "10001", "1", "1"]),
             ("M abaixo do minimo", ["144", "3", "0", "1"]),
+            ("M acima do maximo", ["144", "3", "100001", "1"]),
             ("escala invalida", ["144", "3", "1", "2"]),
-            ("argumento nao numerico", ["abc", "3", "1", "1"]),
+            ("argumento nao numerico (B)", ["abc", "3", "1", "1"]),
+            ("argumento nao numerico (Npts)", ["144", "abc", "1", "1"]),
+            ("argumento nao numerico (M)", ["144", "3", "abc", "1"]),
+            ("argumento nao numerico (escala)", ["144", "3", "1", "abc"]),
         )
         for index, (case_name, prefix) in enumerate(invalid_cases, start=1):
             case_dir = root / f"erro {index}"
