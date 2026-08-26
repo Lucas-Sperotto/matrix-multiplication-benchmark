@@ -1,7 +1,38 @@
 # TODO – Benchmark de Multiplicação de Matrizes
 
 Guia de melhorias, correções e próximas fases. Organizado por arquivo e prioridade.
-Última revisão completa: 2026-04-25.
+Última revisão completa: 2026-04-25. Trilha de linguagens extras preparada em 2026-08-25.
+
+---
+
+## Trilha `tcc-lic-thassio` — Rust, Julia e Elixir
+
+O objetivo desta branch é preparar o contrato, os testes e o fluxo de colaboração. Os protótipos em `experiments/` ainda não são implementações aceitas. O plano detalhado está em [EXTRA_LANGUAGES.md](EXTRA_LANGUAGES.md).
+
+Infraestrutura de contribuição:
+
+- [x] Documentar o fork com `origin` do aluno e `upstream/tcc-lic-thassio` como base.
+- [x] Definir branches e PRs separados: `feat/rust-benchmark`, `feat/julia-benchmark`, `feat/elixir-benchmark`.
+- [x] Fixar o contrato `B Npts M escala out_csv` e o CSV `N,TCS,TAM,TDM`.
+- [x] Adicionar diagnóstico das toolchains em `scripts/check_extra_toolchains.sh`.
+- [x] Adicionar o harness isolado `scripts/test_extra_language.py`.
+- [x] Preparar o validador para CSVs extras declarados no manifesto, preservando os seis CSVs principais obrigatórios.
+- [x] Preparar o plotador para reconhecer Rust, Julia e Elixir quando os CSVs estiverem presentes.
+- [x] Adicionar template de Pull Request com o checklist da trilha.
+
+Implementações, obrigatoriamente nesta ordem:
+
+- [ ] **Rust:** adaptar `experiments/matriz_rust.rs`, usar `Vec<i32>` plano, `Instant`, `drop` medido em `TDM`, warm-up e validação amostral; passar no harness.
+- [ ] **Julia:** adaptar `experiments/matriz_Julia.jl`, preservar os valores lógicos com indexação 1-based, usar `time_ns()`, registrar `TDM=0.0`, fazer warm-up e passar no harness.
+- [ ] **Elixir:** reescrever `experiments/matriz_multiplication.exs`, escolher acesso indexado previsível, usar `System.monotonic_time/0`, registrar `TDM=0.0`, fazer warm-up e passar no harness.
+
+Aceite e integração:
+
+- [ ] Promover cada arquivo de `experiments/` para `src/` somente após aceite explícito do mantenedor e repetir o harness no novo caminho.
+- [ ] Depois dos três PRs, avaliar um PR separado `feat/extra-languages-integration`.
+- [ ] Se aprovado, tornar as novas linguagens opcionais nos runners e registrar toolchains/saídas no manifesto.
+- [ ] Confirmar o validador e os gráficos opcionais no fluxo completo depois que as implementações existirem.
+- [ ] Manter C, C++, Java e Python executáveis e validáveis quando nenhuma toolchain extra estiver instalada.
 
 ---
 
@@ -34,8 +65,9 @@ Guia de melhorias, correções e próximas fases. Organizado por arquivo e prior
       - Abertura do arquivo de saída passou a ocorrer após validação dos argumentos
       - Código morto foi removido
       - Cabeçalho CSV agora é `"N,TCS,TAM,TDM"`
-- [ ] **`experiments/matriz_rust.rs`** — usa `Vec<Vec<i32>>` (não contíguo), hardcoded Ns, saída `.dat` fora do contrato CSV.
-- [ ] **`experiments/matriz_Julia.jl`** — usa `Dates.now()` com resolução de milissegundo para temporização; Julia tem `time_ns()` ou `@elapsed` com nanosegundo. Saída `.dat` fora do contrato.
+- [ ] **`experiments/matriz_rust.rs`** — usa `Vec<Vec<i32>>` (não contíguo), valores de N fixos e saída `.dat` fora do contrato CSV; seguir a etapa Rust de `EXTRA_LANGUAGES.md`.
+- [ ] **`experiments/matriz_Julia.jl`** — usa `Dates.now()` com resolução inadequada e conversão incorreta para segundos, além de saída `.dat`; seguir a etapa Julia de `EXTRA_LANGUAGES.md`.
+- [ ] **`experiments/matriz_multiplication.exs`** — referencia resultado fora de escopo, usa acesso incompatível com listas e saída `.dat`; reescrever conforme a etapa Elixir de `EXTRA_LANGUAGES.md`.
 - [x] **`build/` não aparece rastreado no índice atual** (`git ls-files build` retorna vazio). Nada a desrastrear nesta revisão.
 - [ ] **`out/teste/`** parece ser execução local temporária que não deveria estar no histórico. Avaliar remoção.
 - [x] **`run_all.sh`** usa flags de aviso na compilação (`-Wall -Wextra`).
@@ -63,7 +95,8 @@ Guia de melhorias, correções e próximas fases. Organizado por arquivo e prior
 
 Itens fora do MVP (experimentos):
 
-- [ ] Integrar Rust, Julia e Elixir ao contrato comum (CLI, CSV, validador).
+- [ ] Implementar Rust, Julia e Elixir em três PRs separados e promover a `src/` somente após aceite.
+- [ ] Avaliar a integração opcional dessas linguagens ao runner, manifesto, validador e gráficos em um quarto PR.
 - [x] Corrigir `experiments/matriz_c_blas.c` (bugs acima) antes de adicionar ao fluxo público.
 - [ ] Adicionar variante NumPy em Python para comparação justa de desempenho.
 
@@ -168,8 +201,10 @@ Itens fora do MVP (experimentos):
 
 - [x] `teste.py` — corrigir bug em `linear()` (usa `Npts` global), remover código morto, trocar `time.time()` por `time.perf_counter()`, adicionar coluna TDM
 - [x] `matriz_c_blas.c` — corrigir tipo das matrizes (`double *` contíguo), corrigir ordem de validação de argc/fopen
-- [ ] `matriz_rust.rs` — adaptar ao contrato CLI/CSV, usar buffer flat, adicionar `verify_sample` por amostragem
-- [ ] `matriz_Julia.jl` — adaptar ao contrato CLI/CSV, usar `time_ns()` para melhor resolução
+- [ ] `matriz_rust.rs` — adaptar ao contrato CLI/CSV, usar buffer plano, `Instant`, `drop` medido e `verify_sample`; validar com `scripts/test_extra_language.py`
+- [ ] `matriz_Julia.jl` — adaptar ao contrato CLI/CSV, usar `time_ns()`, `TDM=0.0` e `verify_sample`; validar com o harness
+- [ ] `matriz_multiplication.exs` — reescrever com acesso indexado válido, relógio monotônico, `TDM=0.0` e validação amostral; validar com o harness
+- [ ] Promover os três arquivos para nomes padronizados em `src/` somente após aceite do respectivo PR
 
 ---
 
@@ -196,7 +231,7 @@ Itens fora do MVP (experimentos):
 ## 12. Extensões futuras
 
 - [ ] Variante NumPy para Python
-- [ ] Rust, Julia, Elixir no contrato comum
+- [ ] Rust, Julia e Elixir no contrato comum, seguindo a ordem e os PRs de `EXTRA_LANGUAGES.md`
 - [ ] BLAS (C/C++) no contrato comum — experimento C corrigido, ainda não integrado ao fluxo principal
 - [ ] Paralelismo: OpenMP em C/C++, threads em Java
 - [ ] Coluna de memória RSS em todos os benchmarks

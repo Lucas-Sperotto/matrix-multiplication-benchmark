@@ -1,6 +1,6 @@
 # Matrix Multiplication Benchmark
 
-Benchmark reprodutível de multiplicação de matrizes quadradas em C, C++, Java e Python.
+Benchmark reprodutível de multiplicação de matrizes quadradas. O fluxo principal e publicável executa C, C++, Java e Python.
 
 O objetivo é comparar tempos de execução entre linguagens usando o mesmo contrato de entrada e o mesmo formato de saída, permitindo que colaboradores rodem os testes localmente e compartilhem seus resultados em `out/<run_id>/`.
 
@@ -21,6 +21,18 @@ python -m pip install -r requirements.txt
 ```
 
 Também é possível rodar `./run_all.sh` ou `.\run_all.ps1` sem parâmetros para usar o modo interativo.
+
+## Trilha Rust, Julia e Elixir
+
+A branch `tcc-lic-thassio` prepara uma contribuição separada para Rust, Julia e Elixir. Os arquivos atuais em `experiments/` são protótipos: eles ainda não devem ser tratados como implementações prontas nem fazem parte de `run_all.sh` ou `run_all.ps1`.
+
+O aluno deve criar um fork com `origin` apontando para o próprio repositório e `upstream` para este repositório, partir especificamente de `upstream/tcc-lic-thassio` e enviar três PRs independentes, nesta ordem:
+
+1. `feat/rust-benchmark`
+2. `feat/julia-benchmark`
+3. `feat/elixir-benchmark`
+
+Os três PRs devem ter `tcc-lic-thassio` como base. Instalação das toolchains, contrato, testes e fluxo completo do fork estão em [EXTRA_LANGUAGES.md](EXTRA_LANGUAGES.md).
 
 ## Saídas
 
@@ -82,7 +94,8 @@ O validador confere CSVs esperados, cabeçalhos, valores numéricos, metadados e
 ## Documentação
 
 - [EXECUTION.md](EXECUTION.md): guia completo de execução.
-- [CONTRIBUTING.md](CONTRIBUTING.md): como contribuir com resultados.
+- [CONTRIBUTING.md](CONTRIBUTING.md): como contribuir com resultados ou código.
+- [EXTRA_LANGUAGES.md](EXTRA_LANGUAGES.md): trilha de implementação de Rust, Julia e Elixir.
 - [OPERATIONS.md](OPERATIONS.md): análise teórica de operações.
 - [TODO.md](TODO.md): plano de melhorias e próximas fases.
 
