@@ -51,7 +51,7 @@ fn make_points(b: i64, npts: i64, escala: i64) -> Vec<usize> {
     // Mesma regra de arredondamento usada em matriz_c.c/matriz_cpp.cpp/matriz_java.java
     // e corrigida em matriz_python.py: metade-para-cima via floor(x + 0.5). Todas as
     // referencias precisam concordar aqui para que a serie de N seja identica entre
-    // linguagens (ver AUDIT_TCC_THASSIO.md, achado P0-1).
+    // linguagens (regressao em scripts/test_point_generation.py).
     let mut points = Vec::with_capacity(npts as usize);
     if escala == 1 {
         let step = (b as f64 - BASE_A) / (npts as f64 - 1.0);

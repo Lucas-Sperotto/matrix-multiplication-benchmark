@@ -34,15 +34,15 @@ Infraestrutura já disponível:
 - [x] Template de Pull Request da trilha.
 - [x] Implementação Rust validada e promovida para `src/`.
 - [x] Implementação Julia validada e promovida para `src/`.
-- [ ] Implementação Elixir: PR aberto, aguardando aceite/merge.
+- [x] Implementação Elixir validada, promovida para `src/` e incorporada à base.
 
 ### Pull Requests da trilha
 
 Revisar e tratar **nesta ordem**:
 
-- [ ] **PR #9 — Rust:** `docs(rust): formaliza aceite técnico do benchmark Rust`.
-- [ ] **PR #10 — Julia:** `docs(julia): formaliza aceite técnico do benchmark Julia`.
-- [ ] **PR #11 — Elixir:** `feat(elixir): integra benchmark Elixir ao contrato comum`.
+- [x] **PR #9 — Rust:** aceite técnico incorporado.
+- [x] **PR #10 — Julia:** aceite técnico incorporado.
+- [x] **PR #11 — Elixir:** implementação incorporada.
 
 Observação histórica:
 
@@ -57,6 +57,9 @@ Observação histórica:
 
 - [ ] **C e C++:** criar o diretório pai de `out_csv` quando ele ainda não existir, como já fazem Java/Python/Rust/Julia/Elixir.
 - [ ] Adicionar regressão no harness/testes para execução com caminho de saída em diretório pai inexistente.
+- [ ] Sanitizar `--run-name`/`-RunName` nos dois runners: rejeitar caminhos absolutos, separadores, `..` e caracteres fora de `[A-Za-z0-9_.-]`; adicionar regressão de path traversal.
+- [ ] Definir e testar o tratamento de espaços em branco nos argumentos numéricos, hoje divergente entre Java e C/C++.
+- [ ] Avaliar uma função de arredondamento explícita em C e casos-limite de ponto flutuante; preservar a política metade-para-cima e não alterar código sem um caso reproduzível de divergência.
 - [ ] Manter `validate_run.py` exigindo exatamente `Npts` linhas por CSV.
 - [ ] Manter `validate_run.py` exigindo a mesma série de N em todas as implementações da execução.
 - [ ] Manter teste regressivo do caso `B=101 Npts=3 escala=1` → `N=[100,101,101]`.
@@ -98,10 +101,13 @@ TEXEC = TAM + TCS + TDM
 ### Warm-up, JIT e GC
 
 - [ ] Preservar pelo menos um warm-up descartado por N conforme o contrato atual.
+- [ ] Verificar empiricamente, por exemplo com `java -XX:+PrintCompilation`, se um warm-up por N estabiliza o JIT; documentar a limitação ou ajustar a estratégia.
 - [ ] Registrar versões e características de runtime/toolchain no manifesto.
+- [ ] Fixar ou declarar versões testadas de Rust e Julia, além de registrar no manifesto as versões realmente usadas.
 - [ ] Documentar diferenças de JIT entre Java, Julia e BEAM.
 - [ ] Não forçar GC para fabricar uma métrica TDM em linguagens com memória gerenciada.
 - [ ] Considerar aumentar M nos experimentos finais e analisar estabilidade/variância dos tempos.
+- [ ] Documentar faixas práticas de `B`/`Npts`/`M` por linguagem e hardware, com estimativas ou avisos de memória e tempo para combinações inviáveis.
 
 ---
 
@@ -144,7 +150,7 @@ Estado: implementação aceita tecnicamente e já presente em `src/`.
 
 ## 6. Elixir — decisões metodológicas e operacionais
 
-Estado: implementação validada na branch `feat/elixir-benchmark`; PR #11 aberto.
+Estado: implementação aceita tecnicamente, incorporada à base e presente em `src/`.
 
 - [x] Representação escolhida após comparar listas, tuplas aninhadas, `:array` e tupla plana.
 - [x] Tupla plana indexada por `i*N+j`.
@@ -154,7 +160,7 @@ Estado: implementação validada na branch `feat/elixir-benchmark`; PR #11 abert
 - [x] `TDM=0.0` sem GC forçado.
 - [x] Harness completo aprovado.
 - [x] Escalonamento compatível com O(N³) em teste diagnóstico.
-- [ ] Fazer review final e merge do PR #11 somente após #9 e #10.
+- [x] Fazer review final e merge do PR #11 somente após #9 e #10.
 - [ ] Documentar que `res` é construído durante TCS por causa da imutabilidade da linguagem.
 - [ ] Documentar que TAM sofre pressão/variância de GC causada pela lista intermediária.
 - [ ] Não interpretar TCS de Elixir como fase operacional idêntica ao TCS de linguagens que pré-alocam `res`.
@@ -193,28 +199,31 @@ Esses itens **não devem gerar alteração de código** sem nova evidência.
 
 ## 8. Prompt 7 — integração das linguagens extras
 
-Criar/usar uma branch específica, preferencialmente:
-
-```text
-feat/extra-languages-integration
-```
+Branch usada: `feat/extra-languages-integration` (base `tcc-lic-thassio`, com Rust/Julia/Elixir já aceitos em `src/`). Plano completo em `INTEGRATION_PLAN.md`.
 
 Objetivos:
 
-- [ ] Integrar Rust, Julia e Elixir aos runners sem quebrar o fluxo principal.
-- [ ] Manter C, C++, Java e Python funcionais quando nenhuma toolchain extra estiver instalada.
-- [ ] Definir política das extras: opcionais por detecção automática, por flags explícitas, ou ambas.
-- [ ] Se uma linguagem for explicitamente solicitada e a toolchain estiver ausente, abortar com erro claro.
-- [ ] Registrar no manifesto **somente** linguagens realmente executadas.
-- [ ] Registrar versões das toolchains usadas.
-- [ ] Incluir os CSVs extras no manifesto quando executados.
-- [ ] Validar todos os CSVs declarados.
-- [ ] Manter os CSVs principais obrigatórios conforme a política atual, salvo decisão explícita em contrário.
-- [ ] Fazer o plotador incluir apenas séries presentes e válidas.
-- [ ] Garantir que ausência de uma linguagem opcional não invalide uma execução do núcleo principal.
-- [ ] Testar o fluxo completo com todas as toolchains disponíveis.
-- [ ] Testar o fluxo principal simulando ausência das toolchains extras.
-- [ ] Atualizar README/EXECUTION/CONTRIBUTING após a arquitetura de integração estar estabilizada.
+- [x] Integrar Rust, Julia e Elixir aos runners sem quebrar o fluxo principal.
+- [x] Manter C, C++, Java e Python funcionais quando nenhuma toolchain extra estiver instalada (comportamento padrão sem flags é idêntico ao anterior; testado por smoke test).
+- [x] Definir política das extras: híbrida — opcional por padrão (nunca ativa sem flag), com auto-detecção de toolchain acionada por flags explícitas (`--with-rust`/`--with-julia`/`--with-elixir`/`--with-all-extras` em `run_all.sh`; `-WithRust`/`-WithJulia`/`-WithElixir`/`-WithAllExtras` em `run_all.ps1`).
+- [x] Se uma linguagem for explicitamente solicitada e a toolchain estiver ausente, abortar com erro claro (testado: `--with-rust` sem `rustc` no `PATH` aborta com "Dependencia ausente: rustc", código 1, núcleo já gerado preservado).
+- [x] Registrar no manifesto **somente** linguagens realmente executadas.
+- [x] Registrar versões das toolchains usadas (`tools.rustc`/`tools.julia`/`tools.elixir`).
+- [x] Incluir os CSVs extras no manifesto quando executados.
+- [x] Validar todos os CSVs declarados (`scripts/validate_run.py` não precisou de mudança de schema, mas expôs um bug real — ver achado abaixo).
+- [x] Manter os CSVs principais obrigatórios conforme a política atual.
+- [x] Plotador já incluía apenas séries presentes e válidas (`src/plot_benchmarks.py` não precisou de alteração).
+- [x] Garantir que ausência de uma linguagem opcional não invalide uma execução do núcleo principal (por construção: sem a flag, a toolchain nunca é verificada).
+- [x] Testar o fluxo completo com todas as toolchains disponíveis (`--with-all-extras`, 9 CSVs, 8 tools).
+- [x] Testar o fluxo principal simulando ausência das toolchains extras (com e sem flags).
+- [x] Atualizar README, EXECUTION, CONTRIBUTING, EXTRA_LANGUAGES e DIAGRAMS para o estado pós-integração.
+
+### Achado real durante os smoke tests
+
+- [x] **`scripts/validate_run.py` misturava caminhos relativos e absolutos**: `EXPECTED_CSVS` gerava caminhos relativos a partir de `run_dir`, mas `safe_manifest_output` sempre resolvia para absoluto: `path.relative_to(run_dir)` quebrava com `ValueError` para qualquer CSV que só existisse via manifesto (nunca um dos 6 nomes centrais) — ou seja, quebrava exatamente ao validar Rust/Julia/Elixir pela primeira vez em uma execução real. Nunca foi pego antes porque `scripts/test_validate_run.py` sempre reusava os 6 nomes centrais no fixture. Corrigido resolvendo `run_dir` uma única vez no início de `main()`.
+- [x] **Reutilizar um `run_id` misturava resultados de execuções diferentes**: os runners agora rejeitam um diretório de saída não vazio, e o validador rejeita CSV extra presente mas ausente do manifesto.
+- [x] **PowerShell ignorava códigos de saída nativos em parte do fluxo**: compilações, benchmarks, plotador e validador agora passam por `Assert-LastExitCode`.
+- [x] **Manifesto das extras dependia da string de versão**: a inclusão agora depende da flag e do sucesso da execução; falha na sondagem de versão usa `N/D` sem omitir o CSV produzido.
 
 ---
 
@@ -224,11 +233,12 @@ Objetivos:
 - [ ] Manter `scripts/test_point_generation.py` como regressão do contrato de N.
 - [ ] Manter `scripts/test_validate_run.py` para CSV truncado e séries N divergentes.
 - [ ] Executar `git diff --check` antes de cada merge.
-- [ ] Executar `py_compile` nos scripts Python alterados.
-- [ ] Rodar harness específico de cada linguagem antes da integração.
-- [ ] Rodar `validate_run.py` em execução completa depois da integração.
+- [x] Executar `py_compile` nos scripts Python alterados nesta integração.
+- [x] Rodar harness específico de cada linguagem antes da integração.
+- [x] Rodar `validate_run.py` em execução completa depois da integração (6 CSVs no núcleo e 9 com todas as extras).
 - [ ] Validar `run_all.ps1` no Windows nativo antes da publicação.
 - [ ] Clonar o repositório em diretório limpo e reproduzir uma execução completa antes da coleta experimental final.
+- [ ] Documentar em `EXTRA_LANGUAGES.md` que o harness testa a sobrescrita do CSV e aplica timeout de 120 segundos por subprocesso.
 
 ---
 
@@ -238,10 +248,10 @@ Criar/atualizar:
 
 - [ ] `METHODOLOGY.md`.
 - [ ] `docs/THREATS_TO_VALIDITY.md`.
-- [ ] README com quick start e visão geral.
-- [ ] `EXECUTION.md` com execução operacional e exemplos.
-- [ ] `CONTRIBUTING.md` com fluxo atualizado das branches.
-- [ ] `EXTRA_LANGUAGES.md` refletindo o estado pós-integração.
+- [x] README com quick start e visão geral operacional.
+- [x] `EXECUTION.md` com execução operacional e exemplos.
+- [x] `CONTRIBUTING.md` com fluxo atualizado das branches.
+- [x] `EXTRA_LANGUAGES.md` refletindo o estado pós-integração.
 
 `METHODOLOGY.md` deve cobrir, no mínimo:
 
@@ -266,6 +276,8 @@ Criar/atualizar:
 ## 11. Portabilidade e organização
 
 - [ ] Verificar compatibilidade de `date -Iseconds` no macOS.
+- [ ] Fornecer diagnóstico das toolchains extras em PowerShell ou documentar que `scripts/check_extra_toolchains.sh` exige WSL/Git Bash.
+- [ ] Normalizar a saída UTF-16/NUL de `wsl.exe --status` em `scripts/gen_sysinfo_md.sh`; hoje certos hosts WSL podem gerar surrogates inválidos e interromper o JSON.
 - [ ] Confirmar que `src/` contém apenas código-fonte.
 - [ ] Confirmar que `build/` não está rastreado.
 - [ ] Avaliar remoção de resultados locais históricos em `out/teste/`, se ainda existirem.
@@ -281,6 +293,6 @@ Criar/atualizar:
 - [ ] BLAS em C/C++ no contrato comum.
 - [ ] Paralelismo com OpenMP/threads.
 - [ ] Medição de memória RSS.
-- [ ] Estatística adicional: desvio padrão, percentis, boxplots e intervalos de confiança.
+- [ ] Preservar tempos brutos por repetição e gerar desvio padrão, percentis, boxplots e intervalos de confiança.
 - [ ] Relatório automático em Markdown.
 - [ ] Medição de energia quando houver infraestrutura adequada.
