@@ -29,7 +29,7 @@ Versoes das ferramentas:
 - [ ] Ha um warm-up descartado e a media de exatamente `M` repeticoes.
 - [ ] A multiplicacao e manual, com validacao das nove posicoes amostrais.
 - [ ] Argumentos invalidos falham em `stderr` com codigo diferente de zero.
-- [ ] Executei `scripts/test_extra_language.py` para a linguagem deste PR.
+- [ ] Executei `tests/test_extra_language.py` para a linguagem deste PR.
 - [ ] Revisor: li o codigo de `verify_sample`/equivalente e confirmo que ele calcula e compara os 9 valores esperados corretamente. O harness automatizado nao consegue detectar multiplicacao aritmeticamente incorreta (o CSV nao carrega valores de matriz), entao essa checagem e manual e obrigatoria.
 - [ ] Nao inclui binarios, caches nem resultados locais.
 - [ ] O codigo permanece em `experiments/`, salvo aceite explicito para promove-lo a `src/`.

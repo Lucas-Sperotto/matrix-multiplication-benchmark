@@ -173,6 +173,12 @@ def main(argv: list[str]) -> int:
     run_dir = Path(argv[1])
     if not run_dir.is_dir():
         fail(f"Diretorio de execucao nao encontrado: {run_dir}")
+    # Resolvido uma unica vez aqui para que todo caminho derivado de run_dir
+    # (EXPECTED_CSVS, manifest_csvs, OPTIONAL_CSVS) seja absoluto de forma
+    # consistente: safe_manifest_output ja resolve internamente por seguranca
+    # contra path traversal, e path.relative_to(run_dir) abaixo exige que
+    # ambos os lados sejam do mesmo tipo (relativo x absoluto nao combinam).
+    run_dir = run_dir.resolve()
 
     csv_paths = [run_dir / filename for filename in EXPECTED_CSVS]
 
@@ -186,8 +192,20 @@ def main(argv: list[str]) -> int:
         ["run_id", "generated_at", "parameters", "languages", "tools"],
     )
     expected_npts = expected_point_count(manifest)
-    csv_paths.extend(manifest_csvs(run_dir, manifest))
-    csv_paths.extend(run_dir / filename for filename in OPTIONAL_CSVS if (run_dir / filename).exists())
+    declared_csvs = manifest_csvs(run_dir, manifest)
+    declared_keys = {str(path.resolve()).casefold() for path in declared_csvs}
+
+    for filename in EXPECTED_CSVS:
+        path = run_dir / filename
+        if str(path.resolve()).casefold() not in declared_keys:
+            fail(f"CSV obrigatorio nao declarado em run_manifest.json: {filename}")
+
+    for filename in OPTIONAL_CSVS:
+        path = run_dir / filename
+        if path.exists() and str(path.resolve()).casefold() not in declared_keys:
+            fail(f"CSV opcional presente, mas nao declarado em run_manifest.json: {filename}")
+
+    csv_paths.extend(declared_csvs)
 
     validated: set[str] = set()
     n_series: dict[str, list[int]] = {}

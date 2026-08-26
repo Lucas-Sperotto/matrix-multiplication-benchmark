@@ -10,16 +10,31 @@ B=""
 NPTS=""
 M_COUNT=""
 ESCALA=""
+WITH_RUST=0
+WITH_JULIA=0
+WITH_ELIXIR=0
 
 usage() {
   cat <<'EOF'
 Uso:
   ./run_all.sh
-  ./run_all.sh --batch --run-name <id> --B <max> --Npts <pontos> --M <repeticoes> --escala <0|1>
+  ./run_all.sh --batch --run-name <id> --B <max> --Npts <pontos> --M <repeticoes> --escala <0|1> [--with-rust] [--with-julia] [--with-elixir]
 
 Escala:
   0 = logaritmica
   1 = linear
+
+Linguagens extras opcionais (exigem a toolchain correspondente no PATH;
+se pedidas e a toolchain estiver ausente ou a execucao falhar, o script
+inteiro aborta -- pedir uma linguagem explicitamente e nao entrega-la e
+tratado como erro, nao como omissao silenciosa):
+  --with-rust        compila e executa src/matriz_rust.rs (requer rustc)
+  --with-julia       executa src/matriz_Julia.jl (requer julia)
+  --with-elixir      executa src/matriz_multiplication.exs (requer elixir)
+  --with-all-extras  equivalente a --with-rust --with-julia --with-elixir
+
+Sem essas flags o comportamento e identico ao fluxo publicavel atual:
+apenas C, C++, Java e Python, sem exigir nenhuma toolchain extra.
 EOF
 }
 
@@ -49,6 +64,24 @@ while [[ $# -gt 0 ]]; do
       ESCALA="${2:-}"
       shift 2
       ;;
+    --with-rust)
+      WITH_RUST=1
+      shift
+      ;;
+    --with-julia)
+      WITH_JULIA=1
+      shift
+      ;;
+    --with-elixir)
+      WITH_ELIXIR=1
+      shift
+      ;;
+    --with-all-extras)
+      WITH_RUST=1
+      WITH_JULIA=1
+      WITH_ELIXIR=1
+      shift
+      ;;
     -h|--help)
       usage
       exit 0
@@ -65,7 +98,7 @@ need_cmd() {
   local cmd="$1"
   if ! command -v "$cmd" >/dev/null 2>&1; then
     echo "Dependencia ausente: $cmd" >&2
-    echo "Instale as dependencias conforme EXECUTION.md e tente novamente." >&2
+    echo "Instale as dependencias conforme docs/EXECUTION.md e tente novamente." >&2
     exit 1
   fi
 }
@@ -127,12 +160,37 @@ need_cmd java
 need_cmd python3
 check_python_runtime
 
-OUT_DIR="out/$RUN_NAME"
+# FINAL_DIR e' o destino publicavel; OUT_DIR passa a ser um diretorio de
+# trabalho temporario sob o mesmo out/, promovido (renomeado) para
+# FINAL_DIR somente apos toda a execucao E validate_run.py terem sucesso.
+# Isso evita que uma execucao abortada no meio (toolchain ausente, N muito
+# grande, falha de qualquer benchmark) apareça como um out/<run_id>
+# completo e indistinguivel de uma execucao valida. O rename ocorre dentro
+# de out/ (mesmo filesystem), entao e atomico no Linux; ver Tarefa 6 do
+# docs/FINAL_STABILIZATION_PLAN.md para as alternativas consideradas.
+FINAL_DIR="out/$RUN_NAME"
+OUT_DIR="out/.running-$RUN_NAME"
 BUILD_LINUX="build/linux"
 BUILD_JAVA="build/java"
+
+# O destino final precisa ser inteiramente inexistente. Permitir um diretorio
+# vazio mudaria a semantica de `mv`: o staging seria criado dentro dele em
+# vez de ser renomeado para ele, quebrando o contrato out/<run_id>/.
+if [[ -e "$FINAL_DIR" || -L "$FINAL_DIR" ]]; then
+  echo "Caminho final de execucao ja existe: $FINAL_DIR" >&2
+  echo "Use outro --run-name; o runner nunca reutiliza um destino final, mesmo vazio." >&2
+  exit 1
+fi
+if [[ -e "$OUT_DIR" || -L "$OUT_DIR" ]]; then
+  echo "Diretorio de trabalho temporario ja existe: $OUT_DIR" >&2
+  echo "Isso indica uma execucao anterior incompleta com o mesmo --run-name (nunca foi promovida a $FINAL_DIR)." >&2
+  echo "Inspecione o conteudo para diagnostico e remova-o manualmente antes de tentar novamente." >&2
+  exit 1
+fi
 mkdir -p "$OUT_DIR" "$BUILD_LINUX" "$BUILD_JAVA"
 
-echo "Resultados serao salvos em $OUT_DIR"
+echo "Resultados serao salvos em $FINAL_DIR"
+echo "Diretorio de trabalho temporario (ate a validacao final): $OUT_DIR"
 echo "Artefatos de compilacao em build/"
 echo "-----------------------------------"
 
@@ -165,6 +223,36 @@ java -cp "$BUILD_JAVA" matriz_java "$B" "$NPTS" "$M_COUNT" "$ESCALA" "$OUT_DIR/r
 echo "Executando Python..."
 python3 src/matriz_python.py "$B" "$NPTS" "$M_COUNT" "$ESCALA" "$OUT_DIR/resultado_python.csv"
 
+RUST_VERSION=""
+JULIA_VERSION=""
+ELIXIR_VERSION=""
+
+if [[ "$WITH_RUST" -eq 1 ]]; then
+  need_cmd rustc
+  echo "Compilando Rust..."
+  rustc --edition=2021 -C opt-level=3 -D warnings src/matriz_rust.rs -o "$BUILD_LINUX/matriz_rust"
+  echo "Executando Rust..."
+  "$BUILD_LINUX/matriz_rust" "$B" "$NPTS" "$M_COUNT" "$ESCALA" "$OUT_DIR/resultado_rust.csv"
+  RUST_VERSION="$(rustc --version)"
+  [[ -n "$RUST_VERSION" ]] || RUST_VERSION="N/D"
+fi
+
+if [[ "$WITH_JULIA" -eq 1 ]]; then
+  need_cmd julia
+  echo "Executando Julia..."
+  julia src/matriz_Julia.jl "$B" "$NPTS" "$M_COUNT" "$ESCALA" "$OUT_DIR/resultado_julia.csv"
+  JULIA_VERSION="$(julia --version)"
+  [[ -n "$JULIA_VERSION" ]] || JULIA_VERSION="N/D"
+fi
+
+if [[ "$WITH_ELIXIR" -eq 1 ]]; then
+  need_cmd elixir
+  echo "Executando Elixir..."
+  elixir src/matriz_multiplication.exs "$B" "$NPTS" "$M_COUNT" "$ESCALA" "$OUT_DIR/resultado_elixir.csv"
+  ELIXIR_VERSION="$(elixir --version | awk '/^Elixir/')"
+  [[ -n "$ELIXIR_VERSION" ]] || ELIXIR_VERSION="N/D"
+fi
+
 echo "Capturando informacoes de sistema..."
 bash scripts/gen_sysinfo_md.sh "$OUT_DIR/system_info.md" "$OUT_DIR/system_info.json"
 
@@ -174,6 +262,8 @@ export PARAM_NPTS="$NPTS"
 export PARAM_M="$M_COUNT"
 export PARAM_ESCALA="$ESCALA"
 export MANIFEST_PATH="$OUT_DIR/run_manifest.json"
+export WITH_RUST WITH_JULIA WITH_ELIXIR
+export RUST_VERSION JULIA_VERSION ELIXIR_VERSION
 
 python3 - <<'PY'
 import json
@@ -187,6 +277,48 @@ def run(cmd):
         return subprocess.check_output(cmd, stderr=subprocess.STDOUT, text=True).strip()
     except Exception:
         return "N/D"
+
+# Nomes das flags booleanas do HotSpot que selecionam o coletor ativo
+# (JDK 17-21+). Usar uma lista fechada evita falsos positivos: varias
+# outras flags "Use...GC" existem (ex.: UseMaximumCompactionOnSystemGC)
+# e tambem podem estar "= true" sem indicar qual coletor esta em uso.
+KNOWN_JAVA_GC_FLAGS = {
+    "UseG1GC",
+    "UseParallelGC",
+    "UseSerialGC",
+    "UseShenandoahGC",
+    "UseZGC",
+    "UseEpsilonGC",
+}
+
+def detect_java_gc():
+    # Sondagem best-effort para registrar o coletor de lixo efetivamente
+    # configurado, sem fixar nem alterar nenhum parametro de GC usado pelo
+    # benchmark (a JVM roda com as flags padrao do ambiente em todo o
+    # restante do script). -XX:+PrintFlagsFinal e um flag de diagnostico
+    # HotSpot; pode nao existir ou se comportar diferente em outras JVMs
+    # (OpenJ9, GraalVM native), por isso qualquer falha cai em "N/D" sem
+    # abortar a execucao.
+    try:
+        output = subprocess.check_output(
+            ["java", "-XX:+PrintFlagsFinal", "-version"],
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+    except Exception:
+        return "N/D"
+
+    for line in output.splitlines():
+        parts = line.split()
+        if (
+            len(parts) >= 4
+            and parts[0] == "bool"
+            and parts[1] in KNOWN_JAVA_GC_FLAGS
+            and parts[2] == "="
+            and parts[3] == "true"
+        ):
+            return parts[1]
+    return "N/D"
 
 data = {
     "run_id": os.environ["RUN_ID"],
@@ -206,7 +338,11 @@ data = {
     "tools": {
         "gcc": run(["gcc", "--version"]).splitlines()[0],
         "g++": run(["g++", "--version"]).splitlines()[0],
-        "java": run(["java", "-version"]).splitlines()[0],
+        # Saida completa (nao so a primeira linha): a 2a/3a linha de
+        # `java -version` normalmente identifica a VM/vendor (ex.: "OpenJDK
+        # 64-Bit Server VM..."), relevante para proveniencia experimental.
+        "java": run(["java", "-version"]),
+        "java_gc": detect_java_gc(),
         "javac": run(["javac", "-version"]),
         "python": run(["python3", "--version"]),
     },
@@ -220,6 +356,26 @@ data = {
     ],
 }
 
+rust_enabled = os.environ["WITH_RUST"] == "1"
+rust_version = os.environ.get("RUST_VERSION", "") or "N/D"
+if rust_enabled:
+    data["languages"].append(
+        {"name": "Rust", "flags": "--edition=2021 -C opt-level=3 -D warnings", "output": "resultado_rust.csv"}
+    )
+    data["tools"]["rustc"] = rust_version
+
+julia_enabled = os.environ["WITH_JULIA"] == "1"
+julia_version = os.environ.get("JULIA_VERSION", "") or "N/D"
+if julia_enabled:
+    data["languages"].append({"name": "Julia", "flags": "", "output": "resultado_julia.csv"})
+    data["tools"]["julia"] = julia_version
+
+elixir_enabled = os.environ["WITH_ELIXIR"] == "1"
+elixir_version = os.environ.get("ELIXIR_VERSION", "") or "N/D"
+if elixir_enabled:
+    data["languages"].append({"name": "Elixir", "flags": "", "output": "resultado_elixir.csv"})
+    data["tools"]["elixir"] = elixir_version
+
 with open(os.environ["MANIFEST_PATH"], "w", encoding="utf-8") as f:
     json.dump(data, f, ensure_ascii=False, indent=2)
     f.write("\n")
@@ -231,5 +387,11 @@ python3 src/plot_benchmarks.py "$OUT_DIR"
 echo "Validando execucao..."
 python3 scripts/validate_run.py "$OUT_DIR"
 
+# Promocao: so alcancada se tudo acima teve sucesso (set -e aborta o script
+# em qualquer falha anterior, inclusive uma falha de validate_run.py).
+# Rename dentro do mesmo diretorio out/, portanto no mesmo filesystem.
+echo "Promovendo execucao para o diretorio final..."
+mv "$OUT_DIR" "$FINAL_DIR"
+
 echo "-----------------------------------"
-echo "Finalizado. Arquivos em: $OUT_DIR"
+echo "Finalizado. Arquivos em: $FINAL_DIR"

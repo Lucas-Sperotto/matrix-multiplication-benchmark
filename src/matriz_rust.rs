@@ -6,6 +6,9 @@
  *
  * Linguagem: Rust
  *
+ * Autores: Lucas Kriesel Sperotto, Thassio Artur Grisolia Vaz e Silva
+ * Data: 26/08/2026
+ *
  * Parâmetros (CLI): B Npts M Escala out_csv
  *  - B: tamanho máximo da matriz; N varia de 100 até B
  *  - Npts: número de pontos na escala (2 a 10000)
@@ -13,7 +16,7 @@
  *  - Escala: 0=logarítmica, 1=linear
  *  - out_csv: caminho do arquivo CSV de saída
  *
- * Contrato completo em EXTRA_LANGUAGES.md.
+ * Contrato completo em docs/EXTRA_LANGUAGES.md.
  **********************************************************************/
 
 use std::env;
@@ -51,7 +54,7 @@ fn make_points(b: i64, npts: i64, escala: i64) -> Vec<usize> {
     // Mesma regra de arredondamento usada em matriz_c.c/matriz_cpp.cpp/matriz_java.java
     // e corrigida em matriz_python.py: metade-para-cima via floor(x + 0.5). Todas as
     // referencias precisam concordar aqui para que a serie de N seja identica entre
-    // linguagens (ver AUDIT_TCC_THASSIO.md, achado P0-1).
+    // linguagens (regressao em tests/test_point_generation.py).
     let mut points = Vec::with_capacity(npts as usize);
     if escala == 1 {
         let step = (b as f64 - BASE_A) / (npts as f64 - 1.0);
@@ -252,5 +255,24 @@ fn main() -> ExitCode {
             eprintln!("{message}");
             ExitCode::FAILURE
         }
+    }
+}
+
+// Compilado apenas por `rustc --test` (nunca pelo build de producao usado
+// pelo runner, que nao passa --test); reusa a funcao multiply() real para
+// provar que ela implementa multiplicacao de matrizes, nao apenas copia
+// (B=identidade no benchmark principal nao distingue os dois casos).
+#[cfg(test)]
+mod tests {
+    use super::multiply;
+
+    #[test]
+    fn multiply_non_identity_2x2() {
+        // A = [[1,2],[3,4]], B = [[5,6],[7,8]] (row-major, flat i*n+j).
+        let mat1: Vec<i32> = vec![1, 2, 3, 4];
+        let mat2: Vec<i32> = vec![5, 6, 7, 8];
+        let mut res: Vec<i32> = vec![0; 4];
+        multiply(&mat1, &mat2, &mut res, 2);
+        assert_eq!(res, vec![19, 22, 43, 50]);
     }
 }

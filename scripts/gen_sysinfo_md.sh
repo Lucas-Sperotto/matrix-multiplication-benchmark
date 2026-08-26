@@ -9,6 +9,34 @@ mkdir -p "$(dirname "$OUT_MD")" "$(dirname "$OUT_JSON")"
 
 strip_cr() { tr -d '\r'; }
 have() { command -v "$1" >/dev/null 2>&1; }
+# Executaveis do Windows podem escrever UTF-16LE quando a saida e'
+# redirecionada ao WSL. Bash nao preserva bytes NUL em command substitution;
+# por isso a decodificacao acontece no pipe, antes de o texto entrar em uma
+# variavel. Saidas ja em UTF-8 continuam sendo aceitas.
+decode_windows_text() {
+  python3 -c '
+import sys
+
+data = sys.stdin.buffer.read()
+sample = data[:512]
+if data.startswith((b"\xff\xfe", b"\xfe\xff")):
+    encoding = "utf-16"
+else:
+    even = sample[0::2]
+    odd = sample[1::2]
+    even_nuls = even.count(0) / max(1, len(even))
+    odd_nuls = odd.count(0) / max(1, len(odd))
+    if odd_nuls >= 0.30 and even_nuls <= 0.10:
+        encoding = "utf-16-le"
+    elif even_nuls >= 0.30 and odd_nuls <= 0.10:
+        encoding = "utf-16-be"
+    else:
+        encoding = "utf-8-sig"
+text = data.decode(encoding, errors="replace").lstrip("\ufeff")
+text = text.replace("\r", "").replace("\x00", "")
+sys.stdout.buffer.write(text.encode("utf-8"))
+'
+}
 can_use_powershell() {
   [[ $IS_WSL -eq 1 ]] &&
     have powershell.exe &&
@@ -63,7 +91,10 @@ $cpu = Get-CimInstance Win32_Processor | Select-Object -First 1 Name,NumberOfCor
 
   WIN_RAM_GB="$(powershell.exe -NoProfile -Command '$cs = Get-CimInstance Win32_ComputerSystem; [math]::Round($cs.TotalPhysicalMemory/1GB,2)' 2>/dev/null | strip_cr || echo "N/D")"
   WIN_OS_VER="$(powershell.exe -NoProfile -Command '(Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion").ProductName + " " + (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion").DisplayVersion' 2>/dev/null | strip_cr || echo "N/D")"
-  WSL_STATUS="$(powershell.exe -NoProfile -Command 'wsl.exe --status' 2>/dev/null | strip_cr || echo "N/D")"
+  if have wsl.exe; then
+    WSL_STATUS="$(wsl.exe --status 2>/dev/null | decode_windows_text || true)"
+    [[ -n "$WSL_STATUS" ]] || WSL_STATUS="N/D"
+  fi
 fi
 
 {

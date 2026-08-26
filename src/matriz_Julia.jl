@@ -8,6 +8,9 @@
  *
  * Linguagem: Julia
  *
+ * Autores: Lucas Kriesel Sperotto, Thassio Artur Grisolia Vaz e Silva
+ * Data: 26/08/2026
+ *
  * Parâmetros (CLI): B Npts M Escala out_csv
  *  - B: tamanho máximo da matriz; N varia de 100 até B
  *  - Npts: número de pontos na escala (2 a 10000)
@@ -15,7 +18,7 @@
  *  - Escala: 0=logarítmica, 1=linear
  *  - out_csv: caminho do arquivo CSV de saída
  *
- * Contrato completo em EXTRA_LANGUAGES.md.
+ * Contrato completo em docs/EXTRA_LANGUAGES.md.
  **********************************************************************=#
 
 using Printf
@@ -70,10 +73,18 @@ end
 # os acessos sao seguros por construcao. Sem isso, a checagem de limites do
 # Julia custaria uma fracao substancial de TCS sem equivalente no C/C++/Rust
 # (ver M1 na revisao de codigo do Rust, medido empiricamente em ~40%).
-function multiply!(res::Matrix{Int}, mat1::Matrix{Int}, mat2::Matrix{Int}, n::Int)
+#
+# Elementos em Int32 (32 bits), igual a C/C++/Java/Rust: `acc` e' declarado
+# explicitamente como Int32(0), nao como o literal `0` (que Julia infere como
+# Int nativo, 64 bits nas plataformas 64-bit). Sem essa anotacao, `acc` seria
+# Int e cada `mat1[i,k]*mat2[k,j]` (Int32) seria promovido implicitamente para
+# a largura nativa na soma, reintroduzindo essa largura pela porta dos fundos
+# mesmo com mat1/mat2/res em Int32. Indices i, j, k e n permanecem Int (nao
+# ha motivo para estreitar contadores/dimensoes).
+function multiply!(res::Matrix{Int32}, mat1::Matrix{Int32}, mat2::Matrix{Int32}, n::Int)
     @inbounds for i in 1:n
         for j in 1:n
-            acc = 0
+            acc = Int32(0)
             for k in 1:n
                 acc += mat1[i, k] * mat2[k, j]
             end
@@ -83,10 +94,13 @@ function multiply!(res::Matrix{Int}, mat1::Matrix{Int}, mat2::Matrix{Int}, n::In
     return nothing
 end
 
-# `idxs` sao indices logicos 0-based (0, N/2, N-1), como no contrato. O acesso
-# ao array Julia (1-based) usa `idx + 1`; o valor esperado usa os indices
-# logicos diretamente, sem deslocamento, igual as demais linguagens.
-function verify_sample(res::Matrix{Int}, n::Int)
+# `idxs` sao indices logicos 0-based (0, N/2, N-1), como no contrato, do tipo
+# Int (indices nao sao estreitados para Int32). O acesso ao array Julia
+# (1-based) usa `idx + 1`; o valor esperado usa os indices logicos
+# diretamente, sem deslocamento, igual as demais linguagens. A comparacao
+# `actual != expected` mistura Int32 (actual) e Int (expected) sem problema:
+# Julia promove apenas para a comparacao, sem afetar o tipo armazenado.
+function verify_sample(res::Matrix{Int32}, n::Int)
     idxs = (0, n ÷ 2, n - 1)
     for i in idxs
         for j in idxs
@@ -113,13 +127,15 @@ function run_once(n::Int)::Times
     # achado M2 na revisao do Rust). `res` nasce zerado com `zeros`, exigido
     # pelo contrato ("TAM: alocacao e inicializacao... do resultado"); e
     # reescrito por completo depois, na janela de TCS, por multiply!.
-    mat1 = Matrix{Int}(undef, n, n)
-    mat2 = Matrix{Int}(undef, n, n)
-    res = zeros(Int, n, n)
+    # Elementos em Int32; conversoes explicitas na inicializacao evitam
+    # depender da conversao implicita de setindex! e deixam o tipo visivel.
+    mat1 = Matrix{Int32}(undef, n, n)
+    mat2 = Matrix{Int32}(undef, n, n)
+    res = zeros(Int32, n, n)
     @inbounds for i in 1:n
         for j in 1:n
-            mat1[i, j] = (i - 1) + (j - 1)
-            mat2[i, j] = i == j ? 1 : 0
+            mat1[i, j] = Int32((i - 1) + (j - 1))
+            mat2[i, j] = i == j ? Int32(1) : Int32(0)
         end
     end
     alloc_time = (time_ns() - start_alloc) / 1.0e9
@@ -199,4 +215,11 @@ function main()
     exit(0)
 end
 
-main()
+# Guarda padrao do Julia: so dispara main() quando este arquivo e' executado
+# diretamente (`julia matriz_Julia.jl ...`), nao quando e' apenas incluido via
+# `include(...)` por outro script (ex.: tests/test_matriz_julia.jl, que reusa
+# multiply!/verify_sample sem acionar a CLI). Nao altera o comportamento de
+# nenhuma invocacao real do benchmark.
+if abspath(PROGRAM_FILE) == abspath(@__FILE__)
+    main()
+end

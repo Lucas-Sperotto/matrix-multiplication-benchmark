@@ -6,6 +6,9 @@
 #
 # Linguagem: Elixir
 #
+# Autores: Lucas Kriesel Sperotto, Thassio Artur Grisolia Vaz e Silva
+# Data: 26/08/2026
+#
 # Parâmetros (CLI): B Npts M Escala out_csv
 #  - B: tamanho máximo da matriz; N varia de 100 até B
 #  - Npts: número de pontos na escala (2 a 10000)
@@ -16,30 +19,35 @@
 # Representação da matriz — comparação feita antes de implementar:
 #  1. Listas encadeadas: acesso a um índice arbitrário é O(N); indexar uma
 #     matriz N x N como lista-de-listas via `Enum.at/2` tornaria o próprio
-#     `multiply` O(N^5), não O(N^3) — mudaria a complexidade do algoritmo,
+#     `multiply` O(N^4), não O(N^3) — cada acesso a uma célula custa O(N)
+#     no pior caso, dentro dos três laços — e mudaria a complexidade,
 #     não apenas o estilo. Descartada para o acesso aleatório do laço quente.
 #  2. Tuplas aninhadas (tupla de tuplas-linha): leitura O(1) via `elem/2`
-#     (tuplas Erlang são blocos contíguos, como um array), mas `put_elem/3`
-#     copia a tupla inteira a cada atualização — inicializar célula a célula
-#     custaria O(N) por célula, ou seja, O(N^3) só para inicializar uma
-#     matriz N x N (deveria ser O(N^2)). Descartada para inicialização.
+#     segundo o contrato do runtime; a disposição física permanece detalhe
+#     de implementação do BEAM. `put_elem/3` copia a tupla a cada atualização,
+#     então inicializar célula a célula custaria O(N) por célula, ou O(N^3)
+#     para uma matriz N x N (deveria ser O(N^2)). Descartada para inicialização.
 #  3. `:array` do Erlang: apesar do nome, é uma árvore (não um bloco
 #     contíguo); leitura/escrita são O(log N), não O(1). Menos comparável a
 #     C/C++/Java/Python/Rust/Julia (todos O(1) por acesso) que uma tupla.
 #  4. Tupla plana única de N*N elementos, indexada por `i*N+j` (o mesmo
-#     esquema de indexação exigido para o Rust em EXTRA_LANGUAGES.md),
-#     construída UMA VEZ a partir de uma lista (construção O(N) por
-#     comprehension, sem custo de append) e congelada com
-#     `List.to_tuple/1` (O(N) para converter). Dá leitura O(1) (igual às
+#     esquema de indexação exigido para o Rust em docs/EXTRA_LANGUAGES.md),
+#     construída UMA VEZ a partir de uma lista (O(N^2) para percorrer as
+#     N^2 células, sem custo de append) e congelada com `List.to_tuple/1`
+#     (também O(N^2) em relação à dimensão). Dá leitura O(1) (igual às
 #     demais linguagens) e construção O(N^2) total (igual às demais
 #     linguagens), sem nunca mutar uma tupla já construída.
 #
-# Escolhida a opção 4: é a única que preserva tanto a complexidade de
-# acesso O(1) quanto a complexidade de construção O(N^2)/O(N^3) das outras
-# seis implementações, e usa a mesma convenção i*N+j do Rust, maximizando
-# comparabilidade sem alterar o algoritmo (mesmos três laços i, j, k).
+# Escolhida a opção 4: entre as alternativas avaliadas neste projeto, a
+# tupla plana apresentou o melhor compromisso para preservar acesso indexado
+# previsível e complexidade compatível com o contrato experimental — leitura
+# O(1) e construção O(N^2), equivalentes às outras seis implementações — e
+# usa a mesma convenção i*N+j do Rust, maximizando comparabilidade sem
+# alterar o algoritmo (mesmos três laços i, j, k). Isso não é uma prova de
+# unicidade assintótica: outras representações fora do conjunto avaliado
+# podem satisfazer os mesmos critérios.
 #
-# Contrato completo em EXTRA_LANGUAGES.md.
+# Contrato completo em docs/EXTRA_LANGUAGES.md.
 
 defmodule ContractError do
   defexception [:message]
@@ -84,7 +92,12 @@ defmodule MatrizElixir do
   # Construida via comprehension (O(N^2), i outer/j inner garante ordem
   # row-major) e congelada uma unica vez com List.to_tuple/1: nunca ha
   # put_elem/3 (que copiaria a estrutura inteira a cada chamada).
-  defp build_matrix(n, value_fun) do
+  #
+  # Publica (nao defp): permite que tests/test_matriz_elixir.exs chame esta
+  # funcao e multiply/3 diretamente para validar um caso nao identidade, sem
+  # duplicar a implementacao nem alterar o contrato de CLI. Nao ha efeito
+  # sobre o comportamento de main/1.
+  def build_matrix(n, value_fun) do
     list = for i <- 0..(n - 1), j <- 0..(n - 1), do: value_fun.(i, j)
     List.to_tuple(list)
   end
@@ -104,7 +117,10 @@ defmodule MatrizElixir do
   # do resultado sao inseparaveis aqui — por isso ficam inteiramente dentro
   # de TCS, nao de TAM (unica divergencia do texto do contrato compartilhado,
   # motivada pela imutabilidade da linguagem; ver relatorio do PR).
-  defp multiply(mat1, mat2, n) do
+  #
+  # Publica (nao defp) pelo mesmo motivo de build_matrix/2: reuso direto em
+  # tests/test_matriz_elixir.exs.
+  def multiply(mat1, mat2, n) do
     list = for i <- 0..(n - 1), j <- 0..(n - 1), do: dot_product(mat1, mat2, i, j, n)
     List.to_tuple(list)
   end
@@ -222,4 +238,12 @@ defmodule MatrizElixir do
   end
 end
 
-MatrizElixir.main(System.argv())
+# Guarda por variavel de ambiente: permite que tests/test_matriz_elixir.exs
+# carregue este arquivo via Code.require_file/1 (para reusar
+# MatrizElixir.multiply/3 e MatrizElixir.build_matrix/2) sem disparar main/1
+# e sem invocar System.halt/1, que encerraria o processo de teste. Em
+# qualquer invocacao real (`elixir matriz_multiplication.exs ...`), a
+# variavel nao esta definida e main/1 roda normalmente.
+if System.get_env("MATRIZ_ELIXIR_SKIP_MAIN") != "1" do
+  MatrizElixir.main(System.argv())
+end
