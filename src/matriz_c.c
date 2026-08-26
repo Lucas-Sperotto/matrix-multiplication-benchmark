@@ -160,7 +160,12 @@ static int run_once(int n, double *time_alloc, double *time_calc, double *time_f
     start = now_seconds();
     mat1 = (int *)malloc(n2 * sizeof(int));
     mat2 = (int *)malloc(n2 * sizeof(int));
-    res = (int *)malloc(n2 * sizeof(int));
+    /* calloc (nao malloc) para res: contrato exige TAM = alocacao E
+     * inicializacao de A, B e do resultado. mat1/mat2 usam malloc porque
+     * todo elemento e sobrescrito uma unica vez no laco abaixo; zerar res
+     * com calloc evita reescrever cada posicao duas vezes (uma para zerar,
+     * outra em multiply()) so para alinhar o TAM ao das demais linguagens. */
+    res = (int *)calloc(n2, sizeof(int));
     if (mat1 == NULL || mat2 == NULL || res == NULL)
     {
         fprintf(stderr, "Falha de alocacao para N=%d\n", n);

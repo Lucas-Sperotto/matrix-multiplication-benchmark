@@ -40,7 +40,7 @@ def parse_int(text: str, name: str, min_value: int, max_value: int) -> int:
 def make_points(b: int, npts: int, escala: int, a: float = 100.0) -> list[int]:
     # round() nativo do Python arredonda metade-para-par (banker's rounding),
     # divergindo de C/C++/Java em pontos x.5 exatos. O contrato documentado
-    # em EXTRA_LANGUAGES.md usa metade-para-cima; floor(x + 0.5) replica isso
+    # em docs/EXTRA_LANGUAGES.md usa metade-para-cima; floor(x + 0.5) replica isso
     # e mantém a mesma série de N entre todas as linguagens de referência.
     if escala == 1:
         step = (b - a) / (npts - 1)
@@ -50,15 +50,17 @@ def make_points(b: int, npts: int, escala: int, a: float = 100.0) -> list[int]:
     return [math.floor(a * (ratio**i) + 0.5) for i in range(npts)]
 
 
-def multiply(mat1: list[list[int]], mat2: list[list[int]], n: int) -> list[list[int]]:
-    res = [[0] * n for _ in range(n)]
+def multiply(mat1: list[list[int]], mat2: list[list[int]], res: list[list[int]], n: int) -> None:
+    # res e' recebido ja alocado/zerado (criado em run_once, dentro da janela
+    # de TAM) e preenchido aqui, em TCS: alinha a fronteira TAM/TCS do
+    # resultado com C/C++/Java/Rust/Julia, que alocam e inicializam res antes
+    # de cronometrar o calculo. Sem retorno: multiply muta res in place.
     for i in range(n):
         for j in range(n):
             total = 0
             for k in range(n):
                 total += mat1[i][k] * mat2[k][j]
             res[i][j] = total
-    return res
 
 
 def verify_sample(res: list[list[int]], n: int) -> None:
@@ -73,10 +75,11 @@ def run_once(n: int) -> tuple[float, float, float]:
     start_alloc = time.perf_counter()
     mat1 = [[i + j for j in range(n)] for i in range(n)]
     mat2 = [[1 if i == j else 0 for j in range(n)] for i in range(n)]
+    res = [[0] * n for _ in range(n)]
     end_alloc = time.perf_counter()
 
     start_calc = time.perf_counter()
-    res = multiply(mat1, mat2, n)
+    multiply(mat1, mat2, res, n)
     end_calc = time.perf_counter()
 
     verify_sample(res, n)
