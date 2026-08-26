@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import csv
+import math
 import sys
 import time
 from pathlib import Path
@@ -37,12 +38,16 @@ def parse_int(text: str, name: str, min_value: int, max_value: int) -> int:
 
 
 def make_points(b: int, npts: int, escala: int, a: float = 100.0) -> list[int]:
+    # round() nativo do Python arredonda metade-para-par (banker's rounding),
+    # divergindo de C/C++/Java em pontos x.5 exatos. O contrato documentado
+    # em EXTRA_LANGUAGES.md usa metade-para-cima; floor(x + 0.5) replica isso
+    # e mantém a mesma série de N entre todas as linguagens de referência.
     if escala == 1:
         step = (b - a) / (npts - 1)
-        return [round(a + step * i) for i in range(npts)]
+        return [math.floor(a + step * i + 0.5) for i in range(npts)]
 
     ratio = (b / a) ** (1.0 / (npts - 1))
-    return [round(a * (ratio**i)) for i in range(npts)]
+    return [math.floor(a * (ratio**i) + 0.5) for i in range(npts)]
 
 
 def multiply(mat1: list[list[int]], mat2: list[list[int]], n: int) -> list[list[int]]:
