@@ -1,0 +1,34 @@
+{
+  "generated_at": "2026-10-06T13:14:13-03:00",
+  "linux": {
+    "kernel": "6.18.40.1-microsoft-standard-WSL2",
+    "distro": "Ubuntu 26.04.1 LTS",
+    "is_wsl": true,
+    "cpu": {
+      "model": "11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz",
+      "logical_cpus": "8",
+      "threads_per_core": "2",
+      "cores_per_socket": "4",
+      "max_mhz": "",
+      "min_mhz": "",
+      "cache_l1d": "192 KiB (4 instances)",
+      "cache_l2": "5 MiB (4 instances)",
+      "cache_l3": "8 MiB (1 instance)"
+    },
+    "memory": {
+      "total_kb": "3879292",
+      "total_gb": "3.70"
+    },
+    "gpu": "N/D"
+  },
+  "windows_host": {
+    "os": "Windows 10 Home Single Language 26H2",
+    "cpu": "11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz",
+    "physical_cores": "4",
+    "logical_processors": "8",
+    "max_mhz": "2419",
+    "current_mhz": "2419",
+    "ram_gb": "7,74",
+    "wsl_status": "Distribuição Padrão: Ubuntu\nVersão Padrão: 2\nWSL1 não é compatível com a configuração atual da máquina. \n Habilite o componente opcional \"Windows Subsystem for Linux\" para usar WSL1."
+  }
+}
