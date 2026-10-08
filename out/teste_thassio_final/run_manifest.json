@@ -1,0 +1,74 @@
+{
+  "run_id": "teste_thassio_final",
+  "generated_at": "2026-10-07T22:33:46.115391+00:00",
+  "commit_hash": "6cf7c2534d7de638891d5b26433f6d3454f2ab8d",
+  "system": {
+    "platform": "Linux-6.18.40.1-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+    "machine": "x86_64",
+    "python": "3.14.4"
+  },
+  "parameters": {
+    "B": 3000,
+    "Npts": 10,
+    "M": 10,
+    "escala": 1
+  },
+  "tools": {
+    "gcc": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+    "g++": "g++ (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+    "java": "openjdk version \"21.0.12.1\" 2026-08-18\nOpenJDK Runtime Environment (build 21.0.12.1+1-1-26.04.4-Ubuntu)\nOpenJDK 64-Bit Server VM (build 21.0.12.1+1-1-26.04.4-Ubuntu, mixed mode, sharing)",
+    "java_gc": "UseG1GC",
+    "javac": "javac 21.0.12.1",
+    "python": "Python 3.14.4",
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "julia": "julia version 1.13.1",
+    "elixir": "Elixir 1.18.3 (compiled with Erlang/OTP 27)"
+  },
+  "languages": [
+    {
+      "name": "C",
+      "flags": "-std=c11 -Wall -Wextra",
+      "output": "resultado_c.csv"
+    },
+    {
+      "name": "C",
+      "flags": "-std=c11 -Wall -Wextra -O3",
+      "output": "resultado_c_O3.csv"
+    },
+    {
+      "name": "C++",
+      "flags": "-std=c++17 -Wall -Wextra",
+      "output": "resultado_cpp.csv"
+    },
+    {
+      "name": "C++",
+      "flags": "-std=c++17 -Wall -Wextra -O3",
+      "output": "resultado_cpp_O3.csv"
+    },
+    {
+      "name": "Java",
+      "flags": "",
+      "output": "resultado_java.csv"
+    },
+    {
+      "name": "Python",
+      "flags": "",
+      "output": "resultado_python.csv"
+    },
+    {
+      "name": "Rust",
+      "flags": "--edition=2021 -C opt-level=3 -D warnings",
+      "output": "resultado_rust.csv"
+    },
+    {
+      "name": "Julia",
+      "flags": "",
+      "output": "resultado_julia.csv"
+    },
+    {
+      "name": "Elixir",
+      "flags": "",
+      "output": "resultado_elixir.csv"
+    }
+  ]
+}
